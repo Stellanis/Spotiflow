@@ -36,6 +36,10 @@ async def lifespan(app: FastAPI):
     # Startup
     print(f"--- STARTUP: Database path is: {os.path.abspath(DB_NAME)} ---")
     init_db()
+    # Run immediately on startup
+    print("Triggering initial scrobble check...")
+    scheduler.add_job(check_new_scrobbles, 'date', run_date=datetime.now())
+    # Schedule periodic checks
     scheduler.add_job(check_new_scrobbles, 'interval', minutes=30)
     scheduler.start()
     print("Scheduler started.")
