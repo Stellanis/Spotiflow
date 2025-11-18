@@ -2,7 +2,11 @@ import sqlite3
 from datetime import datetime
 import os
 
-DB_NAME = "downloads.db"
+DATA_DIR = "data"
+DB_NAME = os.path.join(DATA_DIR, "downloads.db")
+
+if not os.path.exists(DATA_DIR):
+    os.makedirs(DATA_DIR)
 
 def init_db():
     conn = sqlite3.connect(DB_NAME)
