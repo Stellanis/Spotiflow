@@ -2,7 +2,7 @@
 
 A self-hosted application that automatically downloads your recent Last.fm scrobbles as high-quality MP3s, organized perfectly for Plex.
 
-![Dashboard Preview](https://placehold.co/600x400?text=Dashboard+Preview) 
+![Dashboard Preview](dashboard_preview.png) 
 *(Replace with actual screenshot if available)*
 
 ## 🚀 Features
