@@ -4,6 +4,7 @@ import os
 
 DATA_DIR = "data"
 DB_NAME = os.path.join(DATA_DIR, "downloads.db")
+print(f"Database path: {os.path.abspath(DB_NAME)}")
 
 if not os.path.exists(DATA_DIR):
     os.makedirs(DATA_DIR)
