@@ -5,7 +5,7 @@ import os
 from dotenv import load_dotenv
 from services.lastfm import LastFMService
 from services.downloader import DownloaderService
-from database import init_db, get_downloads, DB_NAME
+from database import init_db, get_downloads, is_downloaded, DB_NAME
 from apscheduler.schedulers.background import BackgroundScheduler
 from contextlib import asynccontextmanager
 from datetime import datetime
@@ -64,6 +64,7 @@ class DownloadRequest(BaseModel):
     artist: str = None
     title: str = None
     album: str = None
+    image: str = None
 
 @app.get("/")
 async def root():
@@ -77,6 +78,10 @@ async def health_check():
 async def get_scrobbles(user: str, limit: int = 10):
     try:
         tracks = lastfm_service.get_recent_tracks(user, limit)
+        # Check if each track is already downloaded
+        for track in tracks:
+            query = f"{track['artist']} - {track['title']}"
+            track['downloaded'] = is_downloaded(query)
         return tracks
     except Exception as e:
         import traceback
@@ -91,5 +96,5 @@ async def list_downloads():
 @app.post("/download")
 async def download_song(request: DownloadRequest, background_tasks: BackgroundTasks):
     # Run download in background to not block the API
-    background_tasks.add_task(downloader_service.download_song, request.query, request.artist, request.title, request.album)
+    background_tasks.add_task(downloader_service.download_song, request.query, request.artist, request.title, request.album, request.image)
     return {"status": "queued", "query": request.query}

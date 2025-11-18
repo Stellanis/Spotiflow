@@ -19,21 +19,30 @@ def init_db():
             artist TEXT,
             title TEXT,
             album TEXT,
+            image_url TEXT,
             status TEXT,
             created_at TIMESTAMP
         )
     ''')
+    
+    # Migration: Check if image_url column exists, if not add it
+    c.execute("PRAGMA table_info(downloads)")
+    columns = [info[1] for info in c.fetchall()]
+    if 'image_url' not in columns:
+        print("Migrating database: adding image_url column")
+        c.execute("ALTER TABLE downloads ADD COLUMN image_url TEXT")
+        
     conn.commit()
     conn.close()
 
-def add_download(query, artist, title, album, status="completed"):
+def add_download(query, artist, title, album, image_url=None, status="completed"):
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
     try:
         c.execute('''
-            INSERT INTO downloads (query, artist, title, album, status, created_at)
-            VALUES (?, ?, ?, ?, ?, ?)
-        ''', (query, artist, title, album, status, datetime.now()))
+            INSERT INTO downloads (query, artist, title, album, image_url, status, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        ''', (query, artist, title, album, image_url, status, datetime.now()))
         conn.commit()
         return True
     except sqlite3.IntegrityError:

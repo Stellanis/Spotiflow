@@ -8,7 +8,7 @@ class DownloaderService:
         if not os.path.exists(self.download_path):
             os.makedirs(self.download_path)
 
-    def download_song(self, query: str, artist: str = None, title: str = None, album: str = None):
+    def download_song(self, query: str, artist: str = None, title: str = None, album: str = None, image_url: str = None):
         if is_downloaded(query):
             print(f"Skipping {query}, already downloaded.")
             return {"status": "skipped", "message": "Already downloaded"}
@@ -105,7 +105,7 @@ class DownloaderService:
                         os.rename(downloaded_file, final_filename)
                         print(f"Renamed to: {final_filename}")
                         
-                        add_download(query, clean_artist, clean_title, clean_album, status="completed")
+                        add_download(query, clean_artist, clean_title, clean_album, image_url=image_url, status="completed")
                         return {"status": "success", "info": info, "file": final_filename}
                     except Exception as e:
                         print(f"Error tagging/renaming: {e}")
