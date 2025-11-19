@@ -1,9 +1,9 @@
 version: '3.8'
 
 services:
-  # --- Spotify Scrobbler Backend ---
+  # --- Spotiflow Backend ---
   backend:
-    container_name: spotify_scrobbler_backend
+    container_name: spotiflow_backend
     build:
       context: ./backend
       dockerfile: Dockerfile
@@ -35,9 +35,9 @@ services:
         reservations:
           memory: "128M"
 
-  # --- Spotify Scrobbler Frontend ---
+  # --- Spotiflow Frontend ---
   frontend:
-    container_name: spotify_scrobbler_frontend
+    container_name: spotiflow_frontend
     build:
       context: ./frontend
       dockerfile: Dockerfile

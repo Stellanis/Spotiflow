@@ -1,4 +1,4 @@
-# Spotify Scrobble Downloader
+# Spotiflow
 
 A self-hosted application that automatically downloads your recent Last.fm scrobbles as high-quality MP3s, organized perfectly for Plex.
 
@@ -63,7 +63,7 @@ This project includes a `docker-compose.nas.yml` optimized for NAS setups.
     **Environment Variables for Paths**:
     Add these to your Portainer Stack Environment variables:
     -   `HOST_MUSIC_PATH`: The absolute path to your music folder on the NAS (e.g., `/volume1/docker/data/Music`)
-    -   `HOST_DATA_PATH`: The absolute path where you want to store app data (e.g., `/volume1/docker/appdata/spotify-scrobbler/data`)
+    -   `HOST_DATA_PATH`: The absolute path where you want to store app data (e.g., `/volume1/docker/appdata/spotiflow/data`)
 
 7.  **Deploy Stack**.
     *Note: Portainer will build the image from the source code in the repository. This may take a few minutes.*

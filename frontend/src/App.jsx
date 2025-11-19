@@ -131,7 +131,7 @@ function App() {
               <Music className="w-8 h-8 text-white" />
             </div>
             <div>
-              <h1 className="text-3xl font-bold tracking-tight">Spotify Downloader</h1>
+              <h1 className="text-3xl font-bold tracking-tight">Spotiflow</h1>
               <p className="text-spotify-grey text-sm">Powered by Last.fm & yt-dlp</p>
             </div>
           </div>
