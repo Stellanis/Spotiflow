@@ -28,7 +28,7 @@ def check_new_scrobbles():
         for track in tracks:
             query = f"{track['artist']} - {track['title']}"
             print(f"Processing: {query}")
-            downloader_service.download_song(query, artist=track['artist'], title=track['title'], album=track['album'])
+            downloader_service.download_song(query, artist=track['artist'], title=track['title'], album=track['album'], image_url=track.get('image'))
     except Exception as e:
         print(f"Error in background job: {e}")
 
