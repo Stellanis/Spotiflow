@@ -34,7 +34,6 @@ services:
           memory: "512M"
         reservations:
           memory: "128M"
-    network_mode: bridge
 
   # --- Spotify Scrobbler Frontend ---
   frontend:
@@ -53,4 +52,3 @@ services:
           memory: "256M"
         reservations:
           memory: "64M"
-    network_mode: bridge
