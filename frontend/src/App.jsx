@@ -5,7 +5,7 @@ import { Download, Music, Disc, Search, CheckCircle, Loader2, Settings, ChevronL
 import { cn } from './utils';
 import { SettingsModal } from './SettingsModal';
 
-const API_URL = 'http://localhost:8000';
+const API_URL = '/api';
 
 function App() {
   const [view, setView] = useState('scrobbles'); // 'scrobbles' or 'library'
