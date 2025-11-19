@@ -18,12 +18,12 @@ services:
       - "8000:8000"
     volumes:
       - type: bind
-        source: /volume1/docker/data/Music
+        source: ${HOST_MUSIC_PATH}
         target: /app/downloads
         bind:
           create_host_path: true
       - type: bind
-        source: /volume1/docker/appdata/spotify-scrobbler/data
+        source: ${HOST_DATA_PATH}
         target: /app/data
         bind:
           create_host_path: true

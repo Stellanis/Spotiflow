@@ -58,12 +58,15 @@ This project includes a `docker-compose.nas.yml` optimized for NAS setups.
     -   `LASTFM_API_KEY`: Your Last.fm API Key
     -   `LASTFM_USER`: Your Last.fm Username
 6.  **Volume Mapping** (Crucial):
-    Ensure the volume mapping in `docker-compose.nas.yml` matches your NAS music folder path:
-    ```yaml
-    volumes:
-      - /volume1/docker/data/Music:/app/downloads
-    ```
+    Ensure the volume mapping in `docker-compose.nas.yml` uses variables or matches your NAS music folder path.
+    
+    **Environment Variables for Paths**:
+    Add these to your Portainer Stack Environment variables:
+    -   `HOST_MUSIC_PATH`: The absolute path to your music folder on the NAS (e.g., `/volume1/docker/data/Music`)
+    -   `HOST_DATA_PATH`: The absolute path where you want to store app data (e.g., `/volume1/docker/appdata/spotify-scrobbler/data`)
+
 7.  **Deploy Stack**.
+    *Note: Portainer will build the image from the source code in the repository. This may take a few minutes.*
 
 ## 📂 Folder Structure
 
