@@ -118,6 +118,7 @@ class SettingsRequest(BaseModel):
     scrobble_update_interval: int = None
     scrobble_limit_count: int = None
     auto_download: bool = None
+    tutorial_seen: bool = None
 
 @app.get("/settings")
 async def get_settings():
@@ -150,6 +151,9 @@ async def update_settings(settings: SettingsRequest):
 
     if settings.auto_download is not None:
         set_setting("AUTO_DOWNLOAD", str(settings.auto_download).lower())
+
+    if settings.tutorial_seen is not None:
+        set_setting("TUTORIAL_SEEN", str(settings.tutorial_seen).lower())
 
     if settings.scrobble_update_interval is not None:
         old_interval = int(get_setting("SCROBBLE_UPDATE_INTERVAL") or 30)

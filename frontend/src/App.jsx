@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Download, Music, Disc, Search, CheckCircle, Loader2, Settings, ChevronLeft, ChevronRight, RefreshCw } from 'lucide-react';
 import { cn } from './utils';
 import { SettingsModal } from './SettingsModal';
+import { TutorialModal } from './TutorialModal';
 
 import { Toaster, toast } from 'react-hot-toast';
 
@@ -19,6 +20,7 @@ function App() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [autoDownload, setAutoDownload] = useState(true);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [showTutorial, setShowTutorial] = useState(false);
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -34,6 +36,11 @@ function App() {
           setUsername(response.data.LASTFM_USER);
         }
         setAutoDownload(response.data.AUTO_DOWNLOAD !== 'false');
+
+        // Check if tutorial has been seen
+        if (response.data.TUTORIAL_SEEN !== 'true') {
+          setShowTutorial(true);
+        }
       } catch (error) {
         console.error("Error fetching settings:", error);
       }
@@ -167,6 +174,17 @@ function App() {
         onSave={(newUsername, newAutoDownload) => {
           setUsername(newUsername);
           setAutoDownload(newAutoDownload);
+        }}
+      />
+      <TutorialModal
+        isOpen={showTutorial}
+        onClose={async () => {
+          setShowTutorial(false);
+          try {
+            await axios.post(`${API_URL}/settings`, { tutorial_seen: true });
+          } catch (error) {
+            console.error("Failed to save tutorial status:", error);
+          }
         }}
       />
       <div className="w-[95%] mx-auto space-y-8">
