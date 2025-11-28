@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FaSync, FaClock, FaDownload, FaCheckCircle, FaHourglassHalf } from 'react-icons/fa';
+import { RefreshCw, Clock, Download, CheckCircle, Hourglass } from 'lucide-react';
 
 function Jobs() {
     const [jobs, setJobs] = useState({ active_downloads: [], next_scrobble_check: null });
@@ -46,7 +46,7 @@ function Jobs() {
     return (
         <div className="p-6 text-white">
             <h1 className="text-3xl font-bold mb-6 flex items-center gap-3">
-                <FaHourglassHalf className="text-yellow-400" /> Background Jobs
+                <Hourglass className="text-yellow-400" /> Background Jobs
             </h1>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
@@ -57,7 +57,7 @@ function Jobs() {
                             <h2 className="text-xl font-semibold mb-1">Scrobble Sync</h2>
                             <p className="text-gray-400 text-sm">Checks Last.fm for new tracks</p>
                         </div>
-                        <FaClock className="text-blue-400 text-2xl" />
+                        <Clock className="text-blue-400 text-2xl" />
                     </div>
 
                     <div className="mb-4">
@@ -71,7 +71,7 @@ function Jobs() {
                         className={`w-full py-2 px-4 rounded-lg font-medium transition-all flex items-center justify-center gap-2
               ${syncing ? 'bg-gray-600 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-500 active:scale-95'}`}
                     >
-                        <FaSync className={syncing ? "animate-spin" : ""} />
+                        <RefreshCw className={syncing ? "animate-spin" : ""} />
                         {syncing ? 'Syncing...' : 'Sync Now'}
                     </button>
                 </div>
@@ -83,7 +83,7 @@ function Jobs() {
                             <h2 className="text-xl font-semibold mb-1">Download Queue</h2>
                             <p className="text-gray-400 text-sm">Active and queued downloads</p>
                         </div>
-                        <FaDownload className="text-green-400 text-2xl" />
+                        <Download className="text-green-400 text-2xl" />
                     </div>
                     <div className="flex gap-4">
                         <div className="text-center p-3 bg-gray-700 rounded-lg flex-1">
@@ -110,7 +110,7 @@ function Jobs() {
 
                 {jobs.active_downloads.length === 0 ? (
                     <div className="p-8 text-center text-gray-500">
-                        <FaCheckCircle className="text-4xl mx-auto mb-3 opacity-20" />
+                        <CheckCircle className="text-4xl mx-auto mb-3 opacity-20" />
                         <p>No active downloads</p>
                     </div>
                 ) : (
