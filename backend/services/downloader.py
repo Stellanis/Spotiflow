@@ -1,6 +1,7 @@
 import yt_dlp
 import os
 import logging
+import threading
 from database import is_downloaded, add_download
 
 logger = logging.getLogger(__name__)
@@ -10,13 +11,28 @@ class DownloaderService:
         self.download_path = download_path
         if not os.path.exists(self.download_path):
             os.makedirs(self.download_path)
+        # Limit concurrent downloads to 3 to prevent IP bans
+        self.semaphore = threading.Semaphore(3)
+        self.active_downloads = [] # List of dicts: {'query': str, 'status': str}
+
+    def get_active_downloads(self):
+        return self.active_downloads
 
     def download_song(self, query: str, artist: str = None, title: str = None, album: str = None, image_url: str = None):
-        if is_downloaded(query):
-            logger.info(f"Skipping {query}, already downloaded.")
-            return {"status": "skipped", "message": "Already downloaded"}
-
-        # Use a temporary filename to avoid issues with special characters in YouTube titles
+        # Add to active downloads list (status: queued)
+        job_info = {'query': query, 'artist': artist, 'title': title, 'status': 'queued'}
+        self.active_downloads.append(job_info)
+        
+        try:
+            with self.semaphore:
+                # Update status to downloading
+                job_info['status'] = 'downloading'
+                
+                if is_downloaded(query):
+                    logger.info(f"Skipping {query}, already downloaded.")
+                    return {"status": "skipped", "message": "Already downloaded"}
+        
+                # Use a temporary filename to avoid issues with special characters in YouTube titles
         temp_filename = f'{self.download_path}/temp_{query.replace(" ", "_")}.%(ext)s'
         
         ydl_opts = {
@@ -149,3 +165,6 @@ class DownloaderService:
             except Exception as e:
                 logger.error(f"Download failed for {query}: {e}")
                 return {"status": "error", "message": str(e)}
+        finally:
+            if job_info in self.active_downloads:
+                self.active_downloads.remove(job_info)

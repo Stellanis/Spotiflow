@@ -233,3 +233,18 @@ async def download_all_pending(background_tasks: BackgroundTasks):
         )
         count += 1
     return {"status": "queued", "count": count}
+
+@app.get("/jobs")
+async def get_jobs():
+    active_downloads = downloader_service.get_active_downloads()
+    
+    # Get next run time for scrobble check
+    next_run = None
+    job = scheduler.get_job('scrobble_check')
+    if job:
+        next_run = job.next_run_time
+        
+    return {
+        "active_downloads": active_downloads,
+        "next_scrobble_check": next_run
+    }
