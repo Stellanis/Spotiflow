@@ -57,7 +57,7 @@ def add_download(query, artist, title, album, image_url=None, status="completed"
                 artist=excluded.artist,
                 title=excluded.title,
                 album=excluded.album,
-                image_url=excluded.image_url,
+                image_url=COALESCE(excluded.image_url, downloads.image_url),
                 status=excluded.status,
                 created_at=excluded.created_at
         ''', (query, artist, title, album, image_url, status, datetime.now()))

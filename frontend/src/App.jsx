@@ -94,7 +94,7 @@ function App() {
         artist: track.artist,
         title: track.title,
         album: track.album,
-        image: track.image
+        image: track.image || track.image_url
       });
       setDownloading(prev => ({ ...prev, [query]: 'success' }));
       toast.success(`Downloading "${track.title}"`);
