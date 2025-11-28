@@ -166,6 +166,11 @@ async def update_settings(settings: SettingsRequest):
 
     return {"status": "updated"}
 
+@app.post("/sync")
+async def sync_scrobbles(background_tasks: BackgroundTasks):
+    background_tasks.add_task(check_new_scrobbles)
+    return {"status": "sync_started"}
+
 @app.get("/")
 async def root():
     return {"message": "Spotify Downloader API is running"}

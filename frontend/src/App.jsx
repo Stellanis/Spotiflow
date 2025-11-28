@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Download, Music, Disc, Search, CheckCircle, Loader2, Settings, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Download, Music, Disc, Search, CheckCircle, Loader2, Settings, ChevronLeft, ChevronRight, RefreshCw } from 'lucide-react';
 import { cn } from './utils';
 import { SettingsModal } from './SettingsModal';
 
@@ -18,6 +18,7 @@ function App() {
   const [downloadedTracks, setDownloadedTracks] = useState([]);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [autoDownload, setAutoDownload] = useState(true);
+  const [isSyncing, setIsSyncing] = useState(false);
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -108,6 +109,24 @@ function App() {
       setDownloading(prev => ({ ...prev, [query]: 'error' }));
       const errorMessage = error.response?.data?.detail || error.message || "Unknown error";
       toast.error(`Failed to download "${track.title}": ${errorMessage}`);
+    }
+  };
+
+  const handleSync = async () => {
+    setIsSyncing(true);
+    try {
+      await axios.post(`${API_URL}/sync`);
+      toast.success("Sync started");
+      // Wait a bit to allow backend to process some items, then refresh view
+      setTimeout(() => {
+        if (view === 'scrobbles') fetchScrobbles();
+        else fetchDownloads();
+      }, 2000);
+    } catch (error) {
+      console.error("Error syncing:", error);
+      toast.error("Failed to start sync");
+    } finally {
+      setTimeout(() => setIsSyncing(false), 1000);
     }
   };
 
@@ -205,6 +224,18 @@ function App() {
               title="Settings"
             >
               <Settings className="w-6 h-6" />
+            </button>
+
+            <button
+              onClick={handleSync}
+              disabled={isSyncing}
+              className={cn(
+                "p-2 hover:bg-white/10 rounded-full transition-colors text-spotify-grey hover:text-white",
+                isSyncing && "animate-spin text-spotify-green"
+              )}
+              title="Sync with Last.fm"
+            >
+              <RefreshCw className="w-6 h-6" />
             </button>
           </div>
         </header>
