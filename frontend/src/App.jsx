@@ -122,6 +122,14 @@ function App() {
   const handleDownloadAll = async () => {
     if (!confirm("Are you sure you want to download all pending tracks?")) return;
 
+    // Set all current tracks to loading state to disable buttons
+    const newDownloadingState = { ...downloading };
+    downloadedTracks.forEach(track => {
+      const query = `${track.artist} - ${track.title}`;
+      newDownloadingState[query] = 'loading';
+    });
+    setDownloading(newDownloadingState);
+
     try {
       const response = await axios.post(`${API_URL}/download/all`);
       toast.success(`Started downloading ${response.data.count} tracks`);
@@ -132,6 +140,15 @@ function App() {
     } catch (error) {
       console.error("Error downloading all:", error);
       toast.error("Failed to start bulk download");
+      // Revert loading state on error
+      setDownloading(prev => {
+        const next = { ...prev };
+        downloadedTracks.forEach(track => {
+          const query = `${track.artist} - ${track.title}`;
+          delete next[query];
+        });
+        return next;
+      });
     }
   };
 
