@@ -179,10 +179,10 @@ async def get_scrobbles(user: str, limit: int = 10):
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/downloads")
-async def list_downloads(page: int = 1, limit: int = 50):
+async def list_downloads(page: int = 1, limit: int = 50, status: str = None):
     from database import get_total_downloads_count
-    items = get_downloads(page, limit)
-    total = get_total_downloads_count()
+    items = get_downloads(page, limit, status)
+    total = get_total_downloads_count(status)
     total_pages = (total + limit - 1) // limit
     
     return {

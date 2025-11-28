@@ -10,7 +10,7 @@ import { Toaster, toast } from 'react-hot-toast';
 const API_URL = '/api';
 
 function App() {
-  const [view, setView] = useState('scrobbles'); // 'scrobbles' or 'library'
+  const [view, setView] = useState('scrobbles'); // 'scrobbles', 'library', or 'undownloaded'
   const [username, setUsername] = useState('');
   const [tracks, setTracks] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -63,12 +63,18 @@ function App() {
   const fetchDownloads = async () => {
     setLoading(true);
     try {
-      const response = await axios.get(`${API_URL}/downloads`, {
-        params: {
-          page: currentPage,
-          limit: itemsPerPage
-        }
-      });
+      const params = {
+        page: currentPage,
+        limit: itemsPerPage
+      };
+
+      if (view === 'library') {
+        params.status = 'completed';
+      } else if (view === 'undownloaded') {
+        params.status = 'pending';
+      }
+
+      const response = await axios.get(`${API_URL}/downloads`, { params });
       setDownloadedTracks(response.data.items);
       setTotalPages(response.data.total_pages);
     } catch (error) {
@@ -91,19 +97,16 @@ function App() {
         image: track.image
       });
       setDownloading(prev => ({ ...prev, [query]: 'success' }));
+      toast.success(`Downloading "${track.title}"`);
 
-      // If we are in library view, update the track status locally to avoid full refresh
-      if (view === 'library') {
-        setDownloadedTracks(prev => prev.map(t => {
-          if (`${t.artist} - ${t.title}` === query) {
-            return { ...t, status: 'completed' };
-          }
-          return t;
-        }));
+      // If we are in library or undownloaded view, refresh the list
+      if (view === 'library' || view === 'undownloaded') {
+        fetchDownloads();
       }
     } catch (error) {
       console.error("Error downloading:", error);
       setDownloading(prev => ({ ...prev, [query]: 'error' }));
+      toast.error(`Failed to download "${track.title}"`);
     }
   };
 
@@ -115,11 +118,9 @@ function App() {
     }
   }, [view, currentPage, itemsPerPage]);
 
-  const currentTracks = view === 'library'
+  const currentTracks = view === 'library' || view === 'undownloaded'
     ? downloadedTracks
     : tracks;
-
-  // const totalPages = Math.ceil(downloadedTracks.length / itemsPerPage); // Server provides this now
 
   const handlePageChange = (pageNumber) => {
     setCurrentPage(pageNumber);
@@ -153,7 +154,7 @@ function App() {
         {/* Header */}
         <header className="flex flex-col md:flex-row items-center justify-between glass-panel p-6 gap-4">
           <div className="flex items-center gap-4">
-            <div className={cn("p-3 rounded-full transition-colors duration-300", autoDownload ? "bg-spotify-green" : "bg-red-500")}>
+            <div className={cn("p-3 rounded-full transition-colors duration-300", autoDownload ? "bg-spotify-green" : "!bg-red-500")}>
               <Music className="w-8 h-8 text-white" />
             </div>
             <div>
@@ -185,6 +186,16 @@ function App() {
                 <CheckCircle className="w-4 h-4" />
                 Library
               </button>
+              <button
+                onClick={() => setView('undownloaded')}
+                className={cn(
+                  "px-4 py-1.5 rounded-md text-sm font-medium transition-colors flex items-center gap-2",
+                  view === 'undownloaded' ? "bg-spotify-green text-white" : "text-spotify-grey hover:text-white"
+                )}
+              >
+                <Download className="w-4 h-4" />
+                Undownloaded
+              </button>
             </div>
 
             <button
@@ -200,8 +211,11 @@ function App() {
         {/* Content */}
         <div className="space-y-4">
           <h2 className="text-xl font-semibold flex items-center gap-2">
-            {view === 'scrobbles' ? <Disc className="w-5 h-5 text-spotify-green" /> : <CheckCircle className="w-5 h-5 text-spotify-green" />}
-            {view === 'scrobbles' ? 'Recent Scrobbles' : 'Downloaded Library'}
+            {view === 'scrobbles' ? <Disc className="w-5 h-5 text-spotify-green" /> :
+              view === 'library' ? <CheckCircle className="w-5 h-5 text-spotify-green" /> :
+                <Download className="w-5 h-5 text-spotify-green" />}
+            {view === 'scrobbles' ? 'Recent Scrobbles' :
+              view === 'library' ? 'Downloaded Library' : 'Pending Downloads'}
           </h2>
 
           {loading ? (
@@ -211,13 +225,17 @@ function App() {
           ) : (
             <div className={cn(
               "grid gap-4",
-              view === 'library' ? "grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6" : "grid-cols-1"
+              view === 'library' || view === 'undownloaded' ? "grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6" : "grid-cols-1"
             )}>
-              {view === 'library' && currentTracks.length === 0 ? (
+              {(view === 'library' || view === 'undownloaded') && currentTracks.length === 0 ? (
                 <div className="col-span-full flex flex-col items-center justify-center py-20 text-spotify-grey">
                   <Music className="w-16 h-16 mb-4 opacity-50" />
-                  <p className="text-xl font-semibold">Your library is empty</p>
-                  <p className="text-sm mt-2">Download songs from your scrobbles to see them here.</p>
+                  <p className="text-xl font-semibold">
+                    {view === 'library' ? "Your library is empty" : "No pending downloads"}
+                  </p>
+                  <p className="text-sm mt-2">
+                    {view === 'library' ? "Download songs from your scrobbles to see them here." : "Disable auto-download to see pending items here."}
+                  </p>
                 </div>
               ) : (
                 <AnimatePresence mode="wait">
@@ -225,10 +243,10 @@ function App() {
                     const query = `${track.artist} - ${track.title}`;
                     // In library view, check track.status. If 'completed', it's downloaded.
                     // If 'pending', it's not.
-                    const isLibraryItemDownloaded = view === 'library' && track.status === 'completed';
+                    const isLibraryItemDownloaded = (view === 'library' || view === 'undownloaded') && track.status === 'completed';
                     const status = isLibraryItemDownloaded || track.downloaded ? 'success' : downloading[query];
 
-                    // Determine image source: track.image (scrobbles) or track.image_url (library)
+                    // Determine image source: track.image (scrobbles) or track.image_url (library/undownloaded)
                     const imageSrc = view === 'scrobbles' ? track.image : track.image_url;
 
                     return (
@@ -240,19 +258,19 @@ function App() {
                         transition={{ delay: index * 0.05 }}
                         className={cn(
                           "glass-panel group hover:bg-white/10 transition-colors relative overflow-hidden",
-                          view === 'library' ? "p-4 flex flex-col gap-3 aspect-square justify-between" : "p-4 flex items-center justify-between"
+                          view === 'library' || view === 'undownloaded' ? "p-4 flex flex-col gap-3 aspect-square justify-between" : "p-4 flex items-center justify-between"
                         )}
                       >
-                        <div className={cn("flex gap-4", view === 'library' ? "flex-col items-start w-full h-full" : "items-center")}>
+                        <div className={cn("flex gap-4", view === 'library' || view === 'undownloaded' ? "flex-col items-start w-full h-full" : "items-center")}>
                           <div className={cn(
                             "rounded-md overflow-hidden bg-spotify-dark relative flex items-center justify-center text-spotify-grey shadow-lg",
-                            view === 'library' ? "w-full aspect-square mb-2" : "w-16 h-16"
+                            view === 'library' || view === 'undownloaded' ? "w-full aspect-square mb-2" : "w-16 h-16"
                           )}>
                             {imageSrc ? (
                               <img src={imageSrc} alt={track.title} className="w-full h-full object-cover" />
                             ) : (
                               <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-spotify-dark to-spotify-grey/20 p-2 text-center">
-                                {view === 'library' ? (
+                                {view === 'library' || view === 'undownloaded' ? (
                                   <>
                                     <span className="font-bold text-white text-sm line-clamp-2">{track.title}</span>
                                     <span className="text-xs text-spotify-grey line-clamp-1 mt-1">{track.artist}</span>
@@ -263,8 +281,8 @@ function App() {
                               </div>
                             )}
 
-                            {/* Overlay Play/Check Icon for Library Grid */}
-                            {view === 'library' && (
+                            {/* Overlay Play/Check Icon for Library/Undownloaded Grid */}
+                            {(view === 'library' || view === 'undownloaded') && (
                               <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                                 {track.status === 'completed' ? (
                                   <CheckCircle className="w-8 h-8 text-spotify-green" />
@@ -283,20 +301,20 @@ function App() {
                             )}
                           </div>
 
-                          <div className={cn("w-full", view === 'library' ? "text-left" : "")}>
-                            <h3 className={cn("font-semibold truncate w-full", view === 'library' ? "text-sm" : "text-lg")}>
+                          <div className={cn("w-full", view === 'library' || view === 'undownloaded' ? "text-left" : "")}>
+                            <h3 className={cn("font-semibold truncate w-full", view === 'library' || view === 'undownloaded' ? "text-sm" : "text-lg")}>
                               {track.title}
                             </h3>
-                            <p className={cn("text-spotify-grey truncate w-full", view === 'library' ? "text-xs" : "")}>
+                            <p className={cn("text-spotify-grey truncate w-full", view === 'library' || view === 'undownloaded' ? "text-xs" : "")}>
                               {track.artist}
                             </p>
-                            {view !== 'library' && (
+                            {view !== 'library' && view !== 'undownloaded' && (
                               <p className="text-xs text-spotify-grey/60 mt-1">{track.album}</p>
                             )}
                           </div>
                         </div>
 
-                        {view !== 'library' && (
+                        {view !== 'library' && view !== 'undownloaded' && (
                           <button
                             onClick={() => handleDownload(track)}
                             disabled={status === 'loading' || status === 'success'}
@@ -325,7 +343,7 @@ function App() {
           )}
 
           {/* Pagination Controls */}
-          {view === 'library' && !loading && downloadedTracks.length > 0 && (
+          {(view === 'library' || view === 'undownloaded') && !loading && downloadedTracks.length > 0 && (
             <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-8 p-4 glass-panel">
               <div className="flex items-center gap-2 text-sm text-spotify-grey">
                 <span>Rows per page:</span>
