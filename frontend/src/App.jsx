@@ -175,6 +175,7 @@ function App() {
           setUsername(newUsername);
           setAutoDownload(newAutoDownload);
         }}
+        onReplayTutorial={() => setShowTutorial(true)}
       />
       <TutorialModal
         isOpen={showTutorial}

@@ -6,7 +6,7 @@ import { cn } from './utils';
 
 const API_URL = '/api';
 
-export function SettingsModal({ isOpen, onClose, onSave }) {
+export function SettingsModal({ isOpen, onClose, onSave, onReplayTutorial }) {
     const [apiKey, setApiKey] = useState('');
     const [apiSecret, setApiSecret] = useState('');
     const [username, setUsername] = useState('');
@@ -179,21 +179,32 @@ export function SettingsModal({ isOpen, onClose, onSave }) {
                                         </button>
                                     </div>
 
-                                    <div className="pt-4 flex justify-end gap-3">
+                                    <div className="pt-4 flex justify-between gap-3">
                                         <button
-                                            onClick={onClose}
-                                            className="px-4 py-2 rounded-lg text-sm font-medium text-white hover:bg-white/10 transition-colors"
+                                            onClick={() => {
+                                                onClose();
+                                                onReplayTutorial();
+                                            }}
+                                            className="px-4 py-2 rounded-lg text-sm font-medium text-spotify-grey hover:text-white hover:bg-white/10 transition-colors"
                                         >
-                                            Cancel
+                                            Replay Tutorial
                                         </button>
-                                        <button
-                                            onClick={handleSave}
-                                            disabled={saving}
-                                            className="px-4 py-2 rounded-lg text-sm font-medium bg-spotify-green text-white hover:bg-green-500 transition-colors flex items-center gap-2 disabled:opacity-50"
-                                        >
-                                            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                                            Save Changes
-                                        </button>
+                                        <div className="flex gap-3">
+                                            <button
+                                                onClick={onClose}
+                                                className="px-4 py-2 rounded-lg text-sm font-medium text-white hover:bg-white/10 transition-colors"
+                                            >
+                                                Cancel
+                                            </button>
+                                            <button
+                                                onClick={handleSave}
+                                                disabled={saving}
+                                                className="px-4 py-2 rounded-lg text-sm font-medium bg-spotify-green text-white hover:bg-green-500 transition-colors flex items-center gap-2 disabled:opacity-50"
+                                            >
+                                                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                                                Save Changes
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
                             )}
