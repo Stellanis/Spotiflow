@@ -192,3 +192,229 @@
 2025-11-28 21:21:06,498 - httpx - INFO - HTTP Request: POST https://ws.audioscrobbler.com/2.0/ "HTTP/1.1 200 OK"
 2025-11-28 21:21:06,500 - pylast - INFO - track.getInfo
 2025-11-28 21:21:06,709 - httpx - INFO - HTTP Request: POST https://ws.audioscrobbler.com/2.0/ "HTTP/1.1 200 OK"
+2025-11-28 22:49:13,095 - main - INFO - --- STARTUP: Database path is: C:\Users\mizer\Documents\MEGA\Home\Coding\Spotify_scrobbler\backend\data\downloads.db ---
+2025-11-28 22:49:13,113 - main - INFO - Triggering initial scrobble check...
+2025-11-28 22:49:13,115 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-11-28 22:49:13,116 - main - INFO - Scheduling scrobble check every 30 minutes.
+2025-11-28 22:49:13,118 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-11-28 22:49:13,133 - apscheduler.scheduler - INFO - Added job "check_new_scrobbles" to job store "default"
+2025-11-28 22:49:13,133 - apscheduler.scheduler - INFO - Added job "check_new_scrobbles" to job store "default"
+2025-11-28 22:49:13,133 - apscheduler.scheduler - INFO - Scheduler started
+2025-11-28 22:49:13,134 - main - INFO - Scheduler started.
+2025-11-28 22:49:13,134 - apscheduler.scheduler - INFO - Removed job f6087dfa68f9436087a312689fbc83c1
+2025-11-28 22:49:13,134 - apscheduler.executors.default - INFO - Running job "check_new_scrobbles (trigger: date[2025-11-28 22:49:13 CET], next run at: 2025-11-28 22:49:13 CET)" (scheduled at 2025-11-28 22:49:13.113313+01:00)
+2025-11-28 22:49:13,137 - main - INFO - Checking new scrobbles for wife5711 (limit: 20)...
+2025-11-28 22:49:13,139 - pylast - INFO - user.getRecentTracks
+2025-11-28 22:49:13,631 - httpx - INFO - HTTP Request: POST https://ws.audioscrobbler.com/2.0/ "HTTP/1.1 200 OK"
+2025-11-28 22:49:13,674 - pylast - INFO - track.getInfo
+2025-11-28 22:49:14,757 - httpx - INFO - HTTP Request: POST https://ws.audioscrobbler.com/2.0/ "HTTP/1.1 200 OK"
+2025-11-28 22:49:14,758 - pylast - INFO - track.getInfo
+2025-11-28 22:49:15,849 - httpx - INFO - HTTP Request: POST https://ws.audioscrobbler.com/2.0/ "HTTP/1.1 200 OK"
+2025-11-28 22:49:15,850 - pylast - INFO - track.getInfo
+2025-11-28 22:49:16,439 - httpx - INFO - HTTP Request: POST https://ws.audioscrobbler.com/2.0/ "HTTP/1.1 200 OK"
+2025-11-28 22:49:16,441 - pylast - INFO - track.getInfo
+2025-11-28 22:49:17,697 - httpx - INFO - HTTP Request: POST https://ws.audioscrobbler.com/2.0/ "HTTP/1.1 200 OK"
+2025-11-28 22:49:17,698 - pylast - INFO - track.getInfo
+2025-11-28 22:49:17,992 - httpx - INFO - HTTP Request: POST https://ws.audioscrobbler.com/2.0/ "HTTP/1.1 200 OK"
+2025-11-28 22:49:17,993 - pylast - INFO - track.getInfo
+2025-11-28 22:49:18,259 - httpx - INFO - HTTP Request: POST https://ws.audioscrobbler.com/2.0/ "HTTP/1.1 200 OK"
+2025-11-28 22:49:18,260 - pylast - INFO - track.getInfo
+2025-11-28 22:49:18,877 - httpx - INFO - HTTP Request: POST https://ws.audioscrobbler.com/2.0/ "HTTP/1.1 200 OK"
+2025-11-28 22:49:18,878 - pylast - INFO - track.getInfo
+2025-11-28 22:49:19,199 - httpx - INFO - HTTP Request: POST https://ws.audioscrobbler.com/2.0/ "HTTP/1.1 200 OK"
+2025-11-28 22:49:19,201 - pylast - INFO - track.getInfo
+2025-11-28 22:49:19,415 - httpx - INFO - HTTP Request: POST https://ws.audioscrobbler.com/2.0/ "HTTP/1.1 200 OK"
+2025-11-28 22:49:19,416 - pylast - INFO - track.getInfo
+2025-11-28 22:49:19,608 - httpx - INFO - HTTP Request: POST https://ws.audioscrobbler.com/2.0/ "HTTP/1.1 200 OK"
+2025-11-28 22:49:19,610 - pylast - INFO - track.getInfo
+2025-11-28 22:49:19,804 - httpx - INFO - HTTP Request: POST https://ws.audioscrobbler.com/2.0/ "HTTP/1.1 200 OK"
+2025-11-28 22:49:19,805 - pylast - INFO - track.getInfo
+2025-11-28 22:49:20,064 - httpx - INFO - HTTP Request: POST https://ws.audioscrobbler.com/2.0/ "HTTP/1.1 200 OK"
+2025-11-28 22:49:20,065 - pylast - INFO - track.getInfo
+2025-11-28 22:49:20,264 - httpx - INFO - HTTP Request: POST https://ws.audioscrobbler.com/2.0/ "HTTP/1.1 200 OK"
+2025-11-28 22:49:20,266 - pylast - INFO - track.getInfo
+2025-11-28 22:49:20,684 - httpx - INFO - HTTP Request: POST https://ws.audioscrobbler.com/2.0/ "HTTP/1.1 200 OK"
+2025-11-28 22:49:20,686 - pylast - INFO - track.getInfo
+2025-11-28 22:49:20,974 - httpx - INFO - HTTP Request: POST https://ws.audioscrobbler.com/2.0/ "HTTP/1.1 200 OK"
+2025-11-28 22:49:20,974 - pylast - INFO - track.getInfo
+2025-11-28 22:49:21,183 - httpx - INFO - HTTP Request: POST https://ws.audioscrobbler.com/2.0/ "HTTP/1.1 200 OK"
+2025-11-28 22:49:21,184 - pylast - INFO - track.getInfo
+2025-11-28 22:49:21,873 - httpx - INFO - HTTP Request: POST https://ws.audioscrobbler.com/2.0/ "HTTP/1.1 200 OK"
+2025-11-28 22:49:21,874 - pylast - INFO - track.getInfo
+2025-11-28 22:49:22,495 - httpx - INFO - HTTP Request: POST https://ws.audioscrobbler.com/2.0/ "HTTP/1.1 200 OK"
+2025-11-28 22:49:22,496 - pylast - INFO - track.getInfo
+2025-11-28 22:49:23,886 - httpx - INFO - HTTP Request: POST https://ws.audioscrobbler.com/2.0/ "HTTP/1.1 200 OK"
+2025-11-28 22:49:23,887 - pylast - INFO - track.getInfo
+2025-11-28 22:49:24,338 - httpx - INFO - HTTP Request: POST https://ws.audioscrobbler.com/2.0/ "HTTP/1.1 200 OK"
+2025-11-28 22:49:24,340 - main - INFO - Processing: Quintino - How It's Done
+2025-11-28 22:49:24,341 - services.downloader - INFO - Queued download: Quintino - How It's Done
+2025-11-28 22:49:24,341 - main - INFO - Processing: Vicetone - U Miss Me
+2025-11-28 22:49:24,343 - services.downloader - INFO - Queued download: Vicetone - U Miss Me
+2025-11-28 22:49:24,343 - main - INFO - Processing: Orbiter - We Do
+2025-11-28 22:49:24,344 - services.downloader - INFO - Queued download: Orbiter - We Do
+2025-11-28 22:49:24,345 - main - INFO - Processing: Unlike Pluto - JOLT
+2025-11-28 22:49:24,346 - services.downloader - INFO - Queued download: Unlike Pluto - JOLT
+2025-11-28 22:49:24,346 - main - INFO - Processing: KUURO - What U Wanna Do
+2025-11-28 22:49:24,347 - services.downloader - INFO - Queued download: KUURO - What U Wanna Do
+2025-11-28 22:49:24,347 - main - INFO - Processing: Unlike Pluto - Everything Black
+2025-11-28 22:49:24,348 - services.downloader - INFO - Queued download: Unlike Pluto - Everything Black
+2025-11-28 22:49:24,348 - main - INFO - Processing: Dada Life - We Want Your Soul - Mike Williams Remix
+2025-11-28 22:49:24,349 - services.downloader - INFO - Queued download: Dada Life - We Want Your Soul - Mike Williams Remix
+2025-11-28 22:49:24,349 - main - INFO - Processing: Jonth - Ring The Alarm
+2025-11-28 22:49:24,350 - services.downloader - INFO - Queued download: Jonth - Ring The Alarm
+2025-11-28 22:49:24,351 - main - INFO - Processing: Knife Party - Harpoon
+2025-11-28 22:49:24,351 - services.downloader - INFO - Queued download: Knife Party - Harpoon
+2025-11-28 22:49:24,352 - main - INFO - Processing: Inverness - Good Feeling
+2025-11-28 22:49:24,353 - services.downloader - INFO - Queued download: Inverness - Good Feeling
+2025-11-28 22:49:24,353 - main - INFO - Processing: Dimitri Vegas & Like Mike - Unity
+2025-11-28 22:49:24,354 - services.downloader - INFO - Queued download: Dimitri Vegas & Like Mike - Unity
+2025-11-28 22:49:24,355 - main - INFO - Processing: Oliver Heldens - This Groove - Codeko Remix
+2025-11-28 22:49:24,356 - services.downloader - INFO - Queued download: Oliver Heldens - This Groove - Codeko Remix
+2025-11-28 22:49:24,356 - main - INFO - Processing: Varien - Blood Hunter
+2025-11-28 22:49:24,357 - services.downloader - INFO - Queued download: Varien - Blood Hunter
+2025-11-28 22:49:24,357 - main - INFO - Processing: Rogue - Fury
+2025-11-28 22:49:24,358 - services.downloader - INFO - Queued download: Rogue - Fury
+2025-11-28 22:49:24,358 - main - INFO - Processing: Masked Wolf - Astronaut In The Ocean - Alok Remix
+2025-11-28 22:49:24,359 - services.downloader - INFO - Queued download: Masked Wolf - Astronaut In The Ocean - Alok Remix
+2025-11-28 22:49:24,359 - main - INFO - Processing: Roby Fayer - Out of Luck
+2025-11-28 22:49:24,360 - services.downloader - INFO - Queued download: Roby Fayer - Out of Luck
+2025-11-28 22:49:24,360 - main - INFO - Processing: KSHMR - Magic
+2025-11-28 22:49:24,361 - services.downloader - INFO - Queued download: KSHMR - Magic
+2025-11-28 22:49:24,361 - main - INFO - Processing: Headhunterz - Our Church
+2025-11-28 22:49:24,362 - services.downloader - INFO - Queued download: Headhunterz - Our Church
+2025-11-28 22:49:24,362 - main - INFO - Processing: TheFatRat - Time Lapse
+2025-11-28 22:49:24,363 - services.downloader - INFO - Queued download: TheFatRat - Time Lapse
+2025-11-28 22:49:24,364 - main - INFO - Processing: Ephixa - Dreamstate
+2025-11-28 22:49:24,364 - services.downloader - INFO - Queued download: Ephixa - Dreamstate
+2025-11-28 22:49:24,365 - apscheduler.executors.default - INFO - Job "check_new_scrobbles (trigger: date[2025-11-28 22:49:13 CET], next run at: 2025-11-28 22:49:13 CET)" executed successfully
+2025-11-28 22:49:37,771 - services.downloader - INFO - Renamed to: downloads\Quintino\How Its Done\How Its Done.mp3
+2025-11-28 22:49:40,090 - services.downloader - INFO - Embedded cover art from https://lastfm.freetls.fastly.net/i/u/300x300/273fa396a95b686f939085cb09b14498.png
+2025-11-28 22:49:40,098 - services.downloader - INFO - Renamed to: downloads\Vicetone\U Miss Me\U Miss Me.mp3
+2025-11-28 22:49:42,611 - services.downloader - INFO - Embedded cover art from https://lastfm.freetls.fastly.net/i/u/300x300/b2c9b02742a79939a4770b5ea7d506bc.png
+2025-11-28 22:49:42,618 - services.downloader - INFO - Renamed to: downloads\Orbiter\Orbiter\We Do.mp3
+2025-11-28 22:49:51,755 - services.downloader - INFO - Embedded cover art from https://lastfm.freetls.fastly.net/i/u/300x300/473b07bb5d4d07140258fb5c03105a90.png
+2025-11-28 22:49:51,764 - services.downloader - INFO - Renamed to: downloads\Unlike Pluto\Fake Smiles Real Memories\JOLT.mp3
+2025-11-28 22:49:52,309 - services.downloader - INFO - Renamed to: downloads\KUURO\What U Wanna Do\What U Wanna Do.mp3
+2025-11-28 22:49:55,597 - services.downloader - INFO - Embedded cover art from https://lastfm.freetls.fastly.net/i/u/300x300/85c5ee7d3ee53d97c4e755a275c51d58.png
+2025-11-28 22:49:55,603 - services.downloader - INFO - Renamed to: downloads\Unlike Pluto\Everything Black\Everything Black.mp3
+2025-11-28 22:50:04,307 - services.downloader - INFO - Renamed to: downloads\Dada Life\Our Nation (Remixes)\We Want Your Soul - Mike Williams Remix.mp3
+2025-11-28 22:50:05,896 - services.downloader - INFO - Embedded cover art from https://lastfm.freetls.fastly.net/i/u/300x300/4559a2e63d7aae094a60cfccdaffe92b.png
+2025-11-28 22:50:05,902 - services.downloader - INFO - Renamed to: downloads\Jonth\Ring The Alarm\Ring The Alarm.mp3
+2025-11-28 22:50:09,668 - services.downloader - INFO - Embedded cover art from https://lastfm.freetls.fastly.net/i/u/300x300/5d77b286d788e2147c91188e502595f6.png
+2025-11-28 22:50:09,674 - services.downloader - INFO - Renamed to: downloads\Knife Party\Harpoon\Harpoon.mp3
+2025-11-28 22:50:17,399 - services.downloader - INFO - Embedded cover art from https://lastfm.freetls.fastly.net/i/u/300x300/97708bca5555670b50b81cf2d37fdfbf.png
+2025-11-28 22:50:17,403 - services.downloader - INFO - Renamed to: downloads\Inverness\Good Feeling\Good Feeling.mp3
+2025-11-28 22:50:18,714 - services.downloader - INFO - Embedded cover art from https://lastfm.freetls.fastly.net/i/u/300x300/a9df097cb8e2d34aff98ebe6c2a2265b.png
+2025-11-28 22:50:18,720 - services.downloader - INFO - Renamed to: downloads\Dimitri Vegas  Like Mike\Unity\Unity.mp3
+2025-11-28 22:50:21,164 - services.downloader - INFO - Renamed to: downloads\Oliver Heldens\This Groove (Codeko Remix)\This Groove - Codeko Remix.mp3
+2025-11-28 22:50:32,883 - services.downloader - INFO - Embedded cover art from https://lastfm.freetls.fastly.net/i/u/300x300/c9ef70301a83062f29ba2282a01b7306.png
+2025-11-28 22:50:32,893 - services.downloader - INFO - Renamed to: downloads\Varien\Blood Hunter\Blood Hunter.mp3
+2025-11-28 22:50:33,071 - services.downloader - INFO - Renamed to: downloads\Masked Wolf\Astronaut In The Ocean (Alok Remix)\Astronaut In The Ocean - Alok Remix.mp3
+2025-11-28 22:50:34,181 - services.downloader - INFO - Embedded cover art from https://lastfm.freetls.fastly.net/i/u/300x300/b32c254cee4a072110845d6edded9bb9.png
+2025-11-28 22:50:34,188 - services.downloader - INFO - Renamed to: downloads\Rogue\Fury\Fury.mp3
+2025-11-28 22:50:45,429 - services.downloader - INFO - Renamed to: downloads\Roby Fayer\Out of Luck\Out of Luck.mp3
+2025-11-28 22:50:46,893 - services.downloader - INFO - Embedded cover art from https://lastfm.freetls.fastly.net/i/u/300x300/c15e1e17f15a6e06a9994f82423278f1.png
+2025-11-28 22:50:46,900 - services.downloader - INFO - Renamed to: downloads\KSHMR\Magic\Magic.mp3
+2025-11-28 22:50:49,635 - services.downloader - INFO - Embedded cover art from https://lastfm.freetls.fastly.net/i/u/300x300/043385b93cddfcf6ea98b0429cdfe67d.png
+2025-11-28 22:50:49,642 - services.downloader - INFO - Renamed to: downloads\Headhunterz\DEDIQATED - 20 Years Of Q-dance\Our Church.mp3
+2025-11-28 22:51:00,767 - services.downloader - INFO - Embedded cover art from https://lastfm.freetls.fastly.net/i/u/300x300/6c17f7ee30ab7f8d28c58da020863eb8.png
+2025-11-28 22:51:00,773 - services.downloader - INFO - Renamed to: downloads\Ephixa\Dreamstate\Dreamstate.mp3
+2025-11-28 22:51:02,686 - services.downloader - INFO - Embedded cover art from https://lastfm.freetls.fastly.net/i/u/300x300/eef33e0f56605d2686c74702e65f9747.png
+2025-11-28 22:51:02,692 - services.downloader - INFO - Renamed to: downloads\TheFatRat\Time Lapse\Time Lapse.mp3
+2025-11-28 22:54:07,067 - main - INFO - --- STARTUP: Database path is: C:\Users\mizer\Documents\MEGA\Home\Coding\Spotify_scrobbler\backend\data\downloads.db ---
+2025-11-28 22:54:07,070 - main - INFO - Triggering initial scrobble check...
+2025-11-28 22:54:07,078 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-11-28 22:54:07,080 - main - INFO - Scheduling scrobble check every 30 minutes.
+2025-11-28 22:54:07,088 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-11-28 22:54:07,102 - apscheduler.scheduler - INFO - Added job "check_new_scrobbles" to job store "default"
+2025-11-28 22:54:07,102 - apscheduler.scheduler - INFO - Added job "check_new_scrobbles" to job store "default"
+2025-11-28 22:54:07,102 - apscheduler.scheduler - INFO - Scheduler started
+2025-11-28 22:54:07,103 - main - INFO - Scheduler started.
+2025-11-28 22:54:07,103 - apscheduler.executors.default - INFO - Running job "check_new_scrobbles (trigger: date[2025-11-28 22:54:07 CET], next run at: 2025-11-28 22:54:07 CET)" (scheduled at 2025-11-28 22:54:07.071102+01:00)
+2025-11-28 22:54:07,103 - apscheduler.scheduler - INFO - Removed job e873fb38944645318ba6d28e627043d8
+2025-11-28 22:54:07,106 - main - INFO - Checking new scrobbles for wife5711 (limit: 20)...
+2025-11-28 22:54:07,108 - pylast - INFO - user.getRecentTracks
+2025-11-28 22:54:07,773 - httpx - INFO - HTTP Request: POST https://ws.audioscrobbler.com/2.0/ "HTTP/1.1 200 OK"
+2025-11-28 22:54:07,839 - pylast - INFO - track.getInfo
+2025-11-28 22:54:08,154 - httpx - INFO - HTTP Request: POST https://ws.audioscrobbler.com/2.0/ "HTTP/1.1 200 OK"
+2025-11-28 22:54:08,155 - pylast - INFO - track.getInfo
+2025-11-28 22:54:08,410 - httpx - INFO - HTTP Request: POST https://ws.audioscrobbler.com/2.0/ "HTTP/1.1 200 OK"
+2025-11-28 22:54:08,411 - pylast - INFO - track.getInfo
+2025-11-28 22:54:08,604 - httpx - INFO - HTTP Request: POST https://ws.audioscrobbler.com/2.0/ "HTTP/1.1 200 OK"
+2025-11-28 22:54:08,605 - pylast - INFO - track.getInfo
+2025-11-28 22:54:08,861 - httpx - INFO - HTTP Request: POST https://ws.audioscrobbler.com/2.0/ "HTTP/1.1 200 OK"
+2025-11-28 22:54:08,863 - pylast - INFO - track.getInfo
+2025-11-28 22:54:09,298 - httpx - INFO - HTTP Request: POST https://ws.audioscrobbler.com/2.0/ "HTTP/1.1 200 OK"
+2025-11-28 22:54:09,300 - pylast - INFO - track.getInfo
+2025-11-28 22:54:09,527 - httpx - INFO - HTTP Request: POST https://ws.audioscrobbler.com/2.0/ "HTTP/1.1 200 OK"
+2025-11-28 22:54:09,529 - pylast - INFO - track.getInfo
+2025-11-28 22:54:09,810 - httpx - INFO - HTTP Request: POST https://ws.audioscrobbler.com/2.0/ "HTTP/1.1 200 OK"
+2025-11-28 22:54:09,812 - pylast - INFO - track.getInfo
+2025-11-28 22:54:10,062 - httpx - INFO - HTTP Request: POST https://ws.audioscrobbler.com/2.0/ "HTTP/1.1 200 OK"
+2025-11-28 22:54:10,064 - pylast - INFO - track.getInfo
+2025-11-28 22:54:10,256 - httpx - INFO - HTTP Request: POST https://ws.audioscrobbler.com/2.0/ "HTTP/1.1 200 OK"
+2025-11-28 22:54:10,257 - pylast - INFO - track.getInfo
+2025-11-28 22:54:10,519 - httpx - INFO - HTTP Request: POST https://ws.audioscrobbler.com/2.0/ "HTTP/1.1 200 OK"
+2025-11-28 22:54:10,520 - pylast - INFO - track.getInfo
+2025-11-28 22:54:10,738 - httpx - INFO - HTTP Request: POST https://ws.audioscrobbler.com/2.0/ "HTTP/1.1 200 OK"
+2025-11-28 22:54:10,739 - pylast - INFO - track.getInfo
+2025-11-28 22:54:11,019 - httpx - INFO - HTTP Request: POST https://ws.audioscrobbler.com/2.0/ "HTTP/1.1 200 OK"
+2025-11-28 22:54:11,021 - pylast - INFO - track.getInfo
+2025-11-28 22:54:11,242 - httpx - INFO - HTTP Request: POST https://ws.audioscrobbler.com/2.0/ "HTTP/1.1 200 OK"
+2025-11-28 22:54:11,244 - pylast - INFO - track.getInfo
+2025-11-28 22:54:11,454 - httpx - INFO - HTTP Request: POST https://ws.audioscrobbler.com/2.0/ "HTTP/1.1 200 OK"
+2025-11-28 22:54:11,456 - pylast - INFO - track.getInfo
+2025-11-28 22:54:11,652 - httpx - INFO - HTTP Request: POST https://ws.audioscrobbler.com/2.0/ "HTTP/1.1 200 OK"
+2025-11-28 22:54:11,654 - pylast - INFO - track.getInfo
+2025-11-28 22:54:11,843 - httpx - INFO - HTTP Request: POST https://ws.audioscrobbler.com/2.0/ "HTTP/1.1 200 OK"
+2025-11-28 22:54:11,845 - pylast - INFO - track.getInfo
+2025-11-28 22:54:12,243 - httpx - INFO - HTTP Request: POST https://ws.audioscrobbler.com/2.0/ "HTTP/1.1 200 OK"
+2025-11-28 22:54:12,244 - pylast - INFO - track.getInfo
+2025-11-28 22:54:12,459 - httpx - INFO - HTTP Request: POST https://ws.audioscrobbler.com/2.0/ "HTTP/1.1 200 OK"
+2025-11-28 22:54:12,460 - pylast - INFO - track.getInfo
+2025-11-28 22:54:12,712 - httpx - INFO - HTTP Request: POST https://ws.audioscrobbler.com/2.0/ "HTTP/1.1 200 OK"
+2025-11-28 22:54:12,714 - pylast - INFO - track.getInfo
+2025-11-28 22:54:14,011 - httpx - INFO - HTTP Request: POST https://ws.audioscrobbler.com/2.0/ "HTTP/1.1 200 OK"
+2025-11-28 22:54:14,014 - main - INFO - Processing: SIKDOPE - Lost in the Blue
+2025-11-28 22:54:14,015 - services.downloader - INFO - Queued download: SIKDOPE - Lost in the Blue
+2025-11-28 22:54:14,015 - main - INFO - Processing: Rita Ora - Big (feat. Gunna)
+2025-11-28 22:54:14,016 - services.downloader - INFO - Queued download: Rita Ora - Big (feat. Gunna)
+2025-11-28 22:54:14,017 - main - INFO - Processing: Quintino - How It's Done
+2025-11-28 22:54:14,018 - main - INFO - Skipping Quintino - How It's Done, already downloaded.
+2025-11-28 22:54:14,018 - main - INFO - Processing: Vicetone - U Miss Me
+2025-11-28 22:54:14,020 - main - INFO - Skipping Vicetone - U Miss Me, already downloaded.
+2025-11-28 22:54:14,020 - main - INFO - Processing: Orbiter - We Do
+2025-11-28 22:54:14,022 - main - INFO - Skipping Orbiter - We Do, already downloaded.
+2025-11-28 22:54:14,022 - main - INFO - Processing: Unlike Pluto - JOLT
+2025-11-28 22:54:14,023 - main - INFO - Skipping Unlike Pluto - JOLT, already downloaded.
+2025-11-28 22:54:14,023 - main - INFO - Processing: KUURO - What U Wanna Do
+2025-11-28 22:54:14,025 - main - INFO - Skipping KUURO - What U Wanna Do, already downloaded.
+2025-11-28 22:54:14,025 - main - INFO - Processing: Unlike Pluto - Everything Black
+2025-11-28 22:54:14,026 - main - INFO - Skipping Unlike Pluto - Everything Black, already downloaded.
+2025-11-28 22:54:14,027 - main - INFO - Processing: Dada Life - We Want Your Soul - Mike Williams Remix
+2025-11-28 22:54:14,028 - main - INFO - Skipping Dada Life - We Want Your Soul - Mike Williams Remix, already downloaded.
+2025-11-28 22:54:14,028 - main - INFO - Processing: Jonth - Ring The Alarm
+2025-11-28 22:54:14,030 - main - INFO - Skipping Jonth - Ring The Alarm, already downloaded.
+2025-11-28 22:54:14,030 - main - INFO - Processing: Knife Party - Harpoon
+2025-11-28 22:54:14,031 - main - INFO - Skipping Knife Party - Harpoon, already downloaded.
+2025-11-28 22:54:14,031 - main - INFO - Processing: Inverness - Good Feeling
+2025-11-28 22:54:14,033 - main - INFO - Skipping Inverness - Good Feeling, already downloaded.
+2025-11-28 22:54:14,033 - main - INFO - Processing: Dimitri Vegas & Like Mike - Unity
+2025-11-28 22:54:14,034 - main - INFO - Skipping Dimitri Vegas & Like Mike - Unity, already downloaded.
+2025-11-28 22:54:14,034 - main - INFO - Processing: Oliver Heldens - This Groove - Codeko Remix
+2025-11-28 22:54:14,035 - main - INFO - Skipping Oliver Heldens - This Groove - Codeko Remix, already downloaded.
+2025-11-28 22:54:14,036 - main - INFO - Processing: Varien - Blood Hunter
+2025-11-28 22:54:14,037 - main - INFO - Skipping Varien - Blood Hunter, already downloaded.
+2025-11-28 22:54:14,037 - main - INFO - Processing: Rogue - Fury
+2025-11-28 22:54:14,038 - main - INFO - Skipping Rogue - Fury, already downloaded.
+2025-11-28 22:54:14,038 - main - INFO - Processing: Masked Wolf - Astronaut In The Ocean - Alok Remix
+2025-11-28 22:54:14,040 - main - INFO - Skipping Masked Wolf - Astronaut In The Ocean - Alok Remix, already downloaded.
+2025-11-28 22:54:14,040 - main - INFO - Processing: Roby Fayer - Out of Luck
+2025-11-28 22:54:14,041 - main - INFO - Skipping Roby Fayer - Out of Luck, already downloaded.
+2025-11-28 22:54:14,041 - main - INFO - Processing: KSHMR - Magic
+2025-11-28 22:54:14,043 - main - INFO - Skipping KSHMR - Magic, already downloaded.
+2025-11-28 22:54:14,043 - main - INFO - Processing: Headhunterz - Our Church
+2025-11-28 22:54:14,044 - main - INFO - Skipping Headhunterz - Our Church, already downloaded.
+2025-11-28 22:54:14,044 - apscheduler.executors.default - INFO - Job "check_new_scrobbles (trigger: date[2025-11-28 22:54:07 CET], next run at: 2025-11-28 22:54:07 CET)" executed successfully
+2025-11-28 22:54:27,174 - services.downloader - INFO - Renamed to: downloads\SIKDOPE\Lost in the Blue\Lost in the Blue.mp3
+2025-11-28 22:54:27,295 - services.downloader - INFO - Renamed to: downloads\Rita Ora\Big (feat Gunna)\Big (feat Gunna).mp3

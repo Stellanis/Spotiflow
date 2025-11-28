@@ -2,20 +2,41 @@
 
 A self-hosted application that automatically downloads your recent Last.fm scrobbles as high-quality MP3s, organized perfectly for Plex.
 
-![Dashboard Preview](https://raw.githubusercontent.com/Stellanis/Spotify_scrobbler/main/dashboard_preview.png)
+![Dashboard Preview](assets/dashboard.png)
 
 ## 🚀 Features
 
--   **Automatic Background Downloads**: Checks for new scrobbles every 30 minutes (last 20 tracks).
+-   **Automatic Background Downloads**: Checks for new scrobbles every 30 minutes (configurable).
 -   **Smart Deduplication**: Maintains a local database to prevent re-downloading existing songs.
 -   **Plex-Ready Organization**: Automatically sorts files into `Artist/Album/Song.mp3`.
 -   **Metadata Injection**: Embeds correct Artist, Title, and Album tags (ignoring messy YouTube titles).
--   **Modern UI**: Beautiful, dark-themed React dashboard to view recent tracks and manual download status.
+-   **Modern UI**: Beautiful, dark-themed React dashboard built with Vite and Tailwind CSS v4.
+-   **Library Management**: View your downloaded collection and manually trigger downloads for missing tracks.
+-   **Undownloaded View**: Quickly see which scrobbles haven't been downloaded yet and queue them with one click.
+-   **Job Management**: Monitor active and pending downloads in real-time.
 -   **Dockerized**: Easy deployment on local machines or NAS (Synology, Unraid, etc.).
+
+## 📸 Screenshots
+
+### Library
+Browse your downloaded collection with album art and metadata.
+![Library View](assets/library.png)
+
+### Undownloaded Tracks
+See what's missing from your library and download it instantly.
+![Undownloaded View](assets/undownloaded.png)
+
+### Job Queue
+Track the status of your downloads.
+![Jobs Page](assets/jobs.png)
+
+### Settings
+Configure API keys, update intervals, and more directly from the UI.
+![Settings Page](assets/settings.png)
 
 ## 🛠️ Tech Stack
 
--   **Frontend**: React, Vite, Tailwind CSS, Framer Motion
+-   **Frontend**: React, Vite, Tailwind CSS v4, Framer Motion
 -   **Backend**: Python, FastAPI, APScheduler
 -   **Core**: `yt-dlp` (for downloading), `ffmpeg` (for conversion), `mutagen` (for tagging)
 -   **Database**: SQLite
@@ -43,7 +64,7 @@ A self-hosted application that automatically downloads your recent Last.fm scrob
     ```
 
 4.  **Access**:
-    -   Frontend: `http://localhost:3001`
+    -   Frontend: `http://localhost:3001` (or `http://localhost:5173` for dev)
     -   Backend: `http://localhost:8000`
 
 ### Option 2: NAS Deployment (Portainer)
@@ -89,6 +110,9 @@ Downloaded music is organized automatically:
 | `LASTFM_API_KEY` | **Required**. Get one at [last.fm/api](https://www.last.fm/api) | - |
 | `LASTFM_USER` | **Required**. The user to fetch scrobbles for. | - |
 | `LASTFM_API_SECRET` | Optional. Not currently used for public reads. | - |
+| `SCROBBLE_UPDATE_INTERVAL` | Minutes between checks. | `30` |
+| `SCROBBLE_LIMIT_COUNT` | Number of recent tracks to check. | `20` |
+| `AUTO_DOWNLOAD` | `true` or `false`. | `true` |
 
 ## 🤝 Contributing
 
