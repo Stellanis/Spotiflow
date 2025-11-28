@@ -42,14 +42,22 @@ export function SettingsModal({ isOpen, onClose, onSave }) {
     const handleSave = async () => {
         setSaving(true);
         try {
-            await axios.post(`${API_URL}/settings`, {
-                lastfm_api_key: apiKey,
-                lastfm_api_secret: apiSecret,
+            const payload = {
                 lastfm_user: username,
                 scrobble_update_interval: parseInt(updateInterval),
                 scrobble_limit_count: parseInt(limitCount),
                 auto_download: autoDownload
-            });
+            };
+
+            // Only send API key/secret if they are not masked (i.e. user changed them)
+            if (apiKey && !apiKey.includes('*')) {
+                payload.lastfm_api_key = apiKey;
+            }
+            if (apiSecret && !apiSecret.includes('*')) {
+                payload.lastfm_api_secret = apiSecret;
+            }
+
+            await axios.post(`${API_URL}/settings`, payload);
             onSave(username, autoDownload); // Pass back the new username and autoDownload state
             onClose();
         } catch (error) {
