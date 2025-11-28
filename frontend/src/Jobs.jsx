@@ -121,7 +121,7 @@ function Jobs() {
                 ) : (
                     <div className="divide-y divide-white/10">
                         {jobs.active_downloads.map((job, index) => (
-                            <div key={index} className="p-4 flex items-center justify-between hover:bg-white/5 transition-colors">
+                            <div key={index} className="p-4 flex items-center justify-between hover:bg-white/5 transition-colors starting:opacity-0 starting:-translate-y-4 duration-500 ease-out">
                                 <div className="flex-1 min-w-0 mr-4">
                                     <p className="font-medium truncate text-white">{job.title || job.query}</p>
                                     <p className="text-sm text-spotify-grey truncate">{job.artist || 'Unknown Artist'}</p>

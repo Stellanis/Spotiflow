@@ -1,11 +1,12 @@
 @import "tailwindcss";
 
 @theme {
-  --color-spotify-green: #1DB954;
-  --color-spotify-black: #191414;
-  --color-spotify-white: #FFFFFF;
-  --color-spotify-grey: #535353;
-  --color-spotify-dark: #121212;
+  --color-spotify-green: oklch(0.62 0.23 145);
+  /* Vibrant Green */
+  --color-spotify-black: oklch(0.15 0 0);
+  --color-spotify-white: oklch(1 0 0);
+  --color-spotify-grey: oklch(0.45 0 0);
+  --color-spotify-dark: oklch(0.12 0 0);
 }
 
 body {
@@ -16,6 +17,7 @@ body {
 
 @layer utilities {
   .glass-panel {
-    @apply bg-white/5 backdrop-blur-lg border border-white/10 rounded-xl;
+    @apply bg-white/5 backdrop-blur-xl border border-white/10 rounded-xl shadow-lg;
+    transform-style: preserve-3d;
   }
 }

@@ -1,0 +1,194 @@
+2025-11-28 21:14:59,449 - main - INFO - --- STARTUP: Database path is: C:\Users\mizer\Documents\MEGA\Home\Coding\Spotify_scrobbler\backend\data\downloads.db ---
+2025-11-28 21:14:59,478 - main - INFO - Triggering initial scrobble check...
+2025-11-28 21:14:59,482 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-11-28 21:14:59,483 - main - INFO - Scheduling scrobble check every 30 minutes.
+2025-11-28 21:14:59,485 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-11-28 21:14:59,485 - apscheduler.scheduler - INFO - Added job "check_new_scrobbles" to job store "default"
+2025-11-28 21:14:59,486 - apscheduler.scheduler - INFO - Added job "check_new_scrobbles" to job store "default"
+2025-11-28 21:14:59,486 - apscheduler.scheduler - INFO - Scheduler started
+2025-11-28 21:14:59,487 - main - INFO - Scheduler started.
+2025-11-28 21:14:59,487 - apscheduler.executors.default - INFO - Running job "check_new_scrobbles (trigger: date[2025-11-28 21:14:59 CET], next run at: 2025-11-28 21:14:59 CET)" (scheduled at 2025-11-28 21:14:59.481016+01:00)
+2025-11-28 21:14:59,487 - apscheduler.scheduler - INFO - Removed job f98ce2fa18204849b0360e3850155ba9
+2025-11-28 21:14:59,490 - main - INFO - Checking new scrobbles for wife5711 (limit: 20)...
+2025-11-28 21:14:59,491 - pylast - INFO - user.getRecentTracks
+2025-11-28 21:15:00,134 - httpx - INFO - HTTP Request: POST https://ws.audioscrobbler.com/2.0/ "HTTP/1.1 200 OK"
+2025-11-28 21:15:00,166 - pylast - INFO - track.getInfo
+2025-11-28 21:15:00,698 - httpx - INFO - HTTP Request: POST https://ws.audioscrobbler.com/2.0/ "HTTP/1.1 200 OK"
+2025-11-28 21:15:00,699 - pylast - INFO - track.getInfo
+2025-11-28 21:15:01,780 - httpx - INFO - HTTP Request: POST https://ws.audioscrobbler.com/2.0/ "HTTP/1.1 200 OK"
+2025-11-28 21:15:01,781 - pylast - INFO - track.getInfo
+2025-11-28 21:15:02,062 - httpx - INFO - HTTP Request: POST https://ws.audioscrobbler.com/2.0/ "HTTP/1.1 200 OK"
+2025-11-28 21:15:02,064 - pylast - INFO - track.getInfo
+2025-11-28 21:15:02,253 - httpx - INFO - HTTP Request: POST https://ws.audioscrobbler.com/2.0/ "HTTP/1.1 200 OK"
+2025-11-28 21:15:02,256 - pylast - INFO - track.getInfo
+2025-11-28 21:15:02,459 - httpx - INFO - HTTP Request: POST https://ws.audioscrobbler.com/2.0/ "HTTP/1.1 200 OK"
+2025-11-28 21:15:02,462 - pylast - INFO - track.getInfo
+2025-11-28 21:15:02,654 - httpx - INFO - HTTP Request: POST https://ws.audioscrobbler.com/2.0/ "HTTP/1.1 200 OK"
+2025-11-28 21:15:02,657 - pylast - INFO - track.getInfo
+2025-11-28 21:15:02,846 - httpx - INFO - HTTP Request: POST https://ws.audioscrobbler.com/2.0/ "HTTP/1.1 200 OK"
+2025-11-28 21:15:02,848 - pylast - INFO - track.getInfo
+2025-11-28 21:15:03,046 - httpx - INFO - HTTP Request: POST https://ws.audioscrobbler.com/2.0/ "HTTP/1.1 200 OK"
+2025-11-28 21:15:03,046 - pylast - INFO - track.getInfo
+2025-11-28 21:15:04,321 - httpx - INFO - HTTP Request: POST https://ws.audioscrobbler.com/2.0/ "HTTP/1.1 200 OK"
+2025-11-28 21:15:04,322 - pylast - INFO - track.getInfo
+2025-11-28 21:15:04,546 - httpx - INFO - HTTP Request: POST https://ws.audioscrobbler.com/2.0/ "HTTP/1.1 200 OK"
+2025-11-28 21:15:04,549 - pylast - INFO - track.getInfo
+2025-11-28 21:15:04,973 - httpx - INFO - HTTP Request: POST https://ws.audioscrobbler.com/2.0/ "HTTP/1.1 200 OK"
+2025-11-28 21:15:04,974 - pylast - INFO - track.getInfo
+2025-11-28 21:15:05,409 - httpx - INFO - HTTP Request: POST https://ws.audioscrobbler.com/2.0/ "HTTP/1.1 200 OK"
+2025-11-28 21:15:05,411 - pylast - INFO - track.getInfo
+2025-11-28 21:15:06,504 - httpx - INFO - HTTP Request: POST https://ws.audioscrobbler.com/2.0/ "HTTP/1.1 200 OK"
+2025-11-28 21:15:06,505 - pylast - INFO - track.getInfo
+2025-11-28 21:15:06,759 - httpx - INFO - HTTP Request: POST https://ws.audioscrobbler.com/2.0/ "HTTP/1.1 200 OK"
+2025-11-28 21:15:06,760 - pylast - INFO - track.getInfo
+2025-11-28 21:15:06,954 - httpx - INFO - HTTP Request: POST https://ws.audioscrobbler.com/2.0/ "HTTP/1.1 200 OK"
+2025-11-28 21:15:06,956 - pylast - INFO - track.getInfo
+2025-11-28 21:15:07,153 - httpx - INFO - HTTP Request: POST https://ws.audioscrobbler.com/2.0/ "HTTP/1.1 200 OK"
+2025-11-28 21:15:07,154 - pylast - INFO - track.getInfo
+2025-11-28 21:15:07,454 - httpx - INFO - HTTP Request: POST https://ws.audioscrobbler.com/2.0/ "HTTP/1.1 200 OK"
+2025-11-28 21:15:07,455 - pylast - INFO - track.getInfo
+2025-11-28 21:15:07,774 - httpx - INFO - HTTP Request: POST https://ws.audioscrobbler.com/2.0/ "HTTP/1.1 200 OK"
+2025-11-28 21:15:07,776 - pylast - INFO - track.getInfo
+2025-11-28 21:15:08,130 - httpx - INFO - HTTP Request: POST https://ws.audioscrobbler.com/2.0/ "HTTP/1.1 200 OK"
+2025-11-28 21:15:08,131 - pylast - INFO - track.getInfo
+2025-11-28 21:15:08,926 - httpx - INFO - HTTP Request: POST https://ws.audioscrobbler.com/2.0/ "HTTP/1.1 200 OK"
+2025-11-28 21:15:08,931 - main - INFO - Processing: Kloud - Dark Down Below
+2025-11-28 21:15:08,932 - services.downloader - INFO - Queued download: Kloud - Dark Down Below
+2025-11-28 21:15:08,933 - main - INFO - Processing: Kill the Noise - Without You
+2025-11-28 21:15:08,934 - services.downloader - INFO - Queued download: Kill the Noise - Without You
+2025-11-28 21:15:08,934 - main - INFO - Processing: Armin van Buuren - The Last Dancer
+2025-11-28 21:15:08,936 - services.downloader - INFO - Queued download: Armin van Buuren - The Last Dancer
+2025-11-28 21:15:08,937 - main - INFO - Processing: Hex Cougar - Evil Like Me
+2025-11-28 21:15:08,939 - services.downloader - INFO - Queued download: Hex Cougar - Evil Like Me
+2025-11-28 21:15:09,757 - main - INFO - Processing: Panda Eyes - Crystal Cave
+2025-11-28 21:15:09,759 - services.downloader - INFO - Queued download: Panda Eyes - Crystal Cave
+2025-11-28 21:15:09,759 - main - INFO - Processing: The Pitcher - Keep It Up
+2025-11-28 21:15:09,762 - services.downloader - INFO - Queued download: The Pitcher - Keep It Up
+2025-11-28 21:15:09,763 - main - INFO - Processing: SAINt JHN - Roses - Imanbek Remix
+2025-11-28 21:15:09,764 - services.downloader - INFO - Queued download: SAINt JHN - Roses - Imanbek Remix
+2025-11-28 21:15:09,765 - main - INFO - Processing: Dirty Palm - Oblivion
+2025-11-28 21:15:09,768 - services.downloader - INFO - Queued download: Dirty Palm - Oblivion
+2025-11-28 21:15:09,768 - main - INFO - Processing: Alok - Hear Me Now
+2025-11-28 21:15:09,769 - services.downloader - INFO - Queued download: Alok - Hear Me Now
+2025-11-28 21:15:09,769 - main - INFO - Processing: Zeus X Crona - Invisible
+2025-11-28 21:15:09,771 - services.downloader - INFO - Queued download: Zeus X Crona - Invisible
+2025-11-28 21:15:09,771 - main - INFO - Processing: deadmau5 - Strobe
+2025-11-28 21:15:09,772 - services.downloader - INFO - Queued download: deadmau5 - Strobe
+2025-11-28 21:15:09,773 - main - INFO - Processing: Inzo - Overthinker
+2025-11-28 21:15:09,774 - services.downloader - INFO - Queued download: Inzo - Overthinker
+2025-11-28 21:15:09,774 - main - INFO - Processing: Alba - Different World - Instrumental Alan Walker, K-391 & Corsak Cover Mix
+2025-11-28 21:15:09,775 - services.downloader - INFO - Queued download: Alba - Different World - Instrumental Alan Walker, K-391 & Corsak Cover Mix
+2025-11-28 21:15:09,776 - main - INFO - Processing: Nicky Romero - Like Home - Radio Edit
+2025-11-28 21:15:09,777 - services.downloader - INFO - Queued download: Nicky Romero - Like Home - Radio Edit
+2025-11-28 21:15:09,778 - main - INFO - Processing: Bossfight - No Sleep
+2025-11-28 21:15:09,779 - services.downloader - INFO - Queued download: Bossfight - No Sleep
+2025-11-28 21:15:09,780 - main - INFO - Processing: Everen Maxwell - Pink Clouds
+2025-11-28 21:15:09,781 - services.downloader - INFO - Queued download: Everen Maxwell - Pink Clouds
+2025-11-28 21:15:09,782 - main - INFO - Processing: Pegboard Nerds - Bad Luck
+2025-11-28 21:15:09,783 - services.downloader - INFO - Queued download: Pegboard Nerds - Bad Luck
+2025-11-28 21:15:09,783 - main - INFO - Processing: keku - Brutal
+2025-11-28 21:15:09,784 - services.downloader - INFO - Queued download: keku - Brutal
+2025-11-28 21:15:09,786 - main - INFO - Processing: Black Eyed Peas - Boom Boom Pow
+2025-11-28 21:15:09,788 - services.downloader - INFO - Queued download: Black Eyed Peas - Boom Boom Pow
+2025-11-28 21:15:09,792 - apscheduler.executors.default - INFO - Job "check_new_scrobbles (trigger: date[2025-11-28 21:14:59 CET], next run at: 2025-11-28 21:14:59 CET)" executed successfully
+2025-11-28 21:15:22,639 - services.downloader - INFO - Embedded cover art from https://lastfm.freetls.fastly.net/i/u/300x300/6edc65f2eba5f7ec835aa482901c6ee7.png
+2025-11-28 21:15:22,646 - services.downloader - INFO - Renamed to: downloads\Armin van Buuren\A State of Trance Year Mix 2018\The Last Dancer.mp3
+2025-11-28 21:15:22,784 - services.downloader - INFO - Embedded cover art from https://lastfm.freetls.fastly.net/i/u/300x300/194e0d737d2146ae1f7f120728987e62.png
+2025-11-28 21:15:22,791 - services.downloader - INFO - Renamed to: downloads\Kill the Noise\Embrace\Without You.mp3
+2025-11-28 21:15:25,544 - services.downloader - INFO - Embedded cover art from https://lastfm.freetls.fastly.net/i/u/300x300/ebd5fd506ab600952368a5d8bd26826e.png
+2025-11-28 21:15:25,549 - services.downloader - INFO - Renamed to: downloads\Kloud\Dark Down Below (Chapter II)\Dark Down Below.mp3
+2025-11-28 21:15:34,116 - services.downloader - INFO - Embedded cover art from https://lastfm.freetls.fastly.net/i/u/300x300/1a8df47cc68589cb143c697d2cb8578b.png
+2025-11-28 21:15:34,123 - services.downloader - INFO - Renamed to: downloads\Hex Cougar\Evil Like Me\Evil Like Me.mp3
+2025-11-28 21:15:36,192 - services.downloader - INFO - Embedded cover art from https://lastfm.freetls.fastly.net/i/u/300x300/ff4f54a3134ec5b9a5b819827b0ae925.png
+2025-11-28 21:15:41,602 - pylast - INFO - user.getRecentTracks
+2025-11-28 21:15:41,730 - services.downloader - INFO - Embedded cover art from https://lastfm.freetls.fastly.net/i/u/300x300/1a7b23d1d9283e1a9de8887905333328.png
+2025-11-28 21:15:41,738 - services.downloader - INFO - Renamed to: downloads\Panda Eyes\KIKO\Crystal Cave.mp3
+2025-11-28 21:15:41,954 - httpx - INFO - HTTP Request: POST https://ws.audioscrobbler.com/2.0/ "HTTP/1.1 200 OK"
+2025-11-28 21:15:41,960 - pylast - INFO - track.getInfo
+2025-11-28 21:15:42,281 - httpx - INFO - HTTP Request: POST https://ws.audioscrobbler.com/2.0/ "HTTP/1.1 200 OK"
+2025-11-28 21:15:42,282 - pylast - INFO - track.getInfo
+2025-11-28 21:15:42,782 - httpx - INFO - HTTP Request: POST https://ws.audioscrobbler.com/2.0/ "HTTP/1.1 200 OK"
+2025-11-28 21:15:42,783 - pylast - INFO - track.getInfo
+2025-11-28 21:15:42,991 - httpx - INFO - HTTP Request: POST https://ws.audioscrobbler.com/2.0/ "HTTP/1.1 200 OK"
+2025-11-28 21:15:42,992 - pylast - INFO - track.getInfo
+2025-11-28 21:15:43,249 - httpx - INFO - HTTP Request: POST https://ws.audioscrobbler.com/2.0/ "HTTP/1.1 200 OK"
+2025-11-28 21:15:43,251 - pylast - INFO - track.getInfo
+2025-11-28 21:15:44,598 - httpx - INFO - HTTP Request: POST https://ws.audioscrobbler.com/2.0/ "HTTP/1.1 200 OK"
+2025-11-28 21:15:44,601 - pylast - INFO - track.getInfo
+2025-11-28 21:15:44,794 - httpx - INFO - HTTP Request: POST https://ws.audioscrobbler.com/2.0/ "HTTP/1.1 200 OK"
+2025-11-28 21:15:44,796 - pylast - INFO - track.getInfo
+2025-11-28 21:15:44,987 - httpx - INFO - HTTP Request: POST https://ws.audioscrobbler.com/2.0/ "HTTP/1.1 200 OK"
+2025-11-28 21:15:44,988 - pylast - INFO - track.getInfo
+2025-11-28 21:15:45,232 - httpx - INFO - HTTP Request: POST https://ws.audioscrobbler.com/2.0/ "HTTP/1.1 200 OK"
+2025-11-28 21:15:45,232 - pylast - INFO - track.getInfo
+2025-11-28 21:15:45,425 - httpx - INFO - HTTP Request: POST https://ws.audioscrobbler.com/2.0/ "HTTP/1.1 200 OK"
+2025-11-28 21:15:45,427 - pylast - INFO - track.getInfo
+2025-11-28 21:15:45,695 - httpx - INFO - HTTP Request: POST https://ws.audioscrobbler.com/2.0/ "HTTP/1.1 200 OK"
+2025-11-28 21:15:45,731 - services.downloader - INFO - Renamed to: downloads\The Pitcher\Keep It Up\Keep It Up.mp3
+2025-11-28 21:15:47,264 - services.downloader - INFO - Renamed to: downloads\SAINt JHN\Roses (Imanbek Remix)\Roses - Imanbek Remix.mp3
+2025-11-28 21:15:54,720 - services.downloader - INFO - Embedded cover art from https://lastfm.freetls.fastly.net/i/u/300x300/8adcf7774bc0545e43fc85f6987d4d75.png
+2025-11-28 21:15:54,727 - services.downloader - INFO - Renamed to: downloads\Dirty Palm\Top 50 NCS\Oblivion.mp3
+2025-11-28 21:15:58,335 - services.downloader - INFO - Embedded cover art from https://lastfm.freetls.fastly.net/i/u/300x300/9eae4c9c3172304cd2004d7ec130440b.png
+2025-11-28 21:15:58,340 - services.downloader - INFO - Renamed to: downloads\Alok\Hear Me Now\Hear Me Now.mp3
+2025-11-28 21:15:58,932 - services.downloader - INFO - Renamed to: downloads\Zeus X Crona\Top 50 NCS\Invisible.mp3
+2025-11-28 21:16:11,205 - services.downloader - INFO - Embedded cover art from https://lastfm.freetls.fastly.net/i/u/300x300/38a24358a678665dfb6c0874952e90ed.png
+2025-11-28 21:16:11,211 - services.downloader - INFO - Renamed to: downloads\Inzo\Overthinker\Overthinker.mp3
+2025-11-28 21:16:11,837 - services.downloader - INFO - Renamed to: downloads\Alba\Different World\Different World - Instrumental Alan Walker K-391  Corsak Cover Mix.mp3
+2025-11-28 21:16:14,054 - services.downloader - INFO - Embedded cover art from https://lastfm.freetls.fastly.net/i/u/300x300/8aefc5606df3460dc6f5e131398a93f3.png
+2025-11-28 21:16:14,062 - services.downloader - INFO - Renamed to: downloads\deadmau5\Strobe\Strobe.mp3
+2025-11-28 21:16:22,959 - services.downloader - INFO - Embedded cover art from https://lastfm.freetls.fastly.net/i/u/300x300/4500339cc8db4d7e934d950fe64c5b43.png
+2025-11-28 21:16:22,964 - services.downloader - INFO - Renamed to: downloads\Nicky Romero\Like Home\Like Home - Radio Edit.mp3
+2025-11-28 21:16:25,881 - services.downloader - INFO - Embedded cover art from https://lastfm.freetls.fastly.net/i/u/300x300/9197ac029f3bd1fd5f8b77f5b25d49f4.png
+2025-11-28 21:16:25,885 - services.downloader - INFO - Renamed to: downloads\Bossfight\Next Wave\No Sleep.mp3
+2025-11-28 21:16:26,951 - services.downloader - INFO - Embedded cover art from https://lastfm.freetls.fastly.net/i/u/300x300/b827713f64203353f4a2b96fe24afb07.png
+2025-11-28 21:16:26,958 - services.downloader - INFO - Renamed to: downloads\Everen Maxwell\Pink Clouds\Pink Clouds.mp3
+2025-11-28 21:16:34,050 - services.downloader - INFO - Embedded cover art from https://lastfm.freetls.fastly.net/i/u/300x300/f6edd3003afc623504171261b5c8a1be.png
+2025-11-28 21:16:34,057 - services.downloader - INFO - Renamed to: downloads\Pegboard Nerds\Bad Luck\Bad Luck.mp3
+2025-11-28 21:16:37,367 - services.downloader - INFO - Embedded cover art from https://lastfm.freetls.fastly.net/i/u/300x300/2a2a384d4c514941f9deb446b85e9824.png
+2025-11-28 21:16:37,371 - services.downloader - INFO - Renamed to: downloads\keku\Brutal\Brutal.mp3
+2025-11-28 21:16:39,658 - services.downloader - INFO - Embedded cover art from https://lastfm.freetls.fastly.net/i/u/300x300/c1c93f40047046c1bce56e8fad76f3e1.png
+2025-11-28 21:16:39,665 - services.downloader - INFO - Renamed to: downloads\Black Eyed Peas\The END (The Energy Never Dies)\Boom Boom Pow.mp3
+2025-11-28 21:18:51,159 - pylast - INFO - user.getRecentTracks
+2025-11-28 21:18:51,652 - httpx - INFO - HTTP Request: POST https://ws.audioscrobbler.com/2.0/ "HTTP/1.1 200 OK"
+2025-11-28 21:18:51,659 - pylast - INFO - track.getInfo
+2025-11-28 21:18:53,088 - httpx - INFO - HTTP Request: POST https://ws.audioscrobbler.com/2.0/ "HTTP/1.1 200 OK"
+2025-11-28 21:18:53,090 - pylast - INFO - track.getInfo
+2025-11-28 21:18:57,295 - httpx - INFO - HTTP Request: POST https://ws.audioscrobbler.com/2.0/ "HTTP/1.1 200 OK"
+2025-11-28 21:18:57,296 - pylast - INFO - track.getInfo
+2025-11-28 21:18:57,739 - httpx - INFO - HTTP Request: POST https://ws.audioscrobbler.com/2.0/ "HTTP/1.1 200 OK"
+2025-11-28 21:18:57,741 - pylast - INFO - track.getInfo
+2025-11-28 21:18:57,947 - httpx - INFO - HTTP Request: POST https://ws.audioscrobbler.com/2.0/ "HTTP/1.1 200 OK"
+2025-11-28 21:18:57,949 - pylast - INFO - track.getInfo
+2025-11-28 21:18:58,395 - httpx - INFO - HTTP Request: POST https://ws.audioscrobbler.com/2.0/ "HTTP/1.1 200 OK"
+2025-11-28 21:18:58,397 - pylast - INFO - track.getInfo
+2025-11-28 21:18:58,590 - httpx - INFO - HTTP Request: POST https://ws.audioscrobbler.com/2.0/ "HTTP/1.1 200 OK"
+2025-11-28 21:18:58,593 - pylast - INFO - track.getInfo
+2025-11-28 21:18:58,781 - httpx - INFO - HTTP Request: POST https://ws.audioscrobbler.com/2.0/ "HTTP/1.1 200 OK"
+2025-11-28 21:18:58,782 - pylast - INFO - track.getInfo
+2025-11-28 21:19:00,395 - httpx - INFO - HTTP Request: POST https://ws.audioscrobbler.com/2.0/ "HTTP/1.1 200 OK"
+2025-11-28 21:19:00,397 - pylast - INFO - track.getInfo
+2025-11-28 21:19:00,589 - httpx - INFO - HTTP Request: POST https://ws.audioscrobbler.com/2.0/ "HTTP/1.1 200 OK"
+2025-11-28 21:19:00,589 - pylast - INFO - track.getInfo
+2025-11-28 21:19:00,875 - httpx - INFO - HTTP Request: POST https://ws.audioscrobbler.com/2.0/ "HTTP/1.1 200 OK"
+2025-11-28 21:21:03,409 - pylast - INFO - user.getRecentTracks
+2025-11-28 21:21:03,815 - httpx - INFO - HTTP Request: POST https://ws.audioscrobbler.com/2.0/ "HTTP/1.1 200 OK"
+2025-11-28 21:21:03,825 - pylast - INFO - track.getInfo
+2025-11-28 21:21:04,019 - httpx - INFO - HTTP Request: POST https://ws.audioscrobbler.com/2.0/ "HTTP/1.1 200 OK"
+2025-11-28 21:21:04,021 - pylast - INFO - track.getInfo
+2025-11-28 21:21:04,264 - httpx - INFO - HTTP Request: POST https://ws.audioscrobbler.com/2.0/ "HTTP/1.1 200 OK"
+2025-11-28 21:21:04,267 - pylast - INFO - track.getInfo
+2025-11-28 21:21:05,085 - httpx - INFO - HTTP Request: POST https://ws.audioscrobbler.com/2.0/ "HTTP/1.1 200 OK"
+2025-11-28 21:21:05,086 - pylast - INFO - track.getInfo
+2025-11-28 21:21:05,274 - httpx - INFO - HTTP Request: POST https://ws.audioscrobbler.com/2.0/ "HTTP/1.1 200 OK"
+2025-11-28 21:21:05,276 - pylast - INFO - track.getInfo
+2025-11-28 21:21:05,611 - httpx - INFO - HTTP Request: POST https://ws.audioscrobbler.com/2.0/ "HTTP/1.1 200 OK"
+2025-11-28 21:21:05,613 - pylast - INFO - track.getInfo
+2025-11-28 21:21:05,820 - httpx - INFO - HTTP Request: POST https://ws.audioscrobbler.com/2.0/ "HTTP/1.1 200 OK"
+2025-11-28 21:21:05,822 - pylast - INFO - track.getInfo
+2025-11-28 21:21:06,014 - httpx - INFO - HTTP Request: POST https://ws.audioscrobbler.com/2.0/ "HTTP/1.1 200 OK"
+2025-11-28 21:21:06,017 - pylast - INFO - track.getInfo
+2025-11-28 21:21:06,289 - httpx - INFO - HTTP Request: POST https://ws.audioscrobbler.com/2.0/ "HTTP/1.1 200 OK"
+2025-11-28 21:21:06,291 - pylast - INFO - track.getInfo
+2025-11-28 21:21:06,498 - httpx - INFO - HTTP Request: POST https://ws.audioscrobbler.com/2.0/ "HTTP/1.1 200 OK"
+2025-11-28 21:21:06,500 - pylast - INFO - track.getInfo
+2025-11-28 21:21:06,709 - httpx - INFO - HTTP Request: POST https://ws.audioscrobbler.com/2.0/ "HTTP/1.1 200 OK"
