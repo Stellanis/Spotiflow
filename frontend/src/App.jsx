@@ -74,25 +74,28 @@ function App() {
 
   // Fetch scrobbles whenever username changes (if not empty)
   useEffect(() => {
+    const controller = new AbortController();
     if (username && view === 'scrobbles') {
-      fetchScrobbles();
+      fetchScrobbles(controller.signal);
     }
+    return () => controller.abort();
   }, [username]);
 
-  const fetchScrobbles = async () => {
+  const fetchScrobbles = async (signal) => {
     if (!username) return;
     setLoading(true);
     try {
-      const response = await axios.get(`${API_URL}/scrobbles/${username}`);
+      const response = await axios.get(`${API_URL}/scrobbles/${username}`, { signal });
       setTracks(response.data);
     } catch (error) {
+      if (axios.isCancel(error)) return;
       console.error("Error fetching scrobbles:", error);
     } finally {
-      setLoading(false);
+      if (!signal?.aborted) setLoading(false);
     }
   };
 
-  const fetchDownloads = async () => {
+  const fetchDownloads = async (signal) => {
     setLoading(true);
     try {
       const params = {
@@ -110,14 +113,15 @@ function App() {
         params.search = debouncedSearchQuery;
       }
 
-      const response = await axios.get(`${API_URL}/downloads`, { params });
+      const response = await axios.get(`${API_URL}/downloads`, { params, signal });
       setDownloadedTracks(response.data.items);
       setTotalPages(response.data.total_pages);
     } catch (error) {
+      if (axios.isCancel(error)) return;
       console.error("Error fetching downloads:", error);
       toast.error("Failed to fetch library");
     } finally {
-      setLoading(false);
+      if (!signal?.aborted) setLoading(false);
     }
   };
 
@@ -199,11 +203,13 @@ function App() {
   };
 
   useEffect(() => {
+    const controller = new AbortController();
     if (view === 'scrobbles') {
-      if (username) fetchScrobbles();
+      if (username) fetchScrobbles(controller.signal);
     } else if (view === 'library' || view === 'undownloaded') {
-      fetchDownloads();
+      fetchDownloads(controller.signal);
     }
+    return () => controller.abort();
   }, [view, currentPage, itemsPerPage, debouncedSearchQuery]);
 
   const currentTracks = view === 'library' || view === 'undownloaded'
@@ -385,126 +391,135 @@ function App() {
                   )}
 
                   <div className="@container">
-                    <div className={cn(
-                      "grid gap-4",
-                      view === 'library' || view === 'undownloaded' ? "grid-cols-2 @md:grid-cols-3 @lg:grid-cols-4 @xl:grid-cols-5 @2xl:grid-cols-6" : "grid-cols-1"
-                    )}>
-                      {(view === 'library' || view === 'undownloaded') && currentTracks.length === 0 ? (
-                        <div className="col-span-full flex flex-col items-center justify-center py-20 text-spotify-grey">
-                          <Music className="w-16 h-16 mb-4 opacity-50" />
-                          <p className="text-xl font-semibold">
-                            {view === 'library' ? "Your library is empty" : "No pending downloads"}
-                          </p>
-                          <p className="text-sm mt-2">
-                            {view === 'library' ? "Download songs from your scrobbles to see them here." : "Disable auto-download to see pending items here."}
-                          </p>
-                        </div>
-                      ) : (
-                        <AnimatePresence>
-                          {(view === 'scrobbles' ? tracks : currentTracks).map((track, index) => {
-                            const query = `${track.artist} - ${track.title}`;
-                            const isLibraryItemDownloaded = (view === 'library' || view === 'undownloaded') && track.status === 'completed';
-                            const status = isLibraryItemDownloaded || track.downloaded ? 'success' : downloading[query];
-                            const imageSrc = view === 'scrobbles' ? track.image : track.image_url;
-                            const isQueued = downloading[query] === 'loading' || downloading[query] === 'success';
+                    <AnimatePresence mode="wait">
+                      <motion.div
+                        key={view}
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -10 }}
+                        transition={{ duration: 0.2 }}
+                        className={cn(
+                          "grid gap-4",
+                          view === 'library' || view === 'undownloaded' ? "grid-cols-2 @md:grid-cols-3 @lg:grid-cols-4 @xl:grid-cols-5 @2xl:grid-cols-6" : "grid-cols-1"
+                        )}
+                      >
+                        {(view === 'library' || view === 'undownloaded') && currentTracks.length === 0 ? (
+                          <div className="col-span-full flex flex-col items-center justify-center py-20 text-spotify-grey">
+                            <Music className="w-16 h-16 mb-4 opacity-50" />
+                            <p className="text-xl font-semibold">
+                              {view === 'library' ? "Your library is empty" : "No pending downloads"}
+                            </p>
+                            <p className="text-sm mt-2">
+                              {view === 'library' ? "Download songs from your scrobbles to see them here." : "Disable auto-download to see pending items here."}
+                            </p>
+                          </div>
+                        ) : (
+                          <AnimatePresence>
+                            {(view === 'scrobbles' ? tracks : currentTracks).map((track, index) => {
+                              const query = `${track.artist} - ${track.title}`;
+                              const isLibraryItemDownloaded = (view === 'library' || view === 'undownloaded') && track.status === 'completed';
+                              const status = isLibraryItemDownloaded || track.downloaded ? 'success' : downloading[query];
+                              const imageSrc = view === 'scrobbles' ? track.image : track.image_url;
+                              const isQueued = downloading[query] === 'loading' || downloading[query] === 'success';
 
-                            return (
-                              <GlassCard
-                                key={`${track.timestamp || track.id}-${index}`}
-                                initial={{ opacity: 0, y: 20 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                exit={{ opacity: 0, y: -20 }}
-                                transition={{ delay: index * 0.05 }}
-                                image={imageSrc}
-                                className={cn(
-                                  "hover:bg-white/10 transition-colors relative overflow-hidden perspective-1000",
-                                  view === 'library' || view === 'undownloaded' ? "p-4 flex flex-col gap-3 aspect-square justify-between" : "p-4 flex items-center justify-between"
-                                )}
-                              >
-                                <div className={cn("flex gap-4", view === 'library' || view === 'undownloaded' ? "flex-col items-start w-full h-full" : "items-center")}>
-                                  <div className={cn(
-                                    "rounded-md overflow-hidden bg-black/5 dark:bg-spotify-dark relative flex items-center justify-center text-spotify-grey shadow-lg transition-transform duration-500 ease-out group-hover:rotate-x-6 group-hover:rotate-y-6 group-hover:scale-105",
-                                    view === 'library' || view === 'undownloaded' ? "w-full aspect-square mb-2" : "w-16 h-16",
-                                    isQueued && track.status !== 'completed' && "opacity-50 pointer-events-none"
-                                  )}>
-                                    {imageSrc ? (
-                                      <img src={imageSrc} alt={track.title} className="w-full h-full object-cover" />
-                                    ) : (
-                                      <div className="w-full h-full flex flex-col items-center justify-center bg-transparent dark:bg-linear-to-br dark:from-spotify-dark dark:to-spotify-grey/20 p-2 text-center">
-                                        {view === 'library' || view === 'undownloaded' ? (
-                                          <>
-                                            <span className="font-bold text-black dark:text-white text-sm line-clamp-2">{track.title}</span>
-                                            <span className="text-xs text-black/70 dark:text-spotify-grey line-clamp-1 mt-1">{track.artist}</span>
-                                          </>
-                                        ) : (
-                                          <Music className="w-8 h-8 text-black/50 dark:text-spotify-grey/50" />
-                                        )}
-                                      </div>
-                                    )}
+                              return (
+                                <GlassCard
+                                  key={`${track.timestamp || track.id}-${index}`}
+                                  initial={{ opacity: 0, y: 20 }}
+                                  animate={{ opacity: 1, y: 0 }}
+                                  exit={{ opacity: 0, y: -20 }}
+                                  transition={{ delay: index * 0.05 }}
+                                  image={imageSrc}
+                                  className={cn(
+                                    "hover:bg-white/10 transition-colors relative overflow-hidden perspective-1000",
+                                    view === 'library' || view === 'undownloaded' ? "p-4 flex flex-col gap-3 aspect-square justify-between" : "p-4 flex items-center justify-between"
+                                  )}
+                                >
+                                  <div className={cn("flex gap-4", view === 'library' || view === 'undownloaded' ? "flex-col items-start w-full h-full" : "items-center")}>
+                                    <div className={cn(
+                                      "rounded-md overflow-hidden bg-black/5 dark:bg-spotify-dark relative flex items-center justify-center text-spotify-grey shadow-lg transition-transform duration-500 ease-out group-hover:rotate-x-6 group-hover:rotate-y-6 group-hover:scale-105",
+                                      view === 'library' || view === 'undownloaded' ? "w-full aspect-square mb-2" : "w-16 h-16",
+                                      isQueued && track.status !== 'completed' && "opacity-50 pointer-events-none"
+                                    )}>
+                                      {imageSrc ? (
+                                        <img src={imageSrc} alt={track.title} className="w-full h-full object-cover" />
+                                      ) : (
+                                        <div className="w-full h-full flex flex-col items-center justify-center bg-transparent dark:bg-linear-to-br dark:from-spotify-dark dark:to-spotify-grey/20 p-2 text-center">
+                                          {view === 'library' || view === 'undownloaded' ? (
+                                            <>
+                                              <span className="font-bold text-black dark:text-white text-sm line-clamp-2">{track.title}</span>
+                                              <span className="text-xs text-black/70 dark:text-spotify-grey line-clamp-1 mt-1">{track.artist}</span>
+                                            </>
+                                          ) : (
+                                            <Music className="w-8 h-8 text-black/50 dark:text-spotify-grey/50" />
+                                          )}
+                                        </div>
+                                      )}
 
-                                    {(view === 'library' || view === 'undownloaded') && (
-                                      <div className={cn(
-                                        "absolute inset-0 bg-black/40 transition-opacity flex items-center justify-center",
-                                        isQueued && track.status !== 'completed' ? "opacity-100" : "opacity-0 group-hover:opacity-100"
-                                      )}>
-                                        {track.status === 'completed' ? (
-                                          <CheckCircle className="w-8 h-8 text-spotify-green" />
-                                        ) : isQueued ? (
-                                          <Loader2 className="w-8 h-8 text-spotify-green animate-spin" />
-                                        ) : (
-                                          <button
-                                            onClick={(e) => {
-                                              e.stopPropagation();
-                                              handleDownload(track);
-                                            }}
-                                            className="p-2 bg-spotify-green rounded-full text-white hover:scale-110 transition-transform"
-                                          >
-                                            <Download className="w-6 h-6" />
-                                          </button>
-                                        )}
-                                      </div>
-                                    )}
+                                      {(view === 'library' || view === 'undownloaded') && (
+                                        <div className={cn(
+                                          "absolute inset-0 bg-black/40 transition-opacity flex items-center justify-center",
+                                          isQueued && track.status !== 'completed' ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+                                        )}>
+                                          {track.status === 'completed' ? (
+                                            <CheckCircle className="w-8 h-8 text-spotify-green" />
+                                          ) : isQueued ? (
+                                            <Loader2 className="w-8 h-8 text-spotify-green animate-spin" />
+                                          ) : (
+                                            <button
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                handleDownload(track);
+                                              }}
+                                              className="p-2 bg-spotify-green rounded-full text-white hover:scale-110 transition-transform"
+                                            >
+                                              <Download className="w-6 h-6" />
+                                            </button>
+                                          )}
+                                        </div>
+                                      )}
+                                    </div>
+
+                                    <div className={cn("w-full", view === 'library' || view === 'undownloaded' ? "text-left" : "")}>
+                                      <h3 className={cn("font-semibold truncate w-full", view === 'library' || view === 'undownloaded' ? "text-sm" : "text-lg")}>
+                                        {track.title}
+                                      </h3>
+                                      <p className={cn("text-spotify-grey truncate w-full", view === 'library' || view === 'undownloaded' ? "text-xs" : "")}>
+                                        {track.artist}
+                                      </p>
+                                      {view !== 'library' && view !== 'undownloaded' && (
+                                        <p className="text-xs text-spotify-grey/60 mt-1">{track.album}</p>
+                                      )}
+                                    </div>
                                   </div>
 
-                                  <div className={cn("w-full", view === 'library' || view === 'undownloaded' ? "text-left" : "")}>
-                                    <h3 className={cn("font-semibold truncate w-full", view === 'library' || view === 'undownloaded' ? "text-sm" : "text-lg")}>
-                                      {track.title}
-                                    </h3>
-                                    <p className={cn("text-spotify-grey truncate w-full", view === 'library' || view === 'undownloaded' ? "text-xs" : "")}>
-                                      {track.artist}
-                                    </p>
-                                    {view !== 'library' && view !== 'undownloaded' && (
-                                      <p className="text-xs text-spotify-grey/60 mt-1">{track.album}</p>
-                                    )}
-                                  </div>
-                                </div>
-
-                                {view !== 'library' && view !== 'undownloaded' && (
-                                  <button
-                                    onClick={() => handleDownload(track)}
-                                    disabled={status === 'loading' || status === 'success'}
-                                    className={cn(
-                                      "p-3 rounded-full transition-all duration-300",
-                                      status === 'success' ? "bg-spotify-green text-white" :
-                                        status === 'loading' ? "bg-spotify-grey/20 text-spotify-green" :
-                                          "bg-white/10 text-white hover:bg-spotify-green hover:scale-110"
-                                    )}
-                                  >
-                                    {status === 'success' ? (
-                                      <CheckCircle className="w-6 h-6" />
-                                    ) : status === 'loading' ? (
-                                      <Loader2 className="w-6 h-6 animate-spin" />
-                                    ) : (
-                                      <Download className="w-6 h-6" />
-                                    )}
-                                  </button>
-                                )}
-                              </GlassCard>
-                            );
-                          })}
-                        </AnimatePresence>
-                      )}
-                    </div>
+                                  {view !== 'library' && view !== 'undownloaded' && (
+                                    <button
+                                      onClick={() => handleDownload(track)}
+                                      disabled={status === 'loading' || status === 'success'}
+                                      className={cn(
+                                        "p-3 rounded-full transition-all duration-300",
+                                        status === 'success' ? "bg-spotify-green text-white" :
+                                          status === 'loading' ? "bg-spotify-grey/20 text-spotify-green" :
+                                            "bg-white/10 text-white hover:bg-spotify-green hover:scale-110"
+                                      )}
+                                    >
+                                      {status === 'success' ? (
+                                        <CheckCircle className="w-6 h-6" />
+                                      ) : status === 'loading' ? (
+                                        <Loader2 className="w-6 h-6 animate-spin" />
+                                      ) : (
+                                        <Download className="w-6 h-6" />
+                                      )}
+                                    </button>
+                                  )}
+                                </GlassCard>
+                              );
+                            })}
+                          </AnimatePresence>
+                        )}
+                      </motion.div>
+                    </AnimatePresence>
                   </div>
                 </div>
               )}
@@ -582,8 +597,8 @@ function App() {
               }
             </div>
           )}
-        </div>
       </div>
+    </div>
     </ThemeProvider>
   );
 }
