@@ -26,8 +26,8 @@ export function GlassCard({ children, className, image, ...props }) {
         const hue2 = (hue1 + 60) % 360;
 
         // Muted colors for dark mode (Low saturation/lightness), Vibrant/Light for light mode
-        const saturation = isDark ? '30%' : '80%';
-        const lightness = isDark ? '30%' : '85%';
+        const saturation = isDark ? '30%' : '90%';
+        const lightness = isDark ? '30%' : '60%';
 
         return `linear-gradient(${angle}deg, hsl(${hue1}, ${saturation}, ${lightness}), hsl(${hue2}, ${saturation}, ${lightness}))`;
     }, [isDark]);

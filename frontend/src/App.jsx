@@ -269,14 +269,14 @@ function App() {
               </div>
             </div>
 
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-4 flex-wrap justify-center">
               {/* Navigation Tabs */}
-              <div className="flex bg-black/5 dark:bg-white/10 p-1 rounded-full border border-border">
+              <div className="flex bg-black/10 dark:bg-white/10 p-1 rounded-full border border-black/5 dark:border-white/5">
                 <button
                   onClick={() => setView('scrobbles')}
                   className={cn(
                     "px-4 py-1.5 rounded-full text-sm font-medium transition-colors flex items-center gap-2",
-                    view === 'scrobbles' ? "bg-spotify-green text-white" : "text-spotify-grey hover:text-black dark:text-white/70 dark:hover:text-white"
+                    view === 'scrobbles' ? "bg-spotify-green text-white" : "text-gray-600 hover:text-black dark:text-gray-400 dark:hover:text-white"
                   )}
                 >
                   <Disc className="w-4 h-4" />
@@ -286,7 +286,7 @@ function App() {
                   onClick={() => setView('library')}
                   className={cn(
                     "px-4 py-1.5 rounded-full text-sm font-medium transition-colors flex items-center gap-2",
-                    view === 'library' ? "bg-spotify-green text-white" : "text-spotify-grey hover:text-black dark:text-white/70 dark:hover:text-white"
+                    view === 'library' ? "bg-spotify-green text-white" : "text-gray-600 hover:text-black dark:text-gray-400 dark:hover:text-white"
                   )}
                 >
                   <CheckCircle className="w-4 h-4" />
@@ -296,7 +296,7 @@ function App() {
                   onClick={() => setView('undownloaded')}
                   className={cn(
                     "px-4 py-1.5 rounded-full text-sm font-medium transition-colors flex items-center gap-2",
-                    view === 'undownloaded' ? "bg-spotify-green text-white" : "text-spotify-grey hover:text-black dark:text-white/70 dark:hover:text-white"
+                    view === 'undownloaded' ? "bg-spotify-green text-white" : "text-gray-600 hover:text-black dark:text-gray-400 dark:hover:text-white"
                   )}
                 >
                   <Download className="w-4 h-4" />
@@ -306,14 +306,13 @@ function App() {
                   onClick={() => setView('jobs')}
                   className={cn(
                     "px-4 py-1.5 rounded-full text-sm font-medium transition-colors flex items-center gap-2",
-                    view === 'jobs' ? "bg-spotify-green text-white" : "text-spotify-grey hover:text-black dark:text-white/70 dark:hover:text-white"
+                    view === 'jobs' ? "bg-spotify-green text-white" : "text-gray-600 hover:text-black dark:text-gray-400 dark:hover:text-white"
                   )}
                 >
                   <Hourglass className="w-4 h-4" />
                   Jobs
                 </button>
               </div>
-
               <button
                 onClick={() => setIsSettingsOpen(true)}
                 className="p-2 hover:bg-white/10 rounded-full transition-colors text-spotify-grey hover:text-white"
@@ -393,7 +392,7 @@ function App() {
                   <div className="@container">
                     <AnimatePresence mode="wait">
                       <motion.div
-                        key={view}
+                        key={`${view}-${currentPage}`}
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: -10 }}
@@ -444,7 +443,7 @@ function App() {
                                       {imageSrc ? (
                                         <img src={imageSrc} alt={track.title} className="w-full h-full object-cover" />
                                       ) : (
-                                        <div className="w-full h-full flex flex-col items-center justify-center bg-transparent dark:bg-linear-to-br dark:from-spotify-dark dark:to-spotify-grey/20 p-2 text-center">
+                                        <div className="w-full h-full flex flex-col items-center justify-center bg-linear-to-br from-gray-200 to-gray-300 dark:from-spotify-dark dark:to-spotify-grey/20 p-2 text-center">
                                           {view === 'library' || view === 'undownloaded' ? (
                                             <>
                                               <span className="font-bold text-black dark:text-white text-sm line-clamp-2">{track.title}</span>
@@ -597,8 +596,8 @@ function App() {
               }
             </div>
           )}
+        </div>
       </div>
-    </div>
     </ThemeProvider>
   );
 }
