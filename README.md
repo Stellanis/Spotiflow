@@ -10,10 +10,12 @@ A self-hosted application that automatically downloads your recent Last.fm scrob
 -   **Smart Deduplication**: Maintains a local database to prevent re-downloading existing songs.
 -   **Plex-Ready Organization**: Automatically sorts files into `Artist/Album/Song.mp3`.
 -   **Metadata Injection**: Embeds correct Artist, Title, and Album tags (ignoring messy YouTube titles).
--   **Modern UI**: Beautiful, dark-themed React dashboard built with Vite and Tailwind CSS v4.
--   **Library Management**: View your downloaded collection and manually trigger downloads for missing tracks.
--   **Undownloaded View**: Quickly see which scrobbles haven't been downloaded yet and queue them with one click.
--   **Job Management**: Monitor active and pending downloads in real-time.
+-   **Modern UI**: Beautiful, responsive dashboard built with React, Vite, and Tailwind CSS v4.
+-   **Theming**: Fully customizable with Light/Dark modes and multiple color themes (Violet, Blue, Green, Orange, Red, Slate).
+-   **Library Management**: View your downloaded collection, search for tracks, and manually trigger downloads.
+-   **Undownloaded View**: Quickly see which scrobbles haven't been downloaded yet, search them, and queue them all with one click.
+-   **Job Management**: Monitor active and pending downloads in real-time with a dedicated Jobs page.
+-   **Interactive Tutorial**: A built-in guide to help you get started and configure your API keys on the first run.
 -   **Dockerized**: Easy deployment on local machines or NAS (Synology, Unraid, etc.).
 
 ## 📸 Screenshots
@@ -23,20 +25,24 @@ Browse your downloaded collection with album art and metadata.
 ![Library View](assets/library.png)
 
 ### Undownloaded Tracks
-See what's missing from your library and download it instantly.
+See what's missing from your library and download everything with a single click.
 ![Undownloaded View](assets/undownloaded.png)
 
 ### Job Queue
-Track the status of your downloads.
+Track the status of your downloads in real-time.
 ![Jobs Page](assets/jobs.png)
 
-### Settings
-Configure API keys, update intervals, and more directly from the UI.
+### Settings & Theming
+Configure API keys, update intervals, and customize the look and feel of the app.
 ![Settings Page](assets/settings.png)
+
+### First-Run Tutorial
+Helpful guide to get you set up quickly.
+![Tutorial](assets/tutorial.png)
 
 ## 🛠️ Tech Stack
 
--   **Frontend**: React, Vite, Tailwind CSS v4, Framer Motion
+-   **Frontend**: React, Vite, Tailwind CSS v4, Framer Motion, Lucide React
 -   **Backend**: Python, FastAPI, APScheduler
 -   **Core**: `yt-dlp` (for downloading), `ffmpeg` (for conversion), `mutagen` (for tagging)
 -   **Database**: SQLite
