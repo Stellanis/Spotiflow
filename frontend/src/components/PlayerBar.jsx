@@ -1,7 +1,8 @@
 import { Play, Pause, SkipBack, SkipForward, Volume2, Loader2, Maximize2, Download } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { usePlayer } from '../contexts/PlayerContext';
 import { cn } from '../utils';
+import { useNavigate } from 'react-router-dom';
 
 function formatDuration(seconds) {
     if (!seconds) return "0:00";
@@ -11,10 +12,31 @@ function formatDuration(seconds) {
 }
 
 export function PlayerBar() {
-    const { currentTrack, isPlaying, togglePlay, progress, duration, seek, volume, updateVolume, isReady, activeDownloads } = usePlayer();
+    const { currentTrack, isPlaying, togglePlay, progress, duration, seek, volume, updateVolume, isReady, activeDownloads, nextTrack, prevTrack } = usePlayer();
+    const navigate = useNavigate();
 
-    if (!currentTrack) return null;
+    // Show nothing if no track and no downloads
+    if (!currentTrack && activeDownloads.length === 0) return null;
 
+    // Collapsed Status Bar (Only Downloads)
+    if (!currentTrack) {
+        return (
+            <motion.div
+                initial={{ y: 100 }}
+                animate={{ y: 0 }}
+                exit={{ y: 100 }}
+                className="fixed bottom-0 left-0 right-0 h-12 bg-black/60 backdrop-blur-xl border-t border-white/10 px-4 md:px-8 flex items-center justify-center z-50 text-white cursor-pointer hover:bg-black/70 transition-colors"
+                onClick={() => navigate('/jobs')}
+            >
+                <div className="flex items-center gap-3 text-sm font-medium text-spotify-green animate-pulse">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>{activeDownloads.length} item{activeDownloads.length !== 1 && 's'} downloading...</span>
+                </div>
+            </motion.div>
+        );
+    }
+
+    // Full Player Bar
     return (
         <motion.div
             initial={{ y: 100 }}
@@ -41,7 +63,7 @@ export function PlayerBar() {
             {/* Controls & Scrubber */}
             <div className="flex flex-col items-center gap-2 w-[40%] max-w-xl">
                 <div className="flex items-center gap-6">
-                    <button className="text-spotify-grey hover:text-white transition-colors">
+                    <button onClick={prevTrack} className="text-spotify-grey hover:text-white transition-colors">
                         <SkipBack className="w-5 h-5" />
                     </button>
 
@@ -59,7 +81,7 @@ export function PlayerBar() {
                         )}
                     </button>
 
-                    <button className="text-spotify-grey hover:text-white transition-colors">
+                    <button onClick={nextTrack} className="text-spotify-grey hover:text-white transition-colors">
                         <SkipForward className="w-5 h-5" />
                     </button>
                 </div>
@@ -82,10 +104,14 @@ export function PlayerBar() {
             <div className="flex items-center justify-end gap-3 w-[30%]">
                 {/* Global Download Status */}
                 {activeDownloads.length > 0 && (
-                    <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-500/20 text-blue-400 rounded-full text-xs font-medium animate-pulse">
+                    <motion.button
+                        layoutId="download-status"
+                        onClick={() => navigate('/jobs')}
+                        className="flex items-center gap-2 px-3 py-1.5 bg-blue-500/20 text-blue-400 rounded-full text-xs font-medium animate-pulse hover:bg-blue-500/30 transition-colors"
+                    >
                         <Loader2 className="w-3 h-3 animate-spin" />
                         <span>{activeDownloads.length} Downloading</span>
-                    </div>
+                    </motion.button>
                 )}
 
                 <div className="h-8 w-px bg-white/10 mx-2" />

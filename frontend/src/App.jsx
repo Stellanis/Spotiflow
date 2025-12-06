@@ -2,10 +2,15 @@ import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Download, Music, Disc, Search, CheckCircle, Loader2, Settings, ChevronLeft, ChevronRight, RefreshCw, Hourglass, Trophy } from 'lucide-react';
+import { useRef, useCallback } from 'react';
+
 import { cn } from './utils';
 import { SettingsModal } from './SettingsModal';
 import { TutorialModal } from './TutorialModal';
+import { AddToPlaylistModal } from './components/AddToPlaylistModal';
+import { Playlists } from './components/Playlists';
+import { FilterDropdown } from './components/FilterDropdown';
+import { Download, Music, Disc, Search, CheckCircle, Loader2, Settings, ChevronLeft, ChevronRight, ChevronDown, RefreshCw, Hourglass, Trophy, Plus, Play, Trash2, ArrowLeft, Info } from 'lucide-react';
 import { GlassCard } from './components/GlassCard';
 import Jobs from './Jobs';
 import Stats from './components/Stats';
@@ -52,6 +57,10 @@ function AppContent() {
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
 
+  // Playlist State
+  const [playlistTrackToAdd, setPlaylistTrackToAdd] = useState(null);
+  const [selectedPlaylistId, setSelectedPlaylistId] = useState(null);
+
   useEffect(() => {
     // Fetch settings on mount to get the username
     const fetchSettings = async () => {
@@ -83,10 +92,12 @@ function AppContent() {
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
-  // Reset search when view changes
+  // Reset search and pagination when view changes
   useEffect(() => {
     setSearchQuery('');
     setDebouncedSearchQuery('');
+    setCurrentPage(1);
+    setDownloadedTracks([]); // Clear tracks to prevent showing stale data while loading
   }, [view]);
 
   // Fetch scrobbles whenever username changes (if not empty)
@@ -112,6 +123,36 @@ function AppContent() {
     }
   };
 
+  // Filters
+  const [artistFilter, setArtistFilter] = useState('');
+  const [albumFilter, setAlbumFilter] = useState('');
+  const [filterOptions, setFilterOptions] = useState({ artists: [], albums: [] });
+
+  // Fetch filters when artist filter changes or on mount
+  useEffect(() => {
+    if (view === 'library') {
+      const fetchFilters = async () => {
+        try {
+          const params = {};
+          if (artistFilter) params.artist = artistFilter;
+          const response = await axios.get(`${API_URL}/filters`, { params });
+          setFilterOptions(prev => ({
+            artists: response.data.artists, // Always get full artist list? Or filtered? Let's use full list effectively but maybe backend logic needs tweak if we want to narrow down artists. For now, keeping full artist list is fine or maybe only filtered albums. 
+            // Wait, if I select an Artist, I want to see their Albums.
+            // If I select nothing, I see all Artists and all Albums.
+            // Backend `get_filters` returns { artists: get_all_artists(), albums: get_all_albums(artist) }
+            // So if artist is set, artists list is still FULL list (good for switching), but albums are filtered.
+            artists: response.data.artists,
+            albums: response.data.albums
+          }));
+        } catch (error) {
+          console.error("Error fetching filters:", error);
+        }
+      };
+      fetchFilters();
+    }
+  }, [view, artistFilter]);
+
   const fetchDownloads = async (signal) => {
     setLoading(true);
     try {
@@ -122,6 +163,8 @@ function AppContent() {
 
       if (view === 'library') {
         params.status = 'completed';
+        if (artistFilter) params.artist = artistFilter;
+        if (albumFilter) params.album = albumFilter;
       } else if (view === 'undownloaded') {
         params.status = 'pending';
       }
@@ -131,7 +174,13 @@ function AppContent() {
       }
 
       const response = await axios.get(`${API_URL}/downloads`, { params, signal });
-      setDownloadedTracks(response.data.items);
+
+      if (currentPage === 1) {
+        setDownloadedTracks(response.data.items);
+      } else {
+        setDownloadedTracks(prev => [...prev, ...response.data.items]);
+      }
+
       setTotalPages(response.data.total_pages);
     } catch (error) {
       if (axios.isCancel(error)) return;
@@ -156,9 +205,14 @@ function AppContent() {
       setDownloading(prev => ({ ...prev, [query]: 'success' }));
       toast.success(`Downloading "${track.title}"`);
 
-      // If we are in library or undownloaded view, refresh the list
+      // If we are in library or undownloaded view, update the list locally
       if (view === 'library' || view === 'undownloaded') {
-        fetchDownloads();
+        setDownloadedTracks(prev => prev.map(t => {
+          if (t.artist === track.artist && t.title === track.title) {
+            return { ...t, status: 'completed' };
+          }
+          return t;
+        }));
       }
     } catch (error) {
       console.error("Error downloading:", error);
@@ -219,6 +273,19 @@ function AppContent() {
     }
   };
 
+  // Infinite Scroll Observer
+  const observer = useRef();
+  const lastTrackElementRef = useCallback(node => {
+    if (loading) return;
+    if (observer.current) observer.current.disconnect();
+    observer.current = new IntersectionObserver(entries => {
+      if (entries[0].isIntersecting && currentPage < totalPages) {
+        setCurrentPage(prevPage => prevPage + 1);
+      }
+    });
+    if (node) observer.current.observe(node);
+  }, [loading, totalPages, currentPage]);
+
   useEffect(() => {
     const controller = new AbortController();
     if (view === 'scrobbles') {
@@ -227,7 +294,7 @@ function AppContent() {
       fetchDownloads(controller.signal);
     }
     return () => controller.abort();
-  }, [view, currentPage, itemsPerPage, debouncedSearchQuery]);
+  }, [view, currentPage, debouncedSearchQuery, artistFilter, albumFilter]); // Removed itemsPerPage
 
   const currentTracks = view === 'library' || view === 'undownloaded'
     ? downloadedTracks
@@ -278,6 +345,11 @@ function AppContent() {
         track={selectedTrack}
         username={username}
       />
+      <AddToPlaylistModal
+        isOpen={!!playlistTrackToAdd}
+        onClose={() => setPlaylistTrackToAdd(null)}
+        track={playlistTrackToAdd}
+      />
       <div className="w-[95%] mx-auto space-y-8">
 
 
@@ -298,6 +370,7 @@ function AppContent() {
               {[
                 { id: 'scrobbles', icon: Disc, label: 'Scrobbles' },
                 { id: 'library', icon: CheckCircle, label: 'Library' },
+                { id: 'playlists', icon: Music, label: 'Playlists' },
                 { id: 'undownloaded', icon: Download, label: 'Undownloaded' },
                 { id: 'jobs', icon: Hourglass, label: 'Jobs' },
                 { id: 'stats', icon: Trophy, label: 'Stats' },
@@ -354,6 +427,8 @@ function AppContent() {
           <Jobs />
         ) : view === 'stats' ? (
           <Stats username={username} onTrackClick={setSelectedTrack} />
+        ) : view === 'playlists' ? (
+          <Playlists />
         ) : (
 
           <div className="space-y-4">
@@ -378,17 +453,40 @@ function AppContent() {
               )}
             </div>
 
-            {/* Search Bar */}
+            {/* Search and Filters */}
             {(view === 'library' || view === 'undownloaded') && (
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-spotify-grey" />
-                <input
-                  type="text"
-                  placeholder={`Search ${view === 'library' ? 'library' : 'pending downloads'}...`}
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full bg-white/5 border border-white/10 rounded-full py-2 pl-10 pr-4 text-white placeholder:text-spotify-grey focus:outline-none focus:border-spotify-green focus:bg-white/10 transition-colors"
-                />
+              <div className="flex flex-col md:flex-row gap-4">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-spotify-grey" />
+                  <input
+                    type="text"
+                    placeholder={`Search ${view === 'library' ? 'library' : 'pending downloads'}...`}
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full bg-white/5 border border-white/10 rounded-full py-2 pl-10 pr-4 text-white placeholder:text-spotify-grey focus:outline-none focus:border-spotify-green focus:bg-white/10 transition-colors"
+                  />
+                </div>
+
+                {view === 'library' && (
+                  <div className="flex gap-2 text-white">
+                    <FilterDropdown
+                      value={artistFilter}
+                      options={filterOptions.artists}
+                      onChange={(val) => {
+                        setArtistFilter(val);
+                        setAlbumFilter('');
+                      }}
+                      placeholder="All Artists"
+                    />
+
+                    <FilterDropdown
+                      value={albumFilter}
+                      options={filterOptions.albums}
+                      onChange={setAlbumFilter}
+                      placeholder="All Albums"
+                    />
+                  </div>
+                )}
               </div>
             )}
 
@@ -470,6 +568,8 @@ function AppContent() {
                               <GlassCard
                                 whileTap={{ scale: 0.98 }}
                                 image={imageSrc}
+                                // Add ref to the last element
+                                ref={index === currentTracks.length - 1 && (view === 'library' || view === 'undownloaded') ? lastTrackElementRef : null}
                                 onClick={() => {
                                   // If downloaded, try to play
                                   if (isLibraryItemDownloaded || track.downloaded) {
@@ -531,6 +631,34 @@ function AppContent() {
                                         )}
                                       </div>
                                     )}
+
+                                    {/* Actions for Library/Undownloaded Items */}
+                                    {((view === 'library' || view === 'undownloaded') && track.status === 'completed') && (
+                                      <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-2">
+                                        <motion.button
+                                          whileTap={{ scale: 0.9 }}
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            setSelectedTrack(track);
+                                          }}
+                                          className="p-2 bg-black/50 hover:bg-white/20 rounded-full text-white transition-colors backdrop-blur-sm"
+                                          title="View Info"
+                                        >
+                                          <Info className="w-4 h-4" />
+                                        </motion.button>
+                                        <motion.button
+                                          whileTap={{ scale: 0.9 }}
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            setPlaylistTrackToAdd(track);
+                                          }}
+                                          className="p-2 bg-black/50 hover:bg-spotify-green rounded-full text-white transition-colors backdrop-blur-sm"
+                                          title="Add to Playlist"
+                                        >
+                                          <Plus className="w-4 h-4" />
+                                        </motion.button>
+                                      </div>
+                                    )}
                                   </div>
 
                                   <div className={cn("w-full", view === 'library' || view === 'undownloaded' ? "text-left" : "")}>
@@ -578,85 +706,17 @@ function AppContent() {
               </div>
             )}
 
-            {/* Pagination Controls */}
-            {
-              (view === 'library' || view === 'undownloaded') && !loading && downloadedTracks.length > 0 && (
-                <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-8 p-4 glass-panel">
-                  <div className="flex items-center gap-2 text-sm text-spotify-grey">
-                    <span>Rows per page:</span>
-                    <select
-                      value={itemsPerPage}
-                      onChange={handleItemsPerPageChange}
-                      className="bg-spotify-dark border border-white/10 rounded px-2 py-1 text-white focus:outline-none focus:border-spotify-green"
-                    >
-                      <option value={10}>10</option>
-                      <option value={20}>20</option>
-                      <option value={50}>50</option>
-                    </select>
-                    <span className="ml-2">
-                      Page {currentPage} of {totalPages}
-                    </span>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <motion.button
-                      whileTap={{ scale: 0.95 }}
-                      onClick={() => handlePageChange(currentPage - 1)}
-                      disabled={currentPage === 1}
-                      className="p-2 hover:bg-white/10 rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      <ChevronLeft className="w-5 h-5" />
-                    </motion.button>
-
-                    <div className="flex items-center gap-1">
-                      {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                        // Logic to show current page and surrounding pages
-                        let pageNum;
-                        if (totalPages <= 5) {
-                          pageNum = i + 1;
-                        } else if (currentPage <= 3) {
-                          pageNum = i + 1;
-                        } else if (currentPage >= totalPages - 2) {
-                          pageNum = totalPages - 4 + i;
-                        } else {
-                          pageNum = currentPage - 2 + i;
-                        }
-
-                        return (
-                          <motion.button
-                            whileTap={{ scale: 0.95 }}
-                            key={pageNum}
-                            onClick={() => handlePageChange(pageNum)}
-                            className={cn(
-                              "w-8 h-8 rounded-full text-sm font-medium transition-colors",
-                              currentPage === pageNum
-                                ? "bg-spotify-green text-white"
-                                : "hover:bg-white/10 text-spotify-grey hover:text-white"
-                            )}
-                          >
-                            {pageNum}
-                          </motion.button>
-                        );
-                      })}
-                    </div>
-
-                    <motion.button
-                      whileTap={{ scale: 0.95 }}
-                      onClick={() => handlePageChange(currentPage + 1)}
-                      disabled={currentPage === totalPages}
-                      className="p-2 hover:bg-white/10 rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      <ChevronRight className="w-5 h-5" />
-                    </motion.button>
-                  </div>
-                </div>
-              )
-            }
+            {/* Infinite Scroll Loading Indicator */}
+            {(view === 'library' || view === 'undownloaded') && loading && downloadedTracks.length > 0 && (
+              <div className="py-4 flex justify-center w-full">
+                <Loader2 className="w-6 h-6 animate-spin text-spotify-green" />
+              </div>
+            )}
           </div>
         )}
       </div>
       <PlayerBar />
-    </div>
+    </div >
   );
 }
 

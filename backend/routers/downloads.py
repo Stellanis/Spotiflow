@@ -18,8 +18,8 @@ class DownloadRequest(BaseModel):
     image: str = None
 
 @router.get("/downloads")
-async def list_downloads(page: int = 1, limit: int = 50, status: str = None, search: str = None):
-    items = get_downloads(page, limit, status, search)
+async def list_downloads(page: int = 1, limit: int = 50, status: str = None, search: str = None, artist: str = None, album: str = None):
+    items = get_downloads(page, limit, status, search, artist, album)
     
     # Inject audio_url
     for item in items:
@@ -31,7 +31,7 @@ async def list_downloads(page: int = 1, limit: int = 50, status: str = None, sea
         else:
             item['audio_url'] = None
 
-    total = get_total_downloads_count(status, search)
+    total = get_total_downloads_count(status, search, artist, album)
     total_pages = (total + limit - 1) // limit
     
     return {
@@ -40,6 +40,14 @@ async def list_downloads(page: int = 1, limit: int = 50, status: str = None, sea
         "page": page,
         "limit": limit,
         "total_pages": total_pages
+    }
+
+@router.get("/filters")
+async def get_filters(artist: str = None):
+    from database import get_all_artists, get_all_albums
+    return {
+        "artists": get_all_artists(),
+        "albums": get_all_albums(artist)
     }
 
 @router.post("/download")

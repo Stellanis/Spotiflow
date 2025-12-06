@@ -9,56 +9,76 @@ export function PlayerProvider({ children }) {
     const [progress, setProgress] = useState(0);
     const [duration, setDuration] = useState(0);
     const [isReady, setIsReady] = useState(false);
+    const [queue, setQueue] = useState([]);
+    const [queueIndex, setQueueIndex] = useState(-1);
     const [activeDownloads, setActiveDownloads] = useState([]);
 
     const audioRef = useRef(new Audio());
+    const wsRef = useRef(null);
 
-    // Poll for active downloads
+    // WebSocket connection for real-time status
     useEffect(() => {
-        const fetchJobs = async () => {
-            try {
-                const res = await fetch('/api/jobs');
-                if (res.ok) {
-                    const data = await res.json();
-                    setActiveDownloads(data.active_downloads || []);
+        const connect = () => {
+            // Determine protocol (ws or wss) based on current protocol
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            // Use window.location.host since we have a proxy, but wait, proxy handles HTTP.
+            // For websockets, we typically need to hit the backend directly or via proxy if proxy supports upgrade.
+            // Vite proxy supports WS upgrade. So connecting to same host at /ws should work if proxy is configured.
+            // Let's assume proxy rewrites /api/ws. Wait, my proxy config is: '/api': { target: '...', rewrite: ... }
+            // If I connect to `ws://localhost:5173/api/ws`, it should get proxied to `ws://localhost:8000/ws`.
+
+            // Debugging: Bypass proxy and connect directly to backend
+            const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsUrl = `${wsProtocol}//${window.location.hostname}:8000/ws`;
+            console.log("Connecting to WS:", wsUrl);
+            // Note: If /api is stripped by Vite proxy as per config, we need backend route to be /ws.
+            // My backend router is @router.websocket("/ws").
+            // So if I call /api/ws, it becomes /ws on backend. Correct.
+
+            const ws = new WebSocket(wsUrl);
+            wsRef.current = ws;
+
+            ws.onopen = () => {
+                console.log("WS Connected");
+            };
+
+            ws.onmessage = (event) => {
+                try {
+                    const data = JSON.parse(event.data);
+                    if (data.active_downloads) {
+                        setActiveDownloads(data.active_downloads);
+                    }
+                } catch (e) {
+                    console.error("WS Parse error", e);
                 }
-            } catch (e) {
-                console.error("Failed to fetch jobs:", e);
-            }
+            };
+
+            ws.onclose = (e) => {
+                console.log("WS Disconnected, reconnecting...", e.reason);
+                setTimeout(connect, 3000); // Retry logic
+            };
+
+            ws.onerror = (err) => {
+                console.error("WS Error:", err);
+                ws.close();
+            };
         };
 
-        const interval = setInterval(fetchJobs, 2000);
-        fetchJobs(); // Initial fetch
-
-        return () => clearInterval(interval);
-    }, []);
-
-    useEffect(() => {
-        const audio = audioRef.current;
-
-        const handleTimeUpdate = () => setProgress(audio.currentTime);
-        const handleDurationChange = () => setDuration(audio.duration);
-        const handleEnded = () => {
-            setIsPlaying(false);
-            setProgress(0);
-        };
-        const handleCanPlay = () => setIsReady(true);
-
-        audio.addEventListener('timeupdate', handleTimeUpdate);
-        audio.addEventListener('durationchange', handleDurationChange);
-        audio.addEventListener('ended', handleEnded);
-        audio.addEventListener('canplay', handleCanPlay);
+        connect();
 
         return () => {
-            audio.removeEventListener('timeupdate', handleTimeUpdate);
-            audio.removeEventListener('durationchange', handleDurationChange);
-            audio.removeEventListener('ended', handleEnded);
-            audio.removeEventListener('canplay', handleCanPlay);
+            if (wsRef.current) wsRef.current.close();
         };
     }, []);
 
-    const playTrack = (track) => {
+    const playTrack = (track, newQueue = null) => {
         const audio = audioRef.current;
+
+        if (newQueue) {
+            setQueue(newQueue);
+            const index = newQueue.findIndex(t => t.id === track.id || t.title === track.title);
+            setQueueIndex(index !== -1 ? index : 0);
+        }
 
         // Use the backend-provided URL if available, fallback to constructed one
         // The backend should now be returning 'audio_url' for downloaded tracks
@@ -100,6 +120,45 @@ export function PlayerProvider({ children }) {
         }
     };
 
+    const nextTrack = () => {
+        if (queue.length > 0 && queueIndex < queue.length - 1) {
+            playTrack(queue[queueIndex + 1]);
+            setQueueIndex(queueIndex + 1);
+        }
+    };
+
+    const prevTrack = () => {
+        if (queue.length > 0 && queueIndex > 0) {
+            playTrack(queue[queueIndex - 1]);
+            setQueueIndex(queueIndex - 1);
+        }
+    };
+
+    useEffect(() => {
+        const audio = audioRef.current;
+
+        const handleTimeUpdate = () => setProgress(audio.currentTime);
+        const handleDurationChange = () => setDuration(audio.duration);
+        const handleEnded = () => {
+            setIsPlaying(false);
+            setProgress(0);
+            nextTrack(); // Auto-play next
+        };
+        const handleCanPlay = () => setIsReady(true);
+
+        audio.addEventListener('timeupdate', handleTimeUpdate);
+        audio.addEventListener('durationchange', handleDurationChange);
+        audio.addEventListener('ended', handleEnded);
+        audio.addEventListener('canplay', handleCanPlay);
+
+        return () => {
+            audio.removeEventListener('timeupdate', handleTimeUpdate);
+            audio.removeEventListener('durationchange', handleDurationChange);
+            audio.removeEventListener('ended', handleEnded);
+            audio.removeEventListener('canplay', handleCanPlay);
+        };
+    }, [queue, queueIndex]);
+
     const togglePlay = () => {
         if (!currentTrack) return;
 
@@ -133,7 +192,10 @@ export function PlayerProvider({ children }) {
             togglePlay,
             seek,
             updateVolume,
-            activeDownloads
+            activeDownloads,
+            nextTrack,
+            prevTrack,
+            queue
         }}>
             {children}
         </PlayerContext.Provider>

@@ -3,11 +3,27 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from database import init_db, DB_NAME, get_setting
-from core import scheduler, logger
+from core import scheduler, logger, downloader_service
 from tasks import check_new_scrobbles, refresh_daily_stats
-from routers import scrobbles, stats, downloads, settings
+from routers import scrobbles, stats, downloads, settings, websockets
+from services.websocket_manager import manager
 from datetime import datetime
 import os
+import asyncio
+
+async def broadcast_status():
+    """Poller that broadcasts active downloads to all connected clients."""
+    while True:
+        try:
+            active_downloads = downloader_service.get_active_downloads()
+            # Always broadcast current state, let frontend decide if it needs to re-render
+            # Efficient enough for local tool
+            if active_downloads or manager.active_connections:
+                 await manager.broadcast({"active_downloads": active_downloads})
+        except Exception as e:
+            logger.error(f"Error in broadcast loop: {e}")
+        
+        await asyncio.sleep(0.5)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -33,8 +49,17 @@ async def lifespan(app: FastAPI):
     
     scheduler.start()
     logger.info("Scheduler started.")
+
+    # Start WebSocket broadcaster
+    broadcast_task = asyncio.create_task(broadcast_status())
+
     yield
     # Shutdown
+    broadcast_task.cancel()
+    try:
+        await broadcast_task
+    except asyncio.CancelledError:
+        pass
     scheduler.shutdown()
 
 app = FastAPI(title="Spotify Downloader API", lifespan=lifespan)
@@ -53,6 +78,9 @@ app.include_router(scrobbles.router)
 app.include_router(stats.router)
 app.include_router(downloads.router)
 app.include_router(settings.router)
+app.include_router(websockets.router)
+from routers import playlists
+app.include_router(playlists.router)
 
 # Mount downloads directory to serve audio files
 # Ensure directory exists first

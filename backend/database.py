@@ -43,6 +43,28 @@ def init_db():
     # Performance: Add index on created_at for fast pagination
     c.execute('CREATE INDEX IF NOT EXISTS idx_downloads_created_at ON downloads(created_at)')
         
+    # Create Playlists tables
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS playlists (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT UNIQUE,
+            description TEXT,
+            created_at TIMESTAMP
+        )
+    ''')
+    
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS playlist_songs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            playlist_id INTEGER,
+            song_query TEXT,
+            position INTEGER,
+            added_at TIMESTAMP,
+            FOREIGN KEY(playlist_id) REFERENCES playlists(id),
+            FOREIGN KEY(song_query) REFERENCES downloads(query)
+        )
+    ''')
+
     conn.commit()
     conn.close()
 
@@ -93,7 +115,7 @@ def get_download_status(query):
     conn.close()
     return result[0] if result else None
 
-def get_downloads(page=1, limit=50, status=None, search_query=None):
+def get_downloads(page=1, limit=50, status=None, search_query=None, artist=None, album=None):
     offset = (page - 1) * limit
     conn = sqlite3.connect(DB_NAME)
     conn.row_factory = sqlite3.Row
@@ -111,6 +133,14 @@ def get_downloads(page=1, limit=50, status=None, search_query=None):
         search_term = f"%{search_query}%"
         conditions.append("(title LIKE ? OR artist LIKE ? OR album LIKE ?)")
         params.extend([search_term, search_term, search_term])
+
+    if artist:
+        conditions.append("artist = ?")
+        params.append(artist)
+
+    if album:
+        conditions.append("album = ?")
+        params.append(album)
         
     if conditions:
         query_parts.append("WHERE " + " AND ".join(conditions))
@@ -134,7 +164,7 @@ def get_all_pending_downloads():
     conn.close()
     return [dict(row) for row in rows]
 
-def get_total_downloads_count(status=None, search_query=None):
+def get_total_downloads_count(status=None, search_query=None, artist=None, album=None):
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
     
@@ -150,6 +180,14 @@ def get_total_downloads_count(status=None, search_query=None):
         search_term = f"%{search_query}%"
         conditions.append("(title LIKE ? OR artist LIKE ? OR album LIKE ?)")
         params.extend([search_term, search_term, search_term])
+
+    if artist:
+        conditions.append("artist = ?")
+        params.append(artist)
+
+    if album:
+        conditions.append("album = ?")
+        params.append(album)
         
     if conditions:
         query_parts.append("WHERE " + " AND ".join(conditions))
@@ -160,6 +198,25 @@ def get_total_downloads_count(status=None, search_query=None):
     count = c.fetchone()[0]
     conn.close()
     return count
+
+def get_all_artists():
+    conn = sqlite3.connect(DB_NAME)
+    c = conn.cursor()
+    c.execute('SELECT DISTINCT artist FROM downloads WHERE status = "completed" ORDER BY artist')
+    rows = c.fetchall()
+    conn.close()
+    return [row[0] for row in rows if row[0]]
+
+def get_all_albums(artist=None):
+    conn = sqlite3.connect(DB_NAME)
+    c = conn.cursor()
+    if artist:
+        c.execute('SELECT DISTINCT album FROM downloads WHERE status = "completed" AND artist = ? ORDER BY album', (artist,))
+    else:
+        c.execute('SELECT DISTINCT album FROM downloads WHERE status = "completed" ORDER BY album')
+    rows = c.fetchall()
+    conn.close()
+    return [row[0] for row in rows if row[0]]
 
 def get_setting(key, default=None):
     conn = sqlite3.connect(DB_NAME)
