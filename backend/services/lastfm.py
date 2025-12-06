@@ -59,8 +59,9 @@ class LastFMService:
             term = urllib.parse.quote(term)
             url = f"https://itunes.apple.com/search?term={term}&entity=song&limit=1"
             
+            curl_cmd = 'curl.exe' if os.name == 'nt' else 'curl'
             cmd = [
-                'curl.exe', '-s',
+                curl_cmd, '-s',
                 '-A', "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
                 url
             ]
