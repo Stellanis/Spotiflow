@@ -281,6 +281,68 @@ def get_chart_data(user: str, period: str = "1month", artist: str = None, track:
         logger.error(f"Error fetching chart data: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.get("/stats/listening-clock/{user}")
+def get_listening_clock(user: str, period: str = "1month"):
+    try:
+        data = lastfm_service.get_listening_clock_data(user, period)
+        return data
+    except Exception as e:
+        logger.error(f"Error fetching listening clock data: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/stats/genre-breakdown/{user}")
+def get_genre_breakdown(user: str, period: str = "1month"):
+    try:
+        data = lastfm_service.get_genre_breakdown(user, period)
+        return data
+    except Exception as e:
+        logger.error(f"Error fetching genre breakdown: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/stats/on-this-day/{user}")
+def get_on_this_day(user: str):
+    try:
+        data = lastfm_service.get_on_this_day(user)
+        return data
+    except Exception as e:
+        logger.error(f"Error fetching on this day data: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/stats/streak/{user}")
+def get_streak(user: str):
+    try:
+        data = lastfm_service.get_listening_streak(user)
+        return data
+    except Exception as e:
+        logger.error(f"Error fetching streak data: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/stats/diversity/{user}")
+def get_diversity(user: str, period: str = "1month"):
+    try:
+        data = lastfm_service.get_artist_diversity(user, period)
+        return data
+    except Exception as e:
+        logger.error(f"Error fetching diversity score: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/stats/mainstream/{user}")
+def get_mainstream(user: str, period: str = "1month"):
+    try:
+        data = lastfm_service.get_mainstream_score(user, period)
+        return data
+    except Exception as e:
+        logger.error(f"Error fetching mainstream score: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/stats/top-artists/{user}")
+def get_top_artists(user: str, period: str = "1month", limit: int = 10):
+    try:
+        return lastfm_service.get_top_artists(user, period, limit)
+    except Exception as e:
+        logger.error(f"Error getting top artists: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.get("/downloads")
 async def list_downloads(page: int = 1, limit: int = 50, status: str = None, search: str = None):
     from database import get_total_downloads_count
