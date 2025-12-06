@@ -9,6 +9,7 @@ import { GlassCard } from './components/GlassCard';
 import Jobs from './Jobs';
 import Stats from './components/Stats';
 import { TrackStatsModal } from './components/TrackStatsModal';
+import { SkeletonCard } from './components/SkeletonCard';
 
 
 
@@ -285,66 +286,44 @@ function App() {
             <div className="flex items-center gap-4 flex-wrap justify-center">
               {/* Navigation Tabs */}
               <div className="flex bg-black/10 dark:bg-white/10 p-1 rounded-full border border-black/5 dark:border-white/5">
-                <button
-                  onClick={() => setView('scrobbles')}
-                  className={cn(
-                    "px-4 py-1.5 rounded-full text-sm font-medium transition-colors flex items-center gap-2",
-                    view === 'scrobbles' ? "bg-spotify-green text-white" : "text-gray-600 hover:text-black dark:text-gray-400 dark:hover:text-white"
-                  )}
-                >
-                  <Disc className="w-4 h-4" />
-                  Scrobbles
-                </button>
-                <button
-                  onClick={() => setView('library')}
-                  className={cn(
-                    "px-4 py-1.5 rounded-full text-sm font-medium transition-colors flex items-center gap-2",
-                    view === 'library' ? "bg-spotify-green text-white" : "text-gray-600 hover:text-black dark:text-gray-400 dark:hover:text-white"
-                  )}
-                >
-                  <CheckCircle className="w-4 h-4" />
-                  Library
-                </button>
-                <button
-                  onClick={() => setView('undownloaded')}
-                  className={cn(
-                    "px-4 py-1.5 rounded-full text-sm font-medium transition-colors flex items-center gap-2",
-                    view === 'undownloaded' ? "bg-spotify-green text-white" : "text-gray-600 hover:text-black dark:text-gray-400 dark:hover:text-white"
-                  )}
-                >
-                  <Download className="w-4 h-4" />
-                  Undownloaded
-                </button>
-                <button
-                  onClick={() => setView('jobs')}
-                  className={cn(
-                    "px-4 py-1.5 rounded-full text-sm font-medium transition-colors flex items-center gap-2",
-                    view === 'jobs' ? "bg-spotify-green text-white" : "text-gray-600 hover:text-black dark:text-gray-400 dark:hover:text-white"
-                  )}
-                >
-                  <Hourglass className="w-4 h-4" />
-                  Jobs
-                </button>
-                <button
-                  onClick={() => setView('stats')}
-                  className={cn(
-                    "px-4 py-1.5 rounded-full text-sm font-medium transition-colors flex items-center gap-2",
-                    view === 'stats' ? "bg-spotify-green text-white" : "text-gray-600 hover:text-black dark:text-gray-400 dark:hover:text-white"
-                  )}
-                >
-                  <Trophy className="w-4 h-4" />
-                  Stats
-                </button>
+                {[
+                  { id: 'scrobbles', icon: Disc, label: 'Scrobbles' },
+                  { id: 'library', icon: CheckCircle, label: 'Library' },
+                  { id: 'undownloaded', icon: Download, label: 'Undownloaded' },
+                  { id: 'jobs', icon: Hourglass, label: 'Jobs' },
+                  { id: 'stats', icon: Trophy, label: 'Stats' },
+                ].map((item) => (
+                  <button
+                    key={item.id}
+                    onClick={() => setView(item.id)}
+                    className={cn(
+                      "relative px-4 py-1.5 rounded-full text-sm font-medium transition-colors flex items-center gap-2 z-10 outline-none",
+                      view === item.id ? "text-white" : "text-gray-600 hover:text-black dark:text-gray-400 dark:hover:text-white"
+                    )}
+                  >
+                    {view === item.id && (
+                      <motion.div
+                        layoutId="nav-active"
+                        className="absolute inset-0 bg-spotify-green rounded-full -z-10"
+                        transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
+                      />
+                    )}
+                    <item.icon className="w-4 h-4 relative z-10" />
+                    <span className="relative z-10">{item.label}</span>
+                  </button>
+                ))}
               </div>
-              <button
+              <motion.button
+                whileTap={{ scale: 0.95 }}
                 onClick={() => setIsSettingsOpen(true)}
                 className="p-2 hover:bg-white/10 rounded-full transition-colors text-spotify-grey hover:text-white"
                 title="Settings"
               >
                 <Settings className="w-6 h-6" />
-              </button>
+              </motion.button>
 
-              <button
+              <motion.button
+                whileTap={{ scale: 0.95 }}
                 onClick={handleSync}
                 disabled={isSyncing}
                 className={cn(
@@ -354,7 +333,7 @@ function App() {
                 title="Sync with Last.fm"
               >
                 <RefreshCw className="w-6 h-6" />
-              </button>
+              </motion.button>
 
               <div className="h-6 w-px bg-white/10 mx-2" />
               <ThemeToggle />
@@ -379,13 +358,14 @@ function App() {
                 </h2>
 
                 {view === 'undownloaded' && downloadedTracks.length > 0 && (
-                  <button
+                  <motion.button
+                    whileTap={{ scale: 0.95 }}
                     onClick={handleDownloadAll}
                     className="flex items-center gap-2 px-4 py-2 bg-spotify-green text-white rounded-full text-sm font-medium hover:scale-105 transition-transform"
                   >
                     <Download className="w-4 h-4" />
                     Download All
-                  </button>
+                  </motion.button>
                 )}
               </div>
 
@@ -404,8 +384,16 @@ function App() {
               )}
 
               {loading && (view === 'scrobbles' ? tracks.length === 0 : downloadedTracks.length === 0) ? (
-                <div className="flex justify-center py-20">
-                  <Loader2 className="w-10 h-10 animate-spin text-spotify-green" />
+                <div className={cn(
+                  "grid gap-4",
+                  view === 'library' || view === 'undownloaded' ? "grid-cols-2 @md:grid-cols-3 @lg:grid-cols-4 @xl:grid-cols-5 @2xl:grid-cols-6" : "grid-cols-1"
+                )}>
+                  {Array.from({ length: itemsPerPage }).map((_, i) => (
+                    <SkeletonCard
+                      key={i}
+                      type={view === 'library' || view === 'undownloaded' ? 'vertical' : 'horizontal'}
+                    />
+                  ))}
                 </div>
               ) : (
                 <div className="relative min-h-[200px]">
@@ -420,9 +408,8 @@ function App() {
                       <motion.div
                         key={`${view}-${currentPage}`}
                         initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -10 }}
-                        transition={{ duration: 0.2 }}
+                        animate={{ opacity: 1, y: 0, transition: { duration: 0.3, ease: "easeOut" } }}
+                        exit={{ opacity: 0, y: -10, transition: { duration: 0.15, ease: "easeIn" } }}
                         className={cn(
                           "grid gap-4",
                           view === 'library' || view === 'undownloaded' ? "grid-cols-2 @md:grid-cols-3 @lg:grid-cols-4 @xl:grid-cols-5 @2xl:grid-cols-6" : "grid-cols-1"
@@ -439,21 +426,27 @@ function App() {
                             </p>
                           </div>
                         ) : (
-                          <AnimatePresence>
-                            {(view === 'scrobbles' ? tracks : currentTracks).map((track, index) => {
-                              const query = `${track.artist} - ${track.title}`;
-                              const isLibraryItemDownloaded = (view === 'library' || view === 'undownloaded') && track.status === 'completed';
-                              const status = isLibraryItemDownloaded || track.downloaded ? 'success' : downloading[query];
-                              const imageSrc = view === 'scrobbles' ? track.image : track.image_url;
-                              const isQueued = downloading[query] === 'loading' || downloading[query] === 'success';
+                          (view === 'scrobbles' ? tracks : currentTracks).map((track, index) => {
+                            const query = `${track.artist} - ${track.title}`;
+                            const isLibraryItemDownloaded = (view === 'library' || view === 'undownloaded') && track.status === 'completed';
+                            const status = isLibraryItemDownloaded || track.downloaded ? 'success' : downloading[query];
+                            const imageSrc = view === 'scrobbles' ? track.image : track.image_url;
+                            const isQueued = downloading[query] === 'loading' || downloading[query] === 'success';
 
-                              return (
+                            // Use a more stable key strategy.
+                            // Ideally track.timestamp for scrobbles (unique event) and track.id for library.
+                            const uniqueKey = track.timestamp || track.id || `${track.artist}-${track.title}-${index}`;
+
+                            return (
+                              <motion.div
+                                key={uniqueKey}
+                                initial={{ opacity: 0, scale: 0.95 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                exit={{ opacity: 0, scale: 0.95 }}
+                                transition={{ duration: 0.2 }}
+                              >
                                 <GlassCard
-                                  key={`${track.timestamp || track.id}-${index}`}
-                                  initial={{ opacity: 0, y: 20 }}
-                                  animate={{ opacity: 1, y: 0 }}
-                                  exit={{ opacity: 0, y: -20 }}
-                                  transition={{ delay: index * 0.05 }}
+                                  whileTap={{ scale: 0.98 }}
                                   image={imageSrc}
                                   onClick={() => setSelectedTrack(track)}
                                   className={cn(
@@ -493,7 +486,8 @@ function App() {
                                           ) : isQueued ? (
                                             <Loader2 className="w-8 h-8 text-spotify-green animate-spin" />
                                           ) : (
-                                            <button
+                                            <motion.button
+                                              whileTap={{ scale: 0.9 }}
                                               onClick={(e) => {
                                                 e.stopPropagation();
                                                 handleDownload(track);
@@ -501,7 +495,7 @@ function App() {
                                               className="p-2 bg-spotify-green rounded-full text-white hover:scale-110 transition-transform"
                                             >
                                               <Download className="w-6 h-6" />
-                                            </button>
+                                            </motion.button>
                                           )}
                                         </div>
                                       )}
@@ -521,7 +515,8 @@ function App() {
                                   </div>
 
                                   {view !== 'library' && view !== 'undownloaded' && (
-                                    <button
+                                    <motion.button
+                                      whileTap={{ scale: 0.9 }}
                                       onClick={() => handleDownload(track)}
                                       disabled={status === 'loading' || status === 'success'}
                                       className={cn(
@@ -538,12 +533,12 @@ function App() {
                                       ) : (
                                         <Download className="w-6 h-6" />
                                       )}
-                                    </button>
+                                    </motion.button>
                                   )}
                                 </GlassCard>
-                              );
-                            })}
-                          </AnimatePresence>
+                              </motion.div>
+                            );
+                          })
                         )}
                       </motion.div>
                     </AnimatePresence>
@@ -572,13 +567,14 @@ function App() {
                     </div>
 
                     <div className="flex items-center gap-2">
-                      <button
+                      <motion.button
+                        whileTap={{ scale: 0.95 }}
                         onClick={() => handlePageChange(currentPage - 1)}
                         disabled={currentPage === 1}
                         className="p-2 hover:bg-white/10 rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         <ChevronLeft className="w-5 h-5" />
-                      </button>
+                      </motion.button>
 
                       <div className="flex items-center gap-1">
                         {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
@@ -595,7 +591,8 @@ function App() {
                           }
 
                           return (
-                            <button
+                            <motion.button
+                              whileTap={{ scale: 0.95 }}
                               key={pageNum}
                               onClick={() => handlePageChange(pageNum)}
                               className={cn(
@@ -606,18 +603,19 @@ function App() {
                               )}
                             >
                               {pageNum}
-                            </button>
+                            </motion.button>
                           );
                         })}
                       </div>
 
-                      <button
+                      <motion.button
+                        whileTap={{ scale: 0.95 }}
                         onClick={() => handlePageChange(currentPage + 1)}
                         disabled={currentPage === totalPages}
                         className="p-2 hover:bg-white/10 rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         <ChevronRight className="w-5 h-5" />
-                      </button>
+                      </motion.button>
                     </div>
                   </div>
                 )

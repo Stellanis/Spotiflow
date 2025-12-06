@@ -57,6 +57,22 @@ export function TrackStatsModal({ isOpen, onClose, track, username }) {
         }
     };
 
+    const containerVariants = {
+        hidden: { opacity: 0 },
+        visible: {
+            opacity: 1,
+            transition: {
+                staggerChildren: 0.1,
+                delayChildren: 0.2
+            }
+        }
+    };
+
+    const itemVariants = {
+        hidden: { opacity: 0, y: 20 },
+        visible: { opacity: 1, y: 0 }
+    };
+
     if (!isOpen) return null;
 
     return (
@@ -72,7 +88,12 @@ export function TrackStatsModal({ isOpen, onClose, track, username }) {
                     <GlassCard className="flex flex-col overflow-hidden max-h-[90vh]">
 
                         {/* Header Image Background */}
-                        <div className="relative h-48 bg-black/40">
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            transition={{ duration: 0.5 }}
+                            className="relative h-48 bg-black/40"
+                        >
                             {stats?.image || track.image ? (
                                 <img
                                     src={stats?.image || track.image}
@@ -82,19 +103,43 @@ export function TrackStatsModal({ isOpen, onClose, track, username }) {
                             ) : null}
                             <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent" />
 
-                            <button
+                            <motion.button
+                                whileTap={{ scale: 0.9 }}
                                 onClick={onClose}
                                 className="absolute top-4 right-4 p-2 bg-black/40 hover:bg-white/20 rounded-full text-white transition-colors"
                             >
                                 <X className="w-5 h-5" />
-                            </button>
+                            </motion.button>
 
                             <div className="absolute bottom-4 left-6 right-6">
-                                <h2 className="text-2xl md:text-3xl font-bold truncate text-white">{track.title}</h2>
-                                <p className="text-xl text-white/80 truncate">{track.artist}</p>
-                                {stats?.album && <p className="text-sm text-white/60 truncate">{stats.album}</p>}
+                                <motion.h2
+                                    initial={{ opacity: 0, x: -20 }}
+                                    animate={{ opacity: 1, x: 0 }}
+                                    transition={{ delay: 0.2 }}
+                                    className="text-2xl md:text-3xl font-bold truncate text-white"
+                                >
+                                    {track.title}
+                                </motion.h2>
+                                <motion.p
+                                    initial={{ opacity: 0, x: -20 }}
+                                    animate={{ opacity: 1, x: 0 }}
+                                    transition={{ delay: 0.3 }}
+                                    className="text-xl text-white/80 truncate"
+                                >
+                                    {track.artist}
+                                </motion.p>
+                                {stats?.album && (
+                                    <motion.p
+                                        initial={{ opacity: 0, x: -20 }}
+                                        animate={{ opacity: 1, x: 0 }}
+                                        transition={{ delay: 0.4 }}
+                                        className="text-sm text-white/60 truncate"
+                                    >
+                                        {stats.album}
+                                    </motion.p>
+                                )}
                             </div>
-                        </div>
+                        </motion.div>
 
                         {/* Content */}
                         <div className="p-6 overflow-y-auto custom-scrollbar">
@@ -103,48 +148,53 @@ export function TrackStatsModal({ isOpen, onClose, track, username }) {
                                     <Loader2 className="w-8 h-8 animate-spin text-spotify-green" />
                                 </div>
                             ) : stats ? (
-                                <div className="space-y-6">
+                                <motion.div
+                                    className="space-y-6"
+                                    variants={containerVariants}
+                                    initial="hidden"
+                                    animate="visible"
+                                >
                                     {/* Stats Grid */}
                                     <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                                        <div className="bg-white/5 p-4 rounded-xl border border-white/10 flex flex-col items-center text-center">
+                                        <motion.div variants={itemVariants} className="bg-white/5 p-4 rounded-xl border border-white/10 flex flex-col items-center text-center">
                                             <User className="w-6 h-6 text-spotify-green mb-2" />
                                             <span className="text-2xl font-bold">{stats.userplaycount}</span>
                                             <span className="text-xs text-white/50 uppercase">Your Plays</span>
-                                        </div>
-                                        <div className="bg-white/5 p-4 rounded-xl border border-white/10 flex flex-col items-center text-center">
+                                        </motion.div>
+                                        <motion.div variants={itemVariants} className="bg-white/5 p-4 rounded-xl border border-white/10 flex flex-col items-center text-center">
                                             <Globe className="w-6 h-6 text-blue-400 mb-2" />
                                             <span className="text-2xl font-bold">{parseInt(stats.listeners).toLocaleString()}</span>
                                             <span className="text-xs text-white/50 uppercase">Listeners</span>
-                                        </div>
-                                        <div className="bg-white/5 p-4 rounded-xl border border-white/10 flex flex-col items-center text-center col-span-2 md:col-span-1">
+                                        </motion.div>
+                                        <motion.div variants={itemVariants} className="bg-white/5 p-4 rounded-xl border border-white/10 flex flex-col items-center text-center col-span-2 md:col-span-1">
                                             <Activity className="w-6 h-6 text-orange-400 mb-2" />
                                             <span className="text-2xl font-bold">{parseInt(stats.playcount).toLocaleString()}</span>
                                             <span className="text-xs text-white/50 uppercase">Total Scrobbles</span>
-                                        </div>
+                                        </motion.div>
                                     </div>
 
                                     {/* Activity Chart */}
-                                    <div className="bg-white/5 rounded-xl border border-white/10 p-4">
+                                    <motion.div variants={itemVariants} className="bg-white/5 rounded-xl border border-white/10 p-4">
                                         <h4 className="text-sm font-medium text-white/70 mb-4 uppercase tracking-wider">30 Day Trend</h4>
                                         <ActivityChart data={chartData} color="#1DB954" />
-                                    </div>
+                                    </motion.div>
 
                                     {/* Tags */}
                                     {stats.tags && stats.tags.length > 0 && (
-                                        <div className="flex flex-wrap gap-2">
+                                        <motion.div variants={itemVariants} className="flex flex-wrap gap-2">
                                             {stats.tags.map(tag => (
                                                 <span key={tag} className="px-3 py-1 bg-white/10 hover:bg-white/20 rounded-full text-xs transition-colors">
                                                     #{tag}
                                                 </span>
                                             ))}
-                                        </div>
+                                        </motion.div>
                                     )}
 
                                     {/* Summary */}
                                     {stats.wiki && (
-                                        <div className="text-sm text-white/70 leading-relaxed bg-black/20 p-4 rounded-lg" dangerouslySetInnerHTML={{ __html: stats.wiki }} />
+                                        <motion.div variants={itemVariants} className="text-sm text-white/70 leading-relaxed bg-black/20 p-4 rounded-lg" dangerouslySetInnerHTML={{ __html: stats.wiki }} />
                                     )}
-                                </div>
+                                </motion.div>
                             ) : (
                                 <div className="text-center py-10 text-white/50">
                                     <p>Could not load detailed stats.</p>
