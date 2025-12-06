@@ -76,6 +76,15 @@ def is_downloaded(query):
     conn.close()
     return result is not None
 
+def get_download_info(query):
+    conn = sqlite3.connect(DB_NAME)
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    c.execute('SELECT * FROM downloads WHERE query = ? AND status = "completed"', (query,))
+    result = c.fetchone()
+    conn.close()
+    return dict(result) if result else None
+
 def get_download_status(query):
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
