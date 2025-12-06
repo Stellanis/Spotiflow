@@ -1,10 +1,16 @@
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
+import { motion } from 'framer-motion';
 
 export function ActivityChart({ data, color = "#1DB954" }) {
     if (!data || data.length === 0) return null;
 
     return (
-        <div className="w-full h-[200px]">
+        <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.5 }}
+            className="w-full h-[200px]"
+        >
             <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={data}>
                     <defs>
@@ -35,9 +41,11 @@ export function ActivityChart({ data, color = "#1DB954" }) {
                         stroke={color}
                         fillOpacity={1}
                         fill="url(#colorCount)"
+                        animationDuration={1500}
+                        animationEasing="ease-in-out"
                     />
                 </AreaChart>
             </ResponsiveContainer>
-        </div>
+        </motion.div>
     );
 }

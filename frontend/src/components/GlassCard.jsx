@@ -41,14 +41,16 @@ export function GlassCard({ children, className, image, ...props }) {
             {...props}
         >
             {/* Bleed Effect Layer */}
-            <div
+            <motion.div
                 className="absolute inset-0 -z-10 opacity-30 transition-opacity duration-500 group-hover:opacity-50"
+                initial={{ scale: 1.5, rotate: 0 }}
+                whileHover={{ scale: 1.8, rotate: 15 }}
+                transition={{ duration: 0.8, ease: "easeOut" }}
                 style={{
                     backgroundImage: image ? `url(${image})` : gradient,
                     backgroundSize: 'cover',
                     backgroundPosition: 'center',
                     filter: isDark ? 'blur(40px) saturate(1.5)' : 'blur(40px) saturate(1.5) brightness(1.2)',
-                    transform: 'scale(1.5)',
                 }}
             />
 
