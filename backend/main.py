@@ -75,11 +75,36 @@ def check_new_scrobbles():
     except Exception as e:
         logger.error(f"Error in background job: {e}")
 
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Startup handled by @app.on_event("startup") for synchronous scheduler start? 
+    # Actually, the original code used lifespan for everything. Let's keep using lifespan.
+    # But I see I might have replaced "lifespan" with "start_scheduler" in the replacement content?
+    # Wait, the tool requires me to match target content.
+    # The original was:
+    # @asynccontextmanager
+    # async def lifespan(app: FastAPI):
+    #     # Startup
+    #     logger.info(f"--- STARTUP: Database path is: {os.path.abspath(DB_NAME)} ---")
+    #     init_db()
+    #     # Run immediately on startup
+    
+    # Let's rewrite it correctly inside the lifespan function.
+
     # Startup
     logger.info(f"--- STARTUP: Database path is: {os.path.abspath(DB_NAME)} ---")
     init_db()
+    
+    # Helper to refresh stats
+    def refresh_daily_stats():
+        user = get_setting("LASTFM_USER") or os.getenv("LASTFM_USER")
+        if user:
+            lastfm_service.refresh_stats_cache(user)
+        else:
+            logger.warning("Daily refresh skipped: No user configured.")
+
     # Run immediately on startup
     logger.info("Triggering initial scrobble check...")
     scheduler.add_job(check_new_scrobbles, 'date', run_date=datetime.now())
@@ -87,6 +112,11 @@ async def lifespan(app: FastAPI):
     interval = int(get_setting("SCROBBLE_UPDATE_INTERVAL") or 30)
     logger.info(f"Scheduling scrobble check every {interval} minutes.")
     scheduler.add_job(check_new_scrobbles, 'interval', minutes=interval, id='scrobble_check')
+    
+    # Schedule Daily Stats Refresh at 2:00 AM
+    logger.info("Scheduling daily stats refresh at 2:00 AM.")
+    scheduler.add_job(refresh_daily_stats, 'cron', hour=2, minute=0, id='daily_stats_refresh')
+    
     scheduler.start()
     logger.info("Scheduler started.")
     yield
@@ -195,7 +225,7 @@ async def health_check():
     return {"status": "healthy"}
 
 @app.get("/scrobbles/{user}")
-async def get_scrobbles(user: str, limit: int = 10):
+def get_scrobbles(user: str, limit: int = 10):
     try:
         tracks = lastfm_service.get_recent_tracks(user, limit)
         # Check if each track is already downloaded
@@ -206,6 +236,49 @@ async def get_scrobbles(user: str, limit: int = 10):
     except Exception as e:
         import traceback
         logger.error(f"Error fetching scrobbles: {e}\n{traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+from fastapi import BackgroundTasks
+
+@app.get("/stats/top-tracks/{user}")
+def get_top_tracks(user: str, background_tasks: BackgroundTasks, period: str = "overall", limit: int = 50):
+    try:
+        tracks = lastfm_service.get_top_tracks(user, period, limit)
+        
+        # Determine strict limit for prefetching to avoid hammering API
+        # Only prefetch top 20 or so
+        prefetch_limit = 20
+        tracks_to_prefetch = tracks[:prefetch_limit]
+        
+        background_tasks.add_task(lastfm_service.prefetch_track_infos, user, tracks_to_prefetch)
+        
+        return tracks
+    except Exception as e:
+        logger.error(f"Error fetching top tracks: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/stats/track")
+def get_track_info(user: str, artist: str, track: str):
+    try:
+        info = lastfm_service.get_track_info(user, artist, track)
+        if not info:
+             raise HTTPException(status_code=404, detail="Track not found")
+        return info
+    except Exception as e:
+        logger.error(f"Error fetching track info: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+    except Exception as e:
+        logger.error(f"Error fetching track info: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/stats/chart")
+def get_chart_data(user: str, period: str = "1month", artist: str = None, track: str = None):
+    try:
+        data = lastfm_service.get_chart_data(user, period, artist, track)
+        return data
+    except Exception as e:
+        logger.error(f"Error fetching chart data: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/downloads")

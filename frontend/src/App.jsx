@@ -1,12 +1,16 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Download, Music, Disc, Search, CheckCircle, Loader2, Settings, ChevronLeft, ChevronRight, RefreshCw, Hourglass } from 'lucide-react';
+import { Download, Music, Disc, Search, CheckCircle, Loader2, Settings, ChevronLeft, ChevronRight, RefreshCw, Hourglass, Trophy } from 'lucide-react';
 import { cn } from './utils';
 import { SettingsModal } from './SettingsModal';
 import { TutorialModal } from './TutorialModal';
 import { GlassCard } from './components/GlassCard';
 import Jobs from './Jobs';
+import Stats from './components/Stats';
+import { TrackStatsModal } from './components/TrackStatsModal';
+
+
 
 import { ThemeProvider } from './contexts/ThemeContext';
 import { ThemeToggle } from './components/ThemeToggle';
@@ -25,6 +29,8 @@ function App() {
   const [autoDownload, setAutoDownload] = useState(true);
   const [isSyncing, setIsSyncing] = useState(false);
   const [showTutorial, setShowTutorial] = useState(false);
+  const [selectedTrack, setSelectedTrack] = useState(null);
+
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -256,7 +262,14 @@ function App() {
             }
           }}
         />
+        <TrackStatsModal
+          isOpen={!!selectedTrack}
+          onClose={() => setSelectedTrack(null)}
+          track={selectedTrack}
+          username={username}
+        />
         <div className="w-[95%] mx-auto space-y-8">
+
 
           {/* Header */}
           <GlassCard className="flex flex-col md:flex-row items-center justify-between p-6 gap-4">
@@ -312,6 +325,16 @@ function App() {
                   <Hourglass className="w-4 h-4" />
                   Jobs
                 </button>
+                <button
+                  onClick={() => setView('stats')}
+                  className={cn(
+                    "px-4 py-1.5 rounded-full text-sm font-medium transition-colors flex items-center gap-2",
+                    view === 'stats' ? "bg-spotify-green text-white" : "text-gray-600 hover:text-black dark:text-gray-400 dark:hover:text-white"
+                  )}
+                >
+                  <Trophy className="w-4 h-4" />
+                  Stats
+                </button>
               </div>
               <button
                 onClick={() => setIsSettingsOpen(true)}
@@ -341,7 +364,10 @@ function App() {
           {/* Content */}
           {view === 'jobs' ? (
             <Jobs />
+          ) : view === 'stats' ? (
+            <Stats username={username} onTrackClick={setSelectedTrack} />
           ) : (
+
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <h2 className="text-xl font-semibold flex items-center gap-2">
@@ -429,11 +455,13 @@ function App() {
                                   exit={{ opacity: 0, y: -20 }}
                                   transition={{ delay: index * 0.05 }}
                                   image={imageSrc}
+                                  onClick={() => setSelectedTrack(track)}
                                   className={cn(
-                                    "hover:bg-white/10 transition-colors relative overflow-hidden perspective-1000",
+                                    "hover:bg-white/10 transition-colors relative overflow-hidden perspective-1000 cursor-pointer",
                                     view === 'library' || view === 'undownloaded' ? "p-4 flex flex-col gap-3 aspect-square justify-between" : "p-4 flex items-center justify-between"
                                   )}
                                 >
+
                                   <div className={cn("flex gap-4", view === 'library' || view === 'undownloaded' ? "flex-col items-start w-full h-full" : "items-center")}>
                                     <div className={cn(
                                       "rounded-md overflow-hidden bg-black/5 dark:bg-spotify-dark relative flex items-center justify-center text-spotify-grey shadow-lg transition-transform duration-500 ease-out group-hover:rotate-x-6 group-hover:rotate-y-6 group-hover:scale-105",
