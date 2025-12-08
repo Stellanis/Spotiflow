@@ -49,6 +49,9 @@ def init_db():
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT UNIQUE,
             description TEXT,
+            type TEXT DEFAULT 'manual',
+            rules TEXT,
+            color TEXT,
             created_at TIMESTAMP
         )
     ''')
@@ -64,6 +67,15 @@ def init_db():
             FOREIGN KEY(song_query) REFERENCES downloads(query)
         )
     ''')
+
+    # Migration: Check for new columns in playlists
+    c.execute("PRAGMA table_info(playlists)")
+    p_columns = [info[1] for info in c.fetchall()]
+    if 'type' not in p_columns:
+        print("Migrating database: adding type, rules, color columns to playlists")
+        c.execute("ALTER TABLE playlists ADD COLUMN type TEXT DEFAULT 'manual'")
+        c.execute("ALTER TABLE playlists ADD COLUMN rules TEXT")
+        c.execute("ALTER TABLE playlists ADD COLUMN color TEXT")
 
     conn.commit()
     conn.close()

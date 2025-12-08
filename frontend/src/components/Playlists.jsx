@@ -1,11 +1,15 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Music, Play, Trash2, ArrowLeft, Loader2, MoreVertical, Edit2, GripVertical, Settings } from 'lucide-react';
+import { Plus, Music, Play, Trash2, ArrowLeft, Loader2, MoreVertical, Edit2, GripVertical, Settings, Sparkles, BarChart3, ListMusic } from 'lucide-react';
 import { GlassCard } from './GlassCard';
 import { cn } from '../utils';
 import { usePlayer } from '../contexts/PlayerContext';
 import { toast } from 'react-hot-toast';
 import { EditPlaylistModal } from './EditPlaylistModal';
+import { PlaylistInsights } from './PlaylistInsights';
+import { PlaylistRecommendations } from './PlaylistRecommendations';
+import { PlaylistCreator } from './PlaylistCreator';
+import { ConfirmationModal } from './ConfirmationModal';
 import {
     DndContext,
     closestCenter,
@@ -87,6 +91,7 @@ export function Playlists({ onPlayPlaylist }) {
     const [loading, setLoading] = useState(true);
     const [selectedPlaylist, setSelectedPlaylist] = useState(null);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+    const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
     const { playTrack } = usePlayer();
 
     const sensors = useSensors(
@@ -136,9 +141,18 @@ export function Playlists({ onPlayPlaylist }) {
         }
     };
 
-    const handleDeletePlaylist = async (id, e) => {
+    const [deleteModal, setDeleteModal] = useState({ isOpen: false, playlistId: null });
+
+    const initiateDelete = (id, e) => {
+        e.preventDefault();
         e.stopPropagation();
-        if (!confirm("Are you sure you want to delete this playlist?")) return;
+        setDeleteModal({ isOpen: true, playlistId: id });
+    };
+
+    const confirmDelete = async () => {
+        const id = deleteModal.playlistId;
+        if (!id) return;
+
         try {
             const res = await fetch(`/api/playlists/${id}`, { method: 'DELETE' });
             if (res.ok) {
@@ -213,14 +227,36 @@ export function Playlists({ onPlayPlaylist }) {
         }
     };
 
+    const [stats, setStats] = useState(null);
+    const [activeTab, setActiveTab] = useState('songs'); // 'songs' | 'insights'
+
+    const fetchStats = async (id) => {
+        try {
+            const res = await fetch(`/api/playlists/${id}/stats`);
+            if (res.ok) {
+                const data = await res.json();
+                setStats(data);
+            }
+        } catch (error) {
+            console.error("Failed to load stats", error);
+        }
+    };
+
+    useEffect(() => {
+        if (selectedPlaylist && activeTab === 'insights') {
+            fetchStats(selectedPlaylist.id);
+        }
+    }, [selectedPlaylist, activeTab]);
     const handlePlaylistUpdate = (updatedPlaylist) => {
         setSelectedPlaylist(updatedPlaylist);
         setPlaylists(prev => prev.map(p => p.id === updatedPlaylist.id ? { ...p, name: updatedPlaylist.name, song_count: updatedPlaylist.songs.length } : p));
     };
 
     if (selectedPlaylist) {
+        const isSmart = selectedPlaylist.type === 'smart';
+
         return (
-            <div className="space-y-6">
+            <div className="space-y-6 animate-in fade-in duration-300">
                 <EditPlaylistModal
                     isOpen={isEditModalOpen}
                     onClose={() => setIsEditModalOpen(false)}
@@ -228,13 +264,15 @@ export function Playlists({ onPlayPlaylist }) {
                     onUpdate={handlePlaylistUpdate}
                 />
 
-                <button
-                    onClick={() => setSelectedPlaylist(null)}
-                    className="flex items-center gap-2 text-spotify-grey hover:text-white transition-colors"
-                >
-                    <ArrowLeft className="w-4 h-4" />
-                    Back to Playlists
-                </button>
+                <div className="flex items-center justify-between">
+                    <button
+                        onClick={() => setSelectedPlaylist(null)}
+                        className="flex items-center gap-2 text-spotify-grey hover:text-white transition-colors"
+                    >
+                        <ArrowLeft className="w-4 h-4" />
+                        Back to Playlists
+                    </button>
+                </div>
 
                 <div className="flex flex-col md:flex-row gap-8 items-start">
                     <div className="w-full md:w-64 aspect-square bg-gradient-to-br from-spotify-green/20 to-spotify-dark rounded-lg flex items-center justify-center shadow-2xl relative group shrink-0 overflow-hidden">
@@ -259,6 +297,14 @@ export function Playlists({ onPlayPlaylist }) {
 
                     <div className="flex-1 space-y-4 min-w-0">
                         <div>
+                            <div className="flex items-center gap-2 mb-2">
+                                {isSmart && (
+                                    <span className="bg-purple-500/20 text-purple-400 text-xs px-2 py-0.5 rounded-full font-medium flex items-center gap-1 border border-purple-500/30">
+                                        <Sparkles className="w-3 h-3" />
+                                        Smart Playlist
+                                    </span>
+                                )}
+                            </div>
                             <div onClick={() => setIsEditModalOpen(true)} className="group cursor-pointer">
                                 <h2 className="text-4xl md:text-5xl font-bold mb-4 break-words group-hover:text-spotify-green transition-colors flex items-center gap-4">
                                     {selectedPlaylist.name}
@@ -275,35 +321,111 @@ export function Playlists({ onPlayPlaylist }) {
                     </div>
                 </div>
 
-                <div className="space-y-2">
-                    <DndContext
-                        sensors={sensors}
-                        collisionDetection={closestCenter}
-                        onDragEnd={handleDragEnd}
+                {/* Tabs */}
+                <div className="flex items-center gap-4 border-b border-white/10">
+                    <button
+                        onClick={() => setActiveTab('songs')}
+                        className={cn(
+                            "px-4 py-3 text-sm font-medium flex items-center gap-2 border-b-2 transition-colors",
+                            activeTab === 'songs'
+                                ? "border-spotify-green text-spotify-green"
+                                : "border-transparent text-spotify-grey hover:text-white"
+                        )}
                     >
-                        <SortableContext
-                            items={selectedPlaylist.songs.map(s => s.query)}
-                            strategy={verticalListSortingStrategy}
-                        >
-                            {selectedPlaylist.songs.map((song, index) => (
-                                <SortableSongRow
-                                    key={song.query}
-                                    song={song}
-                                    index={index}
-                                    playTrack={playTrack}
-                                    handleRemoveSong={handleRemoveSong}
-                                    selectedPlaylist={selectedPlaylist}
-                                />
-                            ))}
-                        </SortableContext>
-                    </DndContext>
-
-                    {selectedPlaylist.songs.length === 0 && (
-                        <div className="text-center py-10 text-spotify-grey">
-                            This playlist is empty. Add songs from your Library.
-                        </div>
-                    )}
+                        <ListMusic className="w-4 h-4" />
+                        Songs
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('insights')}
+                        className={cn(
+                            "px-4 py-3 text-sm font-medium flex items-center gap-2 border-b-2 transition-colors",
+                            activeTab === 'insights'
+                                ? "border-spotify-green text-spotify-green"
+                                : "border-transparent text-spotify-grey hover:text-white"
+                        )}
+                    >
+                        <BarChart3 className="w-4 h-4" />
+                        Insights
+                    </button>
                 </div>
+
+                {activeTab === 'insights' ? (
+                    <PlaylistInsights stats={stats} />
+                ) : (
+                    <div className="space-y-8">
+                        {selectedPlaylist.songs.length === 0 ? (
+                            <div className="text-center py-10 text-spotify-grey">
+                                {isSmart ? (
+                                    <p>No songs match your rules.</p>
+                                ) : (
+                                    <p>This playlist is empty. Add songs from your Library or check suggestions below.</p>
+                                )}
+                            </div>
+                        ) : (
+                            <div className="space-y-1">
+                                {isSmart ? (
+                                    // Smart playlists are read-only for ordering
+                                    selectedPlaylist.songs.map((song, index) => (
+                                        <div
+                                            key={song.query}
+                                            className="group flex items-center gap-4 p-3 rounded-md hover:bg-white/5 transition-colors"
+                                        >
+                                            <span className="text-spotify-grey w-6 text-center tabular-nums">{index + 1}</span>
+                                            <div className="w-10 h-10 bg-white/10 rounded overflow-hidden shrink-0">
+                                                {song.image_url && <img src={song.image_url} alt="" className="w-full h-full object-cover pointer-events-none" />}
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <div className="font-medium truncate text-white">{song.title}</div>
+                                                <div className="text-sm text-spotify-grey truncate">{song.artist}</div>
+                                            </div>
+                                            <button
+                                                onClick={() => playTrack(song, selectedPlaylist.songs)}
+                                                className="p-2 opacity-0 group-hover:opacity-100 hover:text-spotify-green transition-all"
+                                            >
+                                                <Play className="w-4 h-4 fill-current" />
+                                            </button>
+                                        </div>
+                                    ))
+                                ) : (
+                                    // Manual lists use DnD
+                                    <DndContext
+                                        sensors={sensors}
+                                        collisionDetection={closestCenter}
+                                        onDragEnd={handleDragEnd}
+                                    >
+                                        <SortableContext
+                                            items={selectedPlaylist.songs.map(s => s.query)}
+                                            strategy={verticalListSortingStrategy}
+                                        >
+                                            {selectedPlaylist.songs.map((song, index) => (
+                                                <SortableSongRow
+                                                    key={song.query}
+                                                    song={song}
+                                                    index={index}
+                                                    playTrack={playTrack}
+                                                    handleRemoveSong={handleRemoveSong}
+                                                    selectedPlaylist={selectedPlaylist}
+                                                />
+                                            ))}
+                                        </SortableContext>
+                                    </DndContext>
+                                )}
+                            </div>
+                        )}
+
+                        {!isSmart && (
+                            <div className="pt-8 border-t border-white/5">
+                                <PlaylistRecommendations
+                                    playlistId={selectedPlaylist.id}
+                                    onAdd={(song) => {
+                                        // Refresh playlist details to show new song
+                                        fetchPlaylistDetails(selectedPlaylist.id);
+                                    }}
+                                />
+                            </div>
+                        )}
+                    </div>
+                )}
             </div>
         );
     }
@@ -317,27 +439,42 @@ export function Playlists({ onPlayPlaylist }) {
     }
 
     return (
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-            {/* Create New Card (Moved to Modal or keeping pure view here? Creating handled in Modal via library) 
-                Actually, user might want to create empty playlist.
-            */}
+        <>
+            <PlaylistCreator
+                isOpen={isCreateModalOpen}
+                onClose={() => setIsCreateModalOpen(false)}
+                onCreate={(newPlaylist) => setPlaylists([newPlaylist, ...playlists])}
+            />
 
-            {playlists.length === 0 ? (
-                <div className="col-span-full text-center py-20 text-spotify-grey">
-                    <Music className="w-16 h-16 mx-auto mb-4 opacity-50" />
-                    <p className="text-xl font-semibold">No Playlists</p>
-                    <p className="mt-2 text-sm">Create playlists by collecting songs in your Library.</p>
-                </div>
-            ) : (
-                playlists.map(playlist => (
+            <ConfirmationModal
+                isOpen={deleteModal.isOpen}
+                onClose={() => setDeleteModal({ isOpen: false, playlistId: null })}
+                onConfirm={confirmDelete}
+                title="Delete Playlist"
+                message="Are you sure you want to delete this playlist? This action cannot be undone."
+                isDangerous={true}
+            />
+
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 animate-in fade-in duration-500">
+                <GlassCard
+                    onClick={() => setIsCreateModalOpen(true)}
+                    className="aspect-square p-4 flex flex-col items-center justify-center cursor-pointer hover:bg-white/10 transition-colors group border-dashed border-2 border-white/10 hover:border-spotify-green/50"
+                >
+                    <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform group-hover:bg-spotify-green/20">
+                        <Plus className="w-8 h-8 text-spotify-grey group-hover:text-spotify-green transition-colors" />
+                    </div>
+                    <h3 className="font-bold text-center group-hover:text-white transition-colors">Create Playlist</h3>
+                </GlassCard>
+
+                {playlists.map(playlist => (
                     <GlassCard
                         key={playlist.id}
                         onClick={() => fetchPlaylistDetails(playlist.id)}
-                        className="aspect-square p-4 flex flex-col justify-between cursor-pointer hover:bg-white/10 transition-colors group"
+                        className="aspect-square p-4 flex flex-col cursor-pointer hover:bg-white/10 transition-colors group relative overflow-hidden"
                     >
-                        <div className="w-full aspect-square bg-white/5 rounded-md flex items-center justify-center mb-4 shadow-lg group-hover:shadow-xl transition-shadow relative overflow-hidden">
+                        <div className="w-full aspect-square bg-white/5 rounded-md mb-4 overflow-hidden relative shadow-lg">
                             {playlist.images && playlist.images.length >= 4 ? (
-                                <div className="w-full h-full grid grid-cols-2">
+                                <div className="grid grid-cols-2 h-full">
                                     {playlist.images.slice(0, 4).map((img, i) => (
                                         <img key={i} src={img} alt="" className="w-full h-full object-cover" />
                                     ))}
@@ -345,25 +482,42 @@ export function Playlists({ onPlayPlaylist }) {
                             ) : playlist.images && playlist.images.length > 0 ? (
                                 <img src={playlist.images[0]} alt={playlist.name} className="w-full h-full object-cover" />
                             ) : (
-                                <div className="relative w-full h-full flex items-center justify-center">
-                                    <Music className="w-12 h-12 text-spotify-grey group-hover:text-white transition-colors relative z-10" />
-                                    <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                                <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-white/5 to-transparent">
+                                    <Music className="w-12 h-12 text-white/20" />
                                 </div>
                             )}
+
+                            {/* Type Badge */}
+                            {playlist.type === 'smart' && (
+                                <div className="absolute top-2 left-2 bg-black/60 backdrop-blur-md rounded-full p-1.5 shadow-sm">
+                                    <Sparkles className="w-3 h-3 text-purple-400" />
+                                </div>
+                            )}
+
+                            {/* Hover Play Button */}
+                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                {/* Only show if not empty */}
+                            </div>
                         </div>
-                        <div>
-                            <h3 className="font-bold truncate">{playlist.name}</h3>
-                            <p className="text-xs text-spotify-grey mt-1">{playlist.song_count} songs</p>
+
+                        <div className="min-w-0 w-full">
+                            <h3 className="font-bold truncate text-white mb-1 group-hover:text-spotify-green transition-colors">{playlist.name}</h3>
+                            <p className="text-sm text-spotify-grey truncate">
+                                {playlist.song_count} songs
+                                {playlist.type === 'smart' && ' • Smart'}
+                            </p>
                         </div>
+
                         <button
-                            onClick={(e) => handleDeletePlaylist(playlist.id, e)}
-                            className="absolute top-2 right-2 p-2 text-spotify-grey hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity bg-black/50 rounded-full hover:bg-black/70"
+                            onClick={(e) => initiateDelete(playlist.id, e)}
+                            className="absolute top-2 right-2 p-2 bg-black/60 backdrop-blur-sm rounded-full opacity-0 group-hover:opacity-100 hover:bg-red-500 hover:text-white text-white/70 transition-all transform translate-y-[-10px] group-hover:translate-y-0"
+                            title="Delete Playlist"
                         >
                             <Trash2 className="w-4 h-4" />
                         </button>
                     </GlassCard>
-                ))
-            )}
-        </div>
+                ))}
+            </div>
+        </>
     );
 }
