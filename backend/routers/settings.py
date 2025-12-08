@@ -16,6 +16,10 @@ class SettingsRequest(BaseModel):
     auto_download: bool = None
     tutorial_seen: bool = None
     hidden_features: str = None
+    tm_api_key: str = None
+    bit_app_id: str = None
+    concerts_city: str = None
+    concerts_country: str = None
 
 @router.get("/settings")
 async def get_settings():
@@ -42,7 +46,12 @@ async def get_settings():
         secret = settings["LASTFM_API_SECRET"]
         if len(secret) > 4:
             settings["LASTFM_API_SECRET"] = secret[:4] + "*" * (len(secret) - 4)
-            
+
+    if "tm_api_key" in settings and settings["tm_api_key"]:
+        key = settings["tm_api_key"]
+        if len(key) > 4:
+            settings["tm_api_key"] = key[:4] + "*" * (len(key) - 4)
+
     return settings
 
 @router.post("/settings")
@@ -65,6 +74,18 @@ async def update_settings(settings: SettingsRequest):
 
     if settings.hidden_features is not None:
         set_setting("HIDDEN_FEATURES", settings.hidden_features)
+
+    if settings.tm_api_key is not None:
+        set_setting("tm_api_key", settings.tm_api_key)
+    
+    if settings.bit_app_id is not None:
+        set_setting("bit_app_id", settings.bit_app_id)
+        
+    if settings.concerts_city is not None:
+        set_setting("concerts_city", settings.concerts_city)
+
+    if settings.concerts_country is not None:
+        set_setting("concerts_country", settings.concerts_country)
 
     if settings.scrobble_update_interval is not None:
         old_interval = int(get_setting("SCROBBLE_UPDATE_INTERVAL") or 30)

@@ -10,13 +10,14 @@ export function SettingsModal({ isOpen, onClose, onSave, onReplayTutorial }) {
     const [apiKey, setApiKey] = useState('');
     const [apiSecret, setApiSecret] = useState('');
     const [username, setUsername] = useState('');
-    const [updateInterval, setUpdateInterval] = useState(30);
-    const [limitCount, setLimitCount] = useState(20);
+    const [updateInterval, setUpdateInterval] = useState('30');
+    const [limitCount, setLimitCount] = useState('20');
     const [autoDownload, setAutoDownload] = useState(true);
+    const [hiddenFeatures, setHiddenFeatures] = useState(new Set());
     const [loading, setLoading] = useState(false);
     const [saving, setSaving] = useState(false);
-    const [hiddenFeatures, setHiddenFeatures] = useState(new Set());
-
+    const [tmApiKey, setTmApiKey] = useState('');
+    const [bitAppId, setBitAppId] = useState('');
     useEffect(() => {
         if (isOpen) {
             fetchSettings();
@@ -36,6 +37,10 @@ export function SettingsModal({ isOpen, onClose, onSave, onReplayTutorial }) {
 
             const hidden = response.data.HIDDEN_FEATURES ? response.data.HIDDEN_FEATURES.split(',') : [];
             setHiddenFeatures(new Set(hidden));
+
+            setTmApiKey(response.data.tm_api_key || '');
+            setBitAppId(response.data.bit_app_id || '');
+
         } catch (error) {
             console.error("Error fetching settings:", error);
         } finally {
@@ -60,6 +65,13 @@ export function SettingsModal({ isOpen, onClose, onSave, onReplayTutorial }) {
             }
             if (apiSecret && !apiSecret.includes('*')) {
                 payload.lastfm_api_secret = apiSecret;
+            }
+
+            if (tmApiKey && !tmApiKey.includes('*')) {
+                payload.tm_api_key = tmApiKey;
+            }
+            if (bitAppId) {
+                payload.bit_app_id = bitAppId;
             }
 
             await axios.post(`${API_URL}/settings`, payload);
@@ -90,6 +102,7 @@ export function SettingsModal({ isOpen, onClose, onSave, onReplayTutorial }) {
         { id: 'undownloaded', label: 'Undownloaded' },
         { id: 'jobs', label: 'Jobs' },
         { id: 'stats', label: 'Stats' },
+        { id: 'concerts', label: 'Concerts' },
     ];
 
     return (
@@ -164,6 +177,31 @@ export function SettingsModal({ isOpen, onClose, onSave, onReplayTutorial }) {
                                                     onChange={(e) => setUsername(e.target.value)}
                                                     className="w-full bg-black/20 border border-white/10 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-spotify-green transition-colors"
                                                     placeholder="Enter Username"
+                                                />
+                                            </div>
+                                        </div>
+
+                                        {/* Concerts Config Section */}
+                                        <div className="space-y-4">
+                                            <h3 className="text-sm font-semibold text-white uppercase tracking-wider border-b border-white/10 pb-2">Concerts Config</h3>
+                                            <div className="space-y-2">
+                                                <label className="text-sm font-medium text-spotify-grey">Ticketmaster API Key</label>
+                                                <input
+                                                    type="text"
+                                                    value={tmApiKey}
+                                                    onChange={(e) => setTmApiKey(e.target.value)}
+                                                    className="w-full bg-black/20 border border-white/10 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-spotify-green transition-colors"
+                                                    placeholder="Enter Ticketmaster API Key"
+                                                />
+                                            </div>
+                                            <div className="space-y-2">
+                                                <label className="text-sm font-medium text-spotify-grey">Bandsintown App ID</label>
+                                                <input
+                                                    type="text"
+                                                    value={bitAppId}
+                                                    onChange={(e) => setBitAppId(e.target.value)}
+                                                    className="w-full bg-black/20 border border-white/10 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-spotify-green transition-colors"
+                                                    placeholder="Enter App ID (optional)"
                                                 />
                                             </div>
                                         </div>
@@ -275,7 +313,8 @@ export function SettingsModal({ isOpen, onClose, onSave, onReplayTutorial }) {
                         </div>
                     </motion.div>
                 </>
-            )}
-        </AnimatePresence>
+            )
+            }
+        </AnimatePresence >
     );
 }

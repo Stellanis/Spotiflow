@@ -68,6 +68,24 @@ def init_db():
         )
     ''')
 
+    # Create Concerts table
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS concerts (
+            id TEXT PRIMARY KEY, 
+            artist TEXT,
+            title TEXT,
+            date TEXT,
+            time TEXT,
+            venue TEXT,
+            city TEXT,
+            country TEXT,
+            url TEXT,
+            image_url TEXT,
+            source TEXT,
+            created_at TIMESTAMP
+        )
+    ''')
+
     # Migration: Check for new columns in playlists
     c.execute("PRAGMA table_info(playlists)")
     p_columns = [info[1] for info in c.fetchall()]
@@ -76,6 +94,13 @@ def init_db():
         c.execute("ALTER TABLE playlists ADD COLUMN type TEXT DEFAULT 'manual'")
         c.execute("ALTER TABLE playlists ADD COLUMN rules TEXT")
         c.execute("ALTER TABLE playlists ADD COLUMN color TEXT")
+
+    # Migration: Check for country in concerts
+    c.execute("PRAGMA table_info(concerts)")
+    c_columns = [info[1] for info in c.fetchall()]
+    if 'country' not in c_columns:
+         print("Migrating database: adding country column to concerts")
+         c.execute("ALTER TABLE concerts ADD COLUMN country TEXT")
 
     conn.commit()
     conn.close()
@@ -146,6 +171,7 @@ def get_downloads(page=1, limit=50, status=None, search_query=None, artist=None,
         conditions.append("(title LIKE ? OR artist LIKE ? OR album LIKE ?)")
         params.extend([search_term, search_term, search_term])
 
+
     if artist:
         conditions.append("artist = ?")
         params.append(artist)
@@ -214,6 +240,16 @@ def get_total_downloads_count(status=None, search_query=None, artist=None, album
 def get_all_artists():
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
+    # Try fetching from scrobbles table first for play counts for better relevance
+    try:
+        c.execute('SELECT artist, COUNT(*) as count FROM scrobbles GROUP BY artist ORDER BY count DESC')
+        rows = c.fetchall()
+        if rows:
+            return [row[0] for row in rows if row[0]]
+    except Exception:
+        pass
+        
+    # Fallback to downloads table
     c.execute('SELECT DISTINCT artist FROM downloads WHERE status = "completed" ORDER BY artist')
     rows = c.fetchall()
     conn.close()
@@ -252,3 +288,58 @@ def get_all_settings():
     rows = c.fetchall()
     conn.close()
     return {row[0]: row[1] for row in rows}
+
+def add_concert(concert_id, artist, title, date, time, venue, city, country, url, image_url, source):
+    conn = sqlite3.connect(DB_NAME)
+    c = conn.cursor()
+    try:
+        c.execute('''
+            INSERT INTO concerts (id, artist, title, date, time, venue, city, country, url, image_url, source, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(id) DO UPDATE SET
+                artist=excluded.artist,
+                title=excluded.title,
+                date=excluded.date,
+                time=excluded.time,
+                venue=excluded.venue,
+                city=excluded.city,
+                country=excluded.country,
+                url=excluded.url,
+                image_url=excluded.image_url,
+                source=excluded.source,
+                created_at=excluded.created_at
+        ''', (concert_id, artist, title, date, time, venue, city, country, url, image_url, source, datetime.now()))
+        conn.commit()
+    except Exception as e:
+        print(f"Error adding concert: {e}")
+    finally:
+        conn.close()
+
+def get_cached_concerts(city=None):
+    conn = sqlite3.connect(DB_NAME)
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    
+    query = "SELECT * FROM concerts"
+    params = []
+    
+    if city:
+        query += " WHERE city LIKE ?"
+        params.append(f"%{city}%")
+        
+    query += " ORDER BY date ASC"
+    
+    c.execute(query, params)
+    rows = c.fetchall()
+    conn.close()
+    return [dict(row) for row in rows]
+
+def clear_concerts(city=None):
+    conn = sqlite3.connect(DB_NAME)
+    c = conn.cursor()
+    if city:
+        c.execute("DELETE FROM concerts WHERE city LIKE ?", (f"%{city}%",))
+    else:
+        c.execute("DELETE FROM concerts")
+    conn.commit()
+    conn.close()

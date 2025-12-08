@@ -10,12 +10,13 @@ import { TutorialModal } from './TutorialModal';
 import { AddToPlaylistModal } from './components/AddToPlaylistModal';
 import { Playlists } from './components/Playlists';
 import { FilterDropdown } from './components/FilterDropdown';
-import { Download, Music, Disc, Search, CheckCircle, Loader2, Settings, ChevronLeft, ChevronRight, ChevronDown, RefreshCw, Hourglass, Trophy, Plus, Play, Trash2, ArrowLeft, Info, Menu, X } from 'lucide-react';
+import { Download, Music, Disc, Search, CheckCircle, Loader2, Settings, ChevronLeft, ChevronRight, ChevronDown, RefreshCw, Hourglass, Trophy, Plus, Play, Trash2, ArrowLeft, Info, Menu, X, Ticket } from 'lucide-react';
 import { GlassCard } from './components/GlassCard';
 import Jobs from './Jobs';
 import Stats from './components/Stats';
 import { TrackStatsModal } from './components/TrackStatsModal';
 import { SkeletonCard } from './components/SkeletonCard';
+import Concerts from './pages/Concerts';
 
 
 
@@ -367,6 +368,7 @@ function AppContent() {
     { id: 'undownloaded', icon: Download, label: 'Undownloaded' },
     { id: 'jobs', icon: Hourglass, label: 'Jobs' },
     { id: 'stats', icon: Trophy, label: 'Stats' },
+    { id: 'concerts', icon: Ticket, label: 'Concerts' },
   ].filter(item => !hiddenFeatures.has(item.id));
 
   return (
@@ -534,6 +536,8 @@ function AppContent() {
           <Stats username={username} onTrackClick={setSelectedTrack} />
         ) : view === 'playlists' ? (
           <Playlists />
+        ) : view === 'concerts' ? (
+          <Concerts />
         ) : (
 
           <div className="space-y-4">

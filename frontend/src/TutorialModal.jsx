@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, ChevronRight, Check, Music, Disc, Download, CheckCircle, RefreshCw, Key, Hourglass, Loader2 } from 'lucide-react';
+import { X, ChevronRight, Check, Music, Disc, Download, CheckCircle, RefreshCw, Key, Hourglass, Loader2, Ticket } from 'lucide-react';
 import { cn } from './utils';
 import axios from 'axios';
 
@@ -48,6 +48,16 @@ const steps = [
         description: "Enter your Last.fm credentials to start fetching your scrobbles.",
         icon: <Key className="w-16 h-16 text-yellow-500" />,
         color: "bg-yellow-500",
+        color: "bg-yellow-500",
+        id: 'lastfm',
+        isInputStep: true
+    },
+    {
+        title: "Concerts Setup",
+        description: "Configure Ticketmaster to find concerts near you.",
+        icon: <Ticket className="w-16 h-16 text-red-500" />,
+        color: "bg-red-500",
+        id: 'concerts',
         isInputStep: true
     }
 ];
@@ -57,6 +67,7 @@ export function TutorialModal({ isOpen, onClose, onTutorialComplete }) {
     const [apiKey, setApiKey] = useState('');
     const [apiSecret, setApiSecret] = useState('');
     const [username, setUsername] = useState('');
+    const [tmApiKey, setTmApiKey] = useState('');
     const [saving, setSaving] = useState(false);
     const [prefetching, setPrefetching] = useState(false);
 
@@ -71,7 +82,8 @@ export function TutorialModal({ isOpen, onClose, onTutorialComplete }) {
                     await axios.post(`${API_URL}/settings`, {
                         lastfm_api_key: apiKey,
                         lastfm_api_secret: apiSecret,
-                        lastfm_user: username
+                        lastfm_user: username,
+                        tm_api_key: tmApiKey
                     });
 
                     // Trigger prefetching if callback provided
@@ -145,7 +157,7 @@ export function TutorialModal({ isOpen, onClose, onTutorialComplete }) {
                                             </p>
                                         </div>
 
-                                        {steps[currentStep].isInputStep && (
+                                        {steps[currentStep].isInputStep && steps[currentStep].id === 'lastfm' && (
                                             <div className="w-full space-y-4 mt-4 text-left">
                                                 <div className="space-y-2">
                                                     <label className="text-sm font-medium text-spotify-grey">Last.fm Username</label>
@@ -185,6 +197,31 @@ export function TutorialModal({ isOpen, onClose, onTutorialComplete }) {
                                                         className="text-sm text-spotify-green hover:underline"
                                                     >
                                                         Get an API account here
+                                                    </a>
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {steps[currentStep].isInputStep && steps[currentStep].id === 'concerts' && (
+                                            <div className="w-full space-y-4 mt-4 text-left">
+                                                <div className="space-y-2">
+                                                    <label className="text-sm font-medium text-spotify-grey">Ticketmaster API Key</label>
+                                                    <input
+                                                        type="text"
+                                                        value={tmApiKey}
+                                                        onChange={(e) => setTmApiKey(e.target.value)}
+                                                        className="w-full bg-black/20 border border-white/10 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-spotify-green transition-colors"
+                                                        placeholder="Enter Ticketmaster API Key"
+                                                    />
+                                                </div>
+                                                <div className="text-center pt-2">
+                                                    <a
+                                                        href="https://developer.ticketmaster.com/products-and-docs/apis/getting-started/"
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        className="text-sm text-spotify-green hover:underline"
+                                                    >
+                                                        Get a Ticketmaster Key here
                                                     </a>
                                                 </div>
                                             </div>
