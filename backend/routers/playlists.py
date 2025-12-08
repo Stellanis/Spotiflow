@@ -510,12 +510,109 @@ async def get_playlist_stats(playlist_id: int):
             
     timeline = dict(Counter(dates).most_common(12)) # Top 12 months? Or just sorted?
     # Better to sort by date for a timeline
+    # Sort timeline
     sorted_timeline = dict(sorted(timeline.items()))
+
+    # --- ADVANCED STATS ---
+    # 1. Genre Distribution
+    # Optimized: We'll use the top 10 artists (reduced from 20) to estimate the playlist's "Vibe"
+    # and we will use a naive approach to avoid 10 sequential API calls if possible.
+    # But for now, reducing to 10 significantly speeds it up.
+    top_artists_subset = [a for a, c in artist_counts[:10]]
+    genre_counts = Counter()
+    
+    # 2. Nerdy Stats: Hipster Index & Mood
+    hipster_score = 0
+    mood_distribution = {"Energy": 0, "Chill": 0, "Melancholic": 0, "Dark": 0}
+    
+    try:
+        from core import lastfm_service
+        
+        total_listeners = 0
+        artist_count_for_listeners = 0
+        
+        # Define mood keywords
+        mood_keywords = {
+            "Energy": ["rock", "metal", "punk", "electronic", "dance", "pop", "hip-hop", "rap", "upbeat"],
+            "Chill": ["ambient", "acoustic", "jazz", "lo-fi", "folk", "classical", "instrumental", "mellow"],
+            "Melancholic": ["sad", "indie", "blues", "shoegaze", "slowcore", "emotional"],
+            "Dark": ["dark", "gothic", "doom", "industrial", "techno", "trap"]
+        }
+        
+        for artist in top_artists_subset:
+            count_in_playlist = next((c for a, c in artist_counts if a == artist), 1)
+
+            # A. Hipster Index (Listeners)
+            listeners = lastfm_service.get_artist_listeners(artist)
+            if listeners > 0:
+                total_listeners += listeners
+                artist_count_for_listeners += 1
+                
+            # B. Tags for Genres & Mood
+            tags = lastfm_service._get_artist_tags(artist)
+            
+            # Update Genre Counts
+            for tag in tags[:3]: # Top 3 tags only
+                genre_counts[tag] += count_in_playlist
+            
+            # Update Mood Analysis
+            for tag in tags:
+                tag_lower = tag.lower()
+                for mood, keywords in mood_keywords.items():
+                    if any(k in tag_lower for k in keywords):
+                        mood_distribution[mood] += count_in_playlist
+                        
+        # Calculate Hipster Score (0-100)
+        if artist_count_for_listeners > 0:
+            avg_listeners = total_listeners / artist_count_for_listeners
+            # Normalized log score logic
+            import math
+            min_l = math.log(10000)
+            max_l = math.log(5000000)
+            curr_val = max(avg_listeners, 10000)
+            curr_l = math.log(curr_val)
+            
+            if curr_val >= 5000000:
+                hipster_score = 0
+            elif curr_val <= 10000:
+                hipster_score = 100
+            else:
+                ratio = (curr_l - min_l) / (max_l - min_l)
+                hipster_score = round((1 - ratio) * 100)
+                if hipster_score < 0: hipster_score = 0
+                
+    except Exception as e:
+        logger.error(f"Error calculating stats: {e}")
+
+    top_genres = [{"name": g, "value": c} for g, c in genre_counts.most_common(10)]
+    
+    # Sort mood
+    sorted_mood = sorted(mood_distribution.items(), key=lambda x: x[1], reverse=True)
+    primary_mood = sorted_mood[0][0] if sorted_mood[0][1] > 0 else "Neutral"
+
+    top_genres = [{"name": g, "value": c} for g, c in genre_counts.most_common(10)]
+    
+    # 2. Diversity Score
+    # Simple: Unique Artists / Total Songs
+    diversity_score = 0
+    if len(songs) > 0:
+        diversity_score = round((len(set(artists)) / len(songs)) * 100)
+        
+    # 3. Dominant Vibe
+    dominant_vibe = "Eclectic"
+    if top_genres:
+        dominant_vibe = top_genres[0]['name']
 
     return {
         "total_songs": len(songs),
         "total_artists": len(set(artists)),
+        "diversity_score": diversity_score,
+        "dominant_vibe": dominant_vibe,
+        "hipster_score": hipster_score,
+        "primary_mood": primary_mood,
+        "mood_distribution": [{"name": k, "value": v} for k, v in sorted_mood if v > 0],
         "top_artists": [{"artist": a, "count": c} for a, c in artist_counts],
+        "top_genres": top_genres,
         "timeline": sorted_timeline
     }
 
