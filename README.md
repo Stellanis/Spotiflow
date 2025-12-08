@@ -15,14 +15,24 @@ A self-hosted application that automatically downloads your recent Last.fm scrob
 -   **Library Management**: View your downloaded collection, search for tracks, and manually trigger downloads.
 -   **Undownloaded View**: Quickly see which scrobbles haven't been downloaded yet, search them, and queue them all with one click.
 -   **Job Management**: Monitor active and pending downloads in real-time with a dedicated Jobs page.
+-   **Advanced Statistics**: Visualize your listening habits with top tracks, activity charts, and more.
+-   **Playlists**: Create and manage playlists from your downloaded library.
 -   **Interactive Tutorial**: A built-in guide to help you get started and configure your API keys on the first run.
 -   **Dockerized**: Easy deployment on local machines or NAS (Synology, Unraid, etc.).
 
 ## 📸 Screenshots
 
+### Dashboard
+Overview of your recent scrobbles and activity.
+![Dashboard Preview](assets/dashboard.png)
+
 ### Library
 Browse your downloaded collection with album art and metadata.
 ![Library View](assets/library.png)
+
+### Statistics
+Deep dive into your listening trends.
+![Stats View](assets/stats.png)
 
 ### Undownloaded Tracks
 See what's missing from your library and download everything with a single click.
