@@ -24,31 +24,31 @@ A self-hosted application that automatically downloads your recent Last.fm scrob
 
 ### Dashboard
 Overview of your recent scrobbles and activity.
-![Dashboard Preview](assets/dashboard.png)
+![Dashboard Preview](assets/dashboard_v2.png)
 
 ### Library
 Browse your downloaded collection with album art and metadata.
-![Library View](assets/library.png)
+![Library View](assets/library_v2.png)
 
 ### Statistics
 Deep dive into your listening trends.
-![Stats View](assets/stats.png)
+![Stats View](assets/stats_v2.png)
 
 ### Undownloaded Tracks
 See what's missing from your library and download everything with a single click.
-![Undownloaded View](assets/undownloaded.png)
+![Undownloaded View](assets/undownloaded_v2.png)
 
 ### Job Queue
 Track the status of your downloads in real-time.
-![Jobs Page](assets/jobs.png)
+![Jobs Page](assets/jobs_v2.png)
 
 ### Settings & Theming
 Configure API keys, update intervals, and customize the look and feel of the app.
-![Settings Page](assets/settings.png)
+![Settings Page](assets/settings_v2.png)
 
 ### First-Run Tutorial
 Helpful guide to get you set up quickly.
-![Tutorial](assets/tutorial.png)
+![Tutorial](assets/tutorial_v2.png)
 
 ## 🛠️ Tech Stack
 
