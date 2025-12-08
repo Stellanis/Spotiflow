@@ -5,7 +5,8 @@ from contextlib import asynccontextmanager
 from database import init_db, DB_NAME, get_setting
 from core import scheduler, logger, downloader_service
 from tasks import check_new_scrobbles, refresh_daily_stats
-from routers import scrobbles, stats, downloads, settings, websockets
+from routers import scrobbles, stats, downloads, settings, websockets, concerts
+from services.concerts import ConcertService
 from services.websocket_manager import manager
 from datetime import datetime
 import os
@@ -47,6 +48,19 @@ async def lifespan(app: FastAPI):
     if not scheduler.get_job('daily_stats_refresh'):
         scheduler.add_job(refresh_daily_stats, 'cron', hour=2, minute=0, id='daily_stats_refresh')
     
+    # 3. Schedule Daily Concert Sync
+    city = get_setting('concerts_city')
+    if city:
+        concert_service = ConcertService()
+        scheduler.add_job(
+            concert_service.sync_concerts, 
+            'cron', 
+            hour=3, 
+            minute=0,
+            args=[city],
+            id='concert_sync_daily'
+        )
+    
     scheduler.start()
     logger.info("Scheduler started.")
 
@@ -79,6 +93,7 @@ app.include_router(stats.router)
 app.include_router(downloads.router)
 app.include_router(settings.router)
 app.include_router(websockets.router)
+app.include_router(concerts.router)
 from routers import playlists
 app.include_router(playlists.router)
 
