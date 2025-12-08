@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, ChevronRight, Check, Music, Disc, Download, CheckCircle, RefreshCw, Key, Hourglass } from 'lucide-react';
+import { X, ChevronRight, Check, Music, Disc, Download, CheckCircle, RefreshCw, Key, Hourglass, Loader2 } from 'lucide-react';
 import { cn } from './utils';
 import axios from 'axios';
 
@@ -52,12 +52,13 @@ const steps = [
     }
 ];
 
-export function TutorialModal({ isOpen, onClose }) {
+export function TutorialModal({ isOpen, onClose, onTutorialComplete }) {
     const [currentStep, setCurrentStep] = useState(0);
     const [apiKey, setApiKey] = useState('');
     const [apiSecret, setApiSecret] = useState('');
     const [username, setUsername] = useState('');
     const [saving, setSaving] = useState(false);
+    const [prefetching, setPrefetching] = useState(false);
 
     const handleNext = async () => {
         if (currentStep < steps.length - 1) {
@@ -72,10 +73,17 @@ export function TutorialModal({ isOpen, onClose }) {
                         lastfm_api_secret: apiSecret,
                         lastfm_user: username
                     });
+
+                    // Trigger prefetching if callback provided
+                    if (onTutorialComplete) {
+                        setPrefetching(true);
+                        await onTutorialComplete(username);
+                    }
                 } catch (error) {
                     console.error("Failed to save settings:", error);
                 } finally {
                     setSaving(false);
+                    setPrefetching(false);
                 }
             }
             onClose();
@@ -205,7 +213,11 @@ export function TutorialModal({ isOpen, onClose }) {
                                     className="px-6 py-2.5 bg-white text-black font-bold rounded-full hover:scale-105 transition-transform flex items-center gap-2 disabled:opacity-50"
                                 >
                                     {currentStep === steps.length - 1 ? (
-                                        <>Get Started <Check className="w-4 h-4" /></>
+                                        prefetching ? (
+                                            <>Prefetching... <Loader2 className="w-4 h-4 animate-spin" /></>
+                                        ) : (
+                                            <>Get Started <Check className="w-4 h-4" /></>
+                                        )
                                     ) : (
                                         <>Next <ChevronRight className="w-4 h-4" /></>
                                     )}
