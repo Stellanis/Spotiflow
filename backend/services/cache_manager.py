@@ -25,3 +25,9 @@ class CacheManager:
     def clear(self):
         """Clear all cache."""
         self._cache = {}
+
+    def clear_with_prefix(self, prefix):
+        """Clear all keys starting with prefix."""
+        keys_to_delete = [k for k in self._cache.keys() if k.startswith(prefix)]
+        for k in keys_to_delete:
+            del self._cache[k]
