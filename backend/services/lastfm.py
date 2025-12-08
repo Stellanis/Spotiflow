@@ -14,9 +14,13 @@ class LastFMService:
         self.image_provider = ImageProvider()
 
     def get_recent_tracks(self, user: str, limit: int = 10, ignore_cache: bool = False):
-        cache_key = f"{user}_{limit}"
+        # Namespace the key to avoid collisions and allow group invalidation
+        cache_key = f"recent_{user}_{limit}"
         
-        if not ignore_cache:
+        if ignore_cache:
+            # Invalidate all recent tracks caches for this user (any limit)
+            self.cache.clear_with_prefix(f"recent_{user}_")
+        else:
             cached = self.cache.get(cache_key)
             if cached:
                 return cached
