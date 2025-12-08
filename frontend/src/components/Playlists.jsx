@@ -228,9 +228,11 @@ export function Playlists({ onPlayPlaylist }) {
     };
 
     const [stats, setStats] = useState(null);
+    const [statsLoading, setStatsLoading] = useState(false);
     const [activeTab, setActiveTab] = useState('songs'); // 'songs' | 'insights'
 
     const fetchStats = async (id) => {
+        setStatsLoading(true);
         try {
             const res = await fetch(`/api/playlists/${id}/stats`);
             if (res.ok) {
@@ -239,6 +241,8 @@ export function Playlists({ onPlayPlaylist }) {
             }
         } catch (error) {
             console.error("Failed to load stats", error);
+        } finally {
+            setStatsLoading(false);
         }
     };
 
@@ -350,7 +354,7 @@ export function Playlists({ onPlayPlaylist }) {
                 </div>
 
                 {activeTab === 'insights' ? (
-                    <PlaylistInsights stats={stats} />
+                    <PlaylistInsights stats={stats} loading={statsLoading} />
                 ) : (
                     <div className="space-y-8">
                         {selectedPlaylist.songs.length === 0 ? (

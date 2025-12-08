@@ -628,6 +628,37 @@ class LastFMService:
             print(f"Error generating genre breakdown: {e}")
             return []
 
+    def get_artist_listeners(self, artist_name):
+        """Fetches and caches global listener count for an artist."""
+        cache_key = f"artist_listeners_{artist_name}"
+        if cache_key in self._cache:
+             # Cache for 7 days
+             timestamp, data = self._cache[cache_key]
+             if time.time() - timestamp < 604800:
+                 return data
+                 
+        try:
+            import requests
+            url = "http://ws.audioscrobbler.com/2.0/"
+            params = {
+                "method": "artist.getinfo",
+                "artist": artist_name,
+                "api_key": self.api_key,
+                "format": "json"
+            }
+            
+            response = requests.get(url, params=params, timeout=5)
+            if response.status_code == 200:
+                data = response.json()
+                if "artist" in data:
+                    listeners = int(data["artist"].get("stats", {}).get("listeners", 0))
+                    self._cache[cache_key] = (time.time(), listeners)
+                    return listeners
+        except Exception as e:
+            print(f"Error fetching listeners for {artist_name}: {e}")
+            
+        return 0
+
     def _get_artist_tags(self, artist_name):
         """Helper to fetch and cache artist tags."""
         cache_key = f"artist_tags_{artist_name}"
