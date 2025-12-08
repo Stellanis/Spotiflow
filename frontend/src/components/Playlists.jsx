@@ -247,7 +247,6 @@ export function Playlists({ onPlayPlaylist }) {
             fetchStats(selectedPlaylist.id);
         }
     }, [selectedPlaylist, activeTab]);
-
     const handlePlaylistUpdate = (updatedPlaylist) => {
         setSelectedPlaylist(updatedPlaylist);
         setPlaylists(prev => prev.map(p => p.id === updatedPlaylist.id ? { ...p, name: updatedPlaylist.name, song_count: updatedPlaylist.songs.length } : p));
@@ -471,17 +470,11 @@ export function Playlists({ onPlayPlaylist }) {
                     <GlassCard
                         key={playlist.id}
                         onClick={() => fetchPlaylistDetails(playlist.id)}
-                        className="aspect-square p-4 flex flex-col justify-between cursor-pointer hover:bg-white/10 transition-colors group relative overflow-hidden"
+                        className="aspect-square p-4 flex flex-col cursor-pointer hover:bg-white/10 transition-colors group relative overflow-hidden"
                     >
-                        {playlist.type === 'smart' && (
-                            <div className="absolute top-2 left-2 z-10 bg-purple-500/80 text-white text-[10px] px-2 py-0.5 rounded-full backdrop-blur-md shadow-sm flex items-center gap-1">
-                                <Sparkles className="w-2 h-2" />
-                            </div>
-                        )}
-
-                        <div className="w-full aspect-square bg-white/5 rounded-md flex items-center justify-center mb-4 shadow-lg group-hover:shadow-xl transition-shadow relative overflow-hidden">
+                        <div className="w-full aspect-square bg-white/5 rounded-md mb-4 overflow-hidden relative shadow-lg">
                             {playlist.images && playlist.images.length >= 4 ? (
-                                <div className="w-full h-full grid grid-cols-2">
+                                <div className="grid grid-cols-2 h-full">
                                     {playlist.images.slice(0, 4).map((img, i) => (
                                         <img key={i} src={img} alt="" className="w-full h-full object-cover" />
                                     ))}
@@ -489,25 +482,38 @@ export function Playlists({ onPlayPlaylist }) {
                             ) : playlist.images && playlist.images.length > 0 ? (
                                 <img src={playlist.images[0]} alt={playlist.name} className="w-full h-full object-cover" />
                             ) : (
-                                <div className="relative w-full h-full flex items-center justify-center">
-                                    {playlist.type === 'smart' ? (
-                                        <Sparkles className="w-12 h-12 text-purple-400/50 group-hover:text-purple-400 transition-colors relative z-10" />
-                                    ) : (
-                                        <Music className="w-12 h-12 text-spotify-grey group-hover:text-white transition-colors relative z-10" />
-                                    )}
-                                    <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                                <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-white/5 to-transparent">
+                                    <Music className="w-12 h-12 text-white/20" />
                                 </div>
                             )}
+
+                            {/* Type Badge */}
+                            {playlist.type === 'smart' && (
+                                <div className="absolute top-2 left-2 bg-black/60 backdrop-blur-md rounded-full p-1.5 shadow-sm">
+                                    <Sparkles className="w-3 h-3 text-purple-400" />
+                                </div>
+                            )}
+
+                            {/* Hover Play Button */}
+                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                {/* Only show if not empty */}
+                            </div>
                         </div>
-                        <div>
-                            <h3 className="font-bold truncate">{playlist.name}</h3>
-                            <p className="text-xs text-spotify-grey mt-1">{playlist.song_count} songs</p>
+
+                        <div className="min-w-0 w-full">
+                            <h3 className="font-bold truncate text-white mb-1 group-hover:text-spotify-green transition-colors">{playlist.name}</h3>
+                            <p className="text-sm text-spotify-grey truncate">
+                                {playlist.song_count} songs
+                                {playlist.type === 'smart' && ' • Smart'}
+                            </p>
                         </div>
+
                         <button
                             onClick={(e) => initiateDelete(playlist.id, e)}
-                            className="absolute top-2 right-2 p-2 text-spotify-grey hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity bg-black/50 rounded-full hover:bg-black/70 z-50 pointer-events-auto"
+                            className="absolute top-2 right-2 p-2 bg-black/60 backdrop-blur-sm rounded-full opacity-0 group-hover:opacity-100 hover:bg-red-500 hover:text-white text-white/70 transition-all transform translate-y-[-10px] group-hover:translate-y-0"
+                            title="Delete Playlist"
                         >
-                            <Trash2 className="w-4 h-4 pointer-events-none" />
+                            <Trash2 className="w-4 h-4" />
                         </button>
                     </GlassCard>
                 ))}
