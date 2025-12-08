@@ -15,6 +15,7 @@ class SettingsRequest(BaseModel):
     scrobble_limit_count: int = None
     auto_download: bool = None
     tutorial_seen: bool = None
+    hidden_features: str = None
 
 @router.get("/settings")
 async def get_settings():
@@ -61,6 +62,9 @@ async def update_settings(settings: SettingsRequest):
 
     if settings.tutorial_seen is not None:
         set_setting("TUTORIAL_SEEN", str(settings.tutorial_seen).lower())
+
+    if settings.hidden_features is not None:
+        set_setting("HIDDEN_FEATURES", settings.hidden_features)
 
     if settings.scrobble_update_interval is not None:
         old_interval = int(get_setting("SCROBBLE_UPDATE_INTERVAL") or 30)
