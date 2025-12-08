@@ -21,6 +21,7 @@ class Playlist(BaseModel):
     description: Optional[str]
     created_at: str
     song_count: int = 0
+    images: List[str] = []
 
 class PlaylistDetail(Playlist):
     songs: List[dict] = []
@@ -46,8 +47,26 @@ async def get_playlists():
         ORDER BY p.created_at DESC
     ''')
     rows = c.fetchall()
+    
+    playlists = []
+    for row in rows:
+        p = dict(row)
+        # Fetch up to 4 images for the collage
+        c.execute('''
+            SELECT DISTINCT d.image_url 
+            FROM playlist_songs ps 
+            JOIN downloads d ON ps.song_query = d.query 
+            WHERE ps.playlist_id = ? AND d.image_url IS NOT NULL AND d.image_url != ''
+            ORDER BY ps.position ASC 
+            LIMIT 4
+        ''', (p['id'],))
+        images = [r[0] for r in c.fetchall()]
+        p['images'] = images
+        playlists.append(p)
+        
     conn.close()
-    return [dict(row) for row in rows]
+    return playlists
+
 
 @router.post("/playlists", response_model=Playlist)
 async def create_playlist(playlist: PlaylistCreate):
@@ -97,6 +116,7 @@ async def get_playlist_detail(playlist_id: int):
     # Process songs (add audio_url)
     song_list = []
     from routers.downloads import sanitize_filename
+    images = [] # Collect images for the playlist cover
     for song in songs:
         item = dict(song)
         s_artist = sanitize_filename(item['artist'])
@@ -105,12 +125,17 @@ async def get_playlist_detail(playlist_id: int):
         item['audio_url'] = f"/api/audio/{s_artist}/{s_album}/{s_title}.mp3"
         song_list.append(item)
         
+        # Collect unique images up to 4
+        if item.get('image_url') and item['image_url'] not in images and len(images) < 4:
+            images.append(item['image_url'])
+        
     conn.close()
     
     result = dict(playlist)
     result['created_at'] = str(result['created_at'])
     result['songs'] = song_list
     result['song_count'] = len(song_list)
+    result['images'] = images
     return result
 
 @router.post("/playlists/{playlist_id}/add")
@@ -142,6 +167,52 @@ async def add_song_to_playlist(playlist_id: int, song: PlaylistAddSong):
     conn.close()
     return {"status": "added", "position": next_pos}
 
+@router.put("/playlists/{playlist_id}")
+async def update_playlist(playlist_id: int, playlist: PlaylistCreate):
+    conn = sqlite3.connect(DB_NAME)
+    c = conn.cursor()
+    try:
+        c.execute('UPDATE playlists SET name = ?, description = ? WHERE id = ?', 
+                  (playlist.name, playlist.description, playlist_id))
+        if c.rowcount == 0:
+            conn.close()
+            raise HTTPException(status_code=404, detail="Playlist not found")
+        conn.commit()
+    except sqlite3.IntegrityError:
+        conn.close()
+        raise HTTPException(status_code=400, detail="Playlist with this name already exists")
+    finally:
+        conn.close()
+    return {"status": "updated", "id": playlist_id}
+
+class ReorderItem(BaseModel):
+    song_query: str
+    new_position: int
+
+@router.put("/playlists/{playlist_id}/reorder")
+async def reorder_playlist(playlist_id: int, items: List[ReorderItem]):
+    conn = sqlite3.connect(DB_NAME)
+    c = conn.cursor()
+    
+    # Verify playlist exists
+    c.execute('SELECT id FROM playlists WHERE id = ?', (playlist_id,))
+    if not c.fetchone():
+        conn.close()
+        raise HTTPException(status_code=404, detail="Playlist not found")
+        
+    try:
+        # We'll use a transaction to update all positions safely
+        for item in items:
+            c.execute('UPDATE playlist_songs SET position = ? WHERE playlist_id = ? AND song_query = ?',
+                      (item.new_position, playlist_id, item.song_query))
+        conn.commit()
+    except Exception as e:
+        conn.close()
+        raise HTTPException(status_code=500, detail=str(e))
+        
+    conn.close()
+    return {"status": "reordered"}
+
 @router.delete("/playlists/{playlist_id}/songs/{song_query}")
 async def remove_song_from_playlist(playlist_id: int, song_query: str):
     conn = sqlite3.connect(DB_NAME)
@@ -160,3 +231,4 @@ async def delete_playlist(playlist_id: int):
     conn.commit()
     conn.close()
     return {"status": "deleted"}
+
