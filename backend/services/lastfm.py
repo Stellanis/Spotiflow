@@ -13,11 +13,13 @@ class LastFMService:
         self.client = LastFMApiClient()
         self.image_provider = ImageProvider()
 
-    def get_recent_tracks(self, user: str, limit: int = 10):
+    def get_recent_tracks(self, user: str, limit: int = 10, ignore_cache: bool = False):
         cache_key = f"{user}_{limit}"
-        cached = self.cache.get(cache_key)
-        if cached:
-            return cached
+        
+        if not ignore_cache:
+            cached = self.cache.get(cache_key)
+            if cached:
+                return cached
 
         params = {
             "method": "user.getrecenttracks",

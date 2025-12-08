@@ -11,7 +11,8 @@ def check_new_scrobbles():
     limit = int(get_setting("SCROBBLE_LIMIT_COUNT") or 20)
     logger.info(f"Checking new scrobbles for {user} (limit: {limit})...")
     try:
-        tracks = lastfm_service.get_recent_tracks(user, limit=limit)
+        # Force fresh fetch for sync
+        tracks = lastfm_service.get_recent_tracks(user, limit=limit, ignore_cache=True)
         
         # Check auto-download setting
         auto_download = get_setting("AUTO_DOWNLOAD", "true").lower() == "true"

@@ -138,7 +138,7 @@ function AppContent() {
           if (artistFilter) params.artist = artistFilter;
           const response = await axios.get(`${API_URL}/filters`, { params });
           setFilterOptions(prev => ({
-            artists: response.data.artists, // Always get full artist list? Or filtered? Let's use full list effectively but maybe backend logic needs tweak if we want to narrow down artists. For now, keeping full artist list is fine or maybe only filtered albums. 
+            // artists: response.data.artists, // Always get full artist list? Or filtered? Let's use full list effectively but maybe backend logic needs tweak if we want to narrow down artists. For now, keeping full artist list is fine or maybe only filtered albums. 
             // Wait, if I select an Artist, I want to see their Albums.
             // If I select nothing, I see all Artists and all Albums.
             // Backend `get_filters` returns { artists: get_all_artists(), albums: get_all_albums(artist) }
