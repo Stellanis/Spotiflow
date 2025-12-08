@@ -1,16 +1,100 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Music, Play, Trash2, ArrowLeft, Loader2, MoreVertical } from 'lucide-react';
+import { Plus, Music, Play, Trash2, ArrowLeft, Loader2, MoreVertical, Edit2, GripVertical, Settings } from 'lucide-react';
 import { GlassCard } from './GlassCard';
 import { cn } from '../utils';
 import { usePlayer } from '../contexts/PlayerContext';
 import { toast } from 'react-hot-toast';
+import { EditPlaylistModal } from './EditPlaylistModal';
+import {
+    DndContext,
+    closestCenter,
+    KeyboardSensor,
+    PointerSensor,
+    useSensor,
+    useSensors,
+} from '@dnd-kit/core';
+import {
+    arrayMove,
+    SortableContext,
+    sortableKeyboardCoordinates,
+    useSortable,
+    verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+
+function SortableSongRow({ song, index, playTrack, handleRemoveSong, selectedPlaylist }) {
+    const {
+        attributes,
+        listeners,
+        setNodeRef,
+        transform,
+        transition,
+        isDragging
+    } = useSortable({ id: song.query });
+
+    const style = {
+        transform: CSS.Transform.toString(transform),
+        transition,
+        zIndex: isDragging ? 10 : 1,
+    };
+
+    return (
+        <div
+            ref={setNodeRef}
+            style={style}
+            className={cn(
+                "group flex items-center gap-4 p-3 rounded-md hover:bg-white/5 transition-colors touch-none select-none",
+                isDragging ? "bg-white/10 shadow-xl opacity-90" : "bg-transparent"
+            )}
+        >
+            <div className="flex items-center gap-2">
+                <div {...attributes} {...listeners} className="cursor-grab hover:text-white text-spotify-grey p-1">
+                    <GripVertical className="w-5 h-5" />
+                </div>
+                <span className="text-spotify-grey w-6 text-center tabular-nums">{index + 1}</span>
+            </div>
+
+            <div className="w-10 h-10 bg-white/10 rounded overflow-hidden shrink-0">
+                {song.image_url && <img src={song.image_url} alt="" className="w-full h-full object-cover pointer-events-none" />}
+            </div>
+
+            <div className="flex-1 min-w-0">
+                <div className="font-medium truncate text-white">{song.title}</div>
+                <div className="text-sm text-spotify-grey truncate">{song.artist}</div>
+            </div>
+
+            <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                <button
+                    onClick={() => playTrack(song, selectedPlaylist.songs)}
+                    className="p-2 hover:text-spotify-green transition-colors"
+                >
+                    <Play className="w-4 h-4 fill-current" />
+                </button>
+                <button
+                    onClick={() => handleRemoveSong(song.query)}
+                    className="p-2 hover:text-red-500 transition-colors"
+                >
+                    <Trash2 className="w-4 h-4" />
+                </button>
+            </div>
+        </div>
+    );
+}
 
 export function Playlists({ onPlayPlaylist }) {
     const [playlists, setPlaylists] = useState([]);
     const [loading, setLoading] = useState(true);
     const [selectedPlaylist, setSelectedPlaylist] = useState(null);
+    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const { playTrack } = usePlayer();
+
+    const sensors = useSensors(
+        useSensor(PointerSensor),
+        useSensor(KeyboardSensor, {
+            coordinateGetter: sortableKeyboardCoordinates,
+        })
+    );
 
     useEffect(() => {
         fetchPlaylists();
@@ -86,18 +170,64 @@ export function Playlists({ onPlayPlaylist }) {
 
     const handlePlayPlaylist = async () => {
         if (!selectedPlaylist?.songs?.length) return;
-        // Play first song, set queue to remaining
         const firstSong = selectedPlaylist.songs[0];
-        // We need to pass the FULL queue to the player context
-        // PlayerContext needs to be updated to accept a queue!
-        // I assumed I updated PlayerContext to handle queues. Yes I did in Step 96.
-        // playTrack(track, queue)
         playTrack(firstSong, selectedPlaylist.songs);
+    };
+
+    const handleDragEnd = async (event) => {
+        const { active, over } = event;
+
+        if (active.id !== over.id) {
+            setSelectedPlaylist((prev) => {
+                const oldIndex = prev.songs.findIndex((item) => item.query === active.id);
+                const newIndex = prev.songs.findIndex((item) => item.query === over.id);
+
+                const newSongs = arrayMove(prev.songs, oldIndex, newIndex);
+
+                // Update positions locally
+                const updatedSongs = newSongs.map((song, idx) => ({ ...song, position: idx }));
+
+                // Call backend to update positions
+                // We'll prepare the list of items with their new positions
+                const reorderItems = updatedSongs.map((song, index) => ({
+                    song_query: song.query,
+                    new_position: index
+                }));
+
+                // Optimistic update done, now sync with backend
+                fetch(`/api/playlists/${prev.id}/reorder`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(reorderItems)
+                }).catch(err => {
+                    console.error("Failed to reorder playlist", err);
+                    toast.error("Failed to save order");
+                    // Revert? For now, we trust.
+                });
+
+                return {
+                    ...prev,
+                    songs: updatedSongs
+                };
+            });
+        }
+    };
+
+    const handlePlaylistUpdate = (updatedPlaylist) => {
+        setSelectedPlaylist(updatedPlaylist);
+        setPlaylists(prev => prev.map(p => p.id === updatedPlaylist.id ? { ...p, name: updatedPlaylist.name, song_count: updatedPlaylist.songs.length } : p));
     };
 
     if (selectedPlaylist) {
         return (
             <div className="space-y-6">
+                <EditPlaylistModal
+                    isOpen={isEditModalOpen}
+                    onClose={() => setIsEditModalOpen(false)}
+                    playlist={selectedPlaylist}
+                    onUpdate={handlePlaylistUpdate}
+                />
+
                 <button
                     onClick={() => setSelectedPlaylist(null)}
                     className="flex items-center gap-2 text-spotify-grey hover:text-white transition-colors"
@@ -107,57 +237,67 @@ export function Playlists({ onPlayPlaylist }) {
                 </button>
 
                 <div className="flex flex-col md:flex-row gap-8 items-start">
-                    <div className="w-full md:w-64 aspect-square bg-gradient-to-br from-spotify-green/20 to-spotify-dark rounded-lg flex items-center justify-center shadow-2xl relative group">
-                        <Music className="w-24 h-24 text-white/50" />
+                    <div className="w-full md:w-64 aspect-square bg-gradient-to-br from-spotify-green/20 to-spotify-dark rounded-lg flex items-center justify-center shadow-2xl relative group shrink-0 overflow-hidden">
+                        {selectedPlaylist.images && selectedPlaylist.images.length >= 4 ? (
+                            <div className="w-full h-full grid grid-cols-2">
+                                {selectedPlaylist.images.slice(0, 4).map((img, i) => (
+                                    <img key={i} src={img} alt="" className="w-full h-full object-cover" />
+                                ))}
+                            </div>
+                        ) : selectedPlaylist.images && selectedPlaylist.images.length > 0 ? (
+                            <img src={selectedPlaylist.images[0]} alt={selectedPlaylist.name} className="w-full h-full object-cover" />
+                        ) : (
+                            <Music className="w-24 h-24 text-white/50" />
+                        )}
                         <button
                             onClick={handlePlayPlaylist}
-                            className="absolute bottom-4 right-4 p-4 bg-spotify-green rounded-full text-black shadow-lg hover:scale-105 transition-transform opacity-0 group-hover:opacity-100 translate-y-4 group-hover:translate-y-0 duration-300"
+                            className="absolute bottom-4 right-4 p-4 bg-spotify-green rounded-full text-black shadow-lg hover:scale-105 transition-transform opacity-0 group-hover:opacity-100 translate-y-4 group-hover:translate-y-0 duration-300 z-10"
                         >
                             <Play className="w-6 h-6 fill-current" />
                         </button>
                     </div>
 
-                    <div className="flex-1 space-y-4">
+                    <div className="flex-1 space-y-4 min-w-0">
                         <div>
-                            <h2 className="text-4xl font-bold mb-2">{selectedPlaylist.name}</h2>
-                            <p className="text-spotify-grey">{selectedPlaylist.description || "No description"}</p>
-                            <p className="text-sm text-spotify-grey mt-2">
-                                {selectedPlaylist.song_count} songs • Created {new Date(selectedPlaylist.created_at).toLocaleDateString()}
-                            </p>
+                            <div onClick={() => setIsEditModalOpen(true)} className="group cursor-pointer">
+                                <h2 className="text-4xl md:text-5xl font-bold mb-4 break-words group-hover:text-spotify-green transition-colors flex items-center gap-4">
+                                    {selectedPlaylist.name}
+                                    <Edit2 className="w-6 h-6 opacity-0 group-hover:opacity-100 transition-opacity text-spotify-grey" />
+                                </h2>
+                            </div>
+                            <p className="text-spotify-grey text-lg line-clamp-3 whitespace-pre-wrap">{selectedPlaylist.description || "No description"}</p>
+                            <div className="flex items-center gap-2 text-sm text-spotify-grey mt-4">
+                                <span>{selectedPlaylist.song_count} songs</span>
+                                <span>•</span>
+                                <span>Created {new Date(selectedPlaylist.created_at).toLocaleDateString()}</span>
+                            </div>
                         </div>
                     </div>
                 </div>
 
                 <div className="space-y-2">
-                    {selectedPlaylist.songs.map((song, index) => (
-                        <div
-                            key={`${song.query}-${index}`}
-                            className="group flex items-center gap-4 p-3 rounded-md hover:bg-white/5 transition-colors"
+                    <DndContext
+                        sensors={sensors}
+                        collisionDetection={closestCenter}
+                        onDragEnd={handleDragEnd}
+                    >
+                        <SortableContext
+                            items={selectedPlaylist.songs.map(s => s.query)}
+                            strategy={verticalListSortingStrategy}
                         >
-                            <span className="text-spotify-grey w-6 text-center">{index + 1}</span>
-                            <div className="w-10 h-10 bg-white/10 rounded overflow-hidden">
-                                {song.image_url && <img src={song.image_url} alt="" className="w-full h-full object-cover" />}
-                            </div>
-                            <div className="flex-1 min-w-0">
-                                <div className="font-medium truncate text-white">{song.title}</div>
-                                <div className="text-sm text-spotify-grey truncate">{song.artist}</div>
-                            </div>
-                            <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                <button
-                                    onClick={() => playTrack(song, selectedPlaylist.songs)}
-                                    className="p-2 hover:text-spotify-green transition-colors"
-                                >
-                                    <Play className="w-4 h-4 fill-current" />
-                                </button>
-                                <button
-                                    onClick={() => handleRemoveSong(song.query)}
-                                    className="p-2 hover:text-red-500 transition-colors"
-                                >
-                                    <Trash2 className="w-4 h-4" />
-                                </button>
-                            </div>
-                        </div>
-                    ))}
+                            {selectedPlaylist.songs.map((song, index) => (
+                                <SortableSongRow
+                                    key={song.query}
+                                    song={song}
+                                    index={index}
+                                    playTrack={playTrack}
+                                    handleRemoveSong={handleRemoveSong}
+                                    selectedPlaylist={selectedPlaylist}
+                                />
+                            ))}
+                        </SortableContext>
+                    </DndContext>
+
                     {selectedPlaylist.songs.length === 0 && (
                         <div className="text-center py-10 text-spotify-grey">
                             This playlist is empty. Add songs from your Library.
@@ -195,8 +335,21 @@ export function Playlists({ onPlayPlaylist }) {
                         onClick={() => fetchPlaylistDetails(playlist.id)}
                         className="aspect-square p-4 flex flex-col justify-between cursor-pointer hover:bg-white/10 transition-colors group"
                     >
-                        <div className="w-full aspect-square bg-white/5 rounded-md flex items-center justify-center mb-4 shadow-lg group-hover:shadow-xl transition-shadow">
-                            <Music className="w-12 h-12 text-spotify-grey group-hover:text-white transition-colors" />
+                        <div className="w-full aspect-square bg-white/5 rounded-md flex items-center justify-center mb-4 shadow-lg group-hover:shadow-xl transition-shadow relative overflow-hidden">
+                            {playlist.images && playlist.images.length >= 4 ? (
+                                <div className="w-full h-full grid grid-cols-2">
+                                    {playlist.images.slice(0, 4).map((img, i) => (
+                                        <img key={i} src={img} alt="" className="w-full h-full object-cover" />
+                                    ))}
+                                </div>
+                            ) : playlist.images && playlist.images.length > 0 ? (
+                                <img src={playlist.images[0]} alt={playlist.name} className="w-full h-full object-cover" />
+                            ) : (
+                                <div className="relative w-full h-full flex items-center justify-center">
+                                    <Music className="w-12 h-12 text-spotify-grey group-hover:text-white transition-colors relative z-10" />
+                                    <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                                </div>
+                            )}
                         </div>
                         <div>
                             <h3 className="font-bold truncate">{playlist.name}</h3>
@@ -204,7 +357,7 @@ export function Playlists({ onPlayPlaylist }) {
                         </div>
                         <button
                             onClick={(e) => handleDeletePlaylist(playlist.id, e)}
-                            className="absolute top-2 right-2 p-2 text-spotify-grey hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity bg-black/50 rounded-full"
+                            className="absolute top-2 right-2 p-2 text-spotify-grey hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity bg-black/50 rounded-full hover:bg-black/70"
                         >
                             <Trash2 className="w-4 h-4" />
                         </button>
