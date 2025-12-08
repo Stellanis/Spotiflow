@@ -171,7 +171,7 @@ export default function Stats({ username, onTrackClick }) {
                     Top Tracks
                 </h2>
 
-                <div className="flex bg-black/10 dark:bg-white/10 p-1 rounded-full border border-black/5 dark:border-white/5 overflow-x-auto max-w-full">
+                <div className="flex bg-white/10 p-1 rounded-full border border-white/5 overflow-x-auto max-w-full">
                     {periods.map((p) => (
                         <button
                             key={p.value}
@@ -180,7 +180,7 @@ export default function Stats({ username, onTrackClick }) {
                                 "relative px-3 py-1.5 rounded-full text-xs sm:text-sm font-medium transition-colors whitespace-nowrap z-10",
                                 period === p.value
                                     ? "text-white"
-                                    : "text-gray-600 hover:text-black dark:text-gray-400 dark:hover:text-white"
+                                    : "text-gray-400 hover:text-white"
                             )}
                         >
                             {period === p.value && (
