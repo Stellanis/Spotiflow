@@ -10,7 +10,7 @@ import { TutorialModal } from './TutorialModal';
 import { AddToPlaylistModal } from './components/AddToPlaylistModal';
 import { Playlists } from './components/Playlists';
 import { FilterDropdown } from './components/FilterDropdown';
-import { Download, Music, Disc, Search, CheckCircle, Loader2, Settings, ChevronLeft, ChevronRight, ChevronDown, RefreshCw, Hourglass, Trophy, Plus, Play, Trash2, ArrowLeft, Info } from 'lucide-react';
+import { Download, Music, Disc, Search, CheckCircle, Loader2, Settings, ChevronLeft, ChevronRight, ChevronDown, RefreshCw, Hourglass, Trophy, Plus, Play, Trash2, ArrowLeft, Info, Menu, X } from 'lucide-react';
 import { GlassCard } from './components/GlassCard';
 import Jobs from './Jobs';
 import Stats from './components/Stats';
@@ -19,8 +19,7 @@ import { SkeletonCard } from './components/SkeletonCard';
 
 
 
-import { ThemeProvider } from './contexts/ThemeContext';
-import { ThemeToggle } from './components/ThemeToggle';
+
 import { Toaster, toast } from 'react-hot-toast';
 
 import { PlayerProvider, usePlayer } from './contexts/PlayerContext';
@@ -46,6 +45,7 @@ function AppContent() {
   const [isSyncing, setIsSyncing] = useState(false);
   const [showTutorial, setShowTutorial] = useState(false);
   const [selectedTrack, setSelectedTrack] = useState(null);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
 
   // Pagination state
@@ -416,9 +416,9 @@ function AppContent() {
             </div>
           </div>
 
-          <div className="flex items-center gap-4 flex-wrap justify-center">
-            {/* Navigation Tabs */}
-            <div className="flex bg-black/10 dark:bg-white/10 p-1 rounded-full border border-black/5 dark:border-white/5">
+          <div className="flex items-center gap-4 flex-wrap justify-end md:justify-center flex-1">
+            {/* Desktop Navigation Tabs */}
+            <div className="hidden lg:flex bg-white/10 p-1 rounded-full border border-white/5">
               {[
                 { id: 'scrobbles', icon: Disc, label: 'Scrobbles' },
                 { id: 'library', icon: CheckCircle, label: 'Library' },
@@ -432,7 +432,7 @@ function AppContent() {
                   onClick={() => navigate(item.id === 'scrobbles' ? '/' : `/${item.id}`)}
                   className={cn(
                     "relative px-4 py-1.5 rounded-full text-sm font-medium transition-colors flex items-center gap-2 z-10 outline-none",
-                    view === item.id ? "text-white" : "text-gray-600 hover:text-black dark:text-gray-400 dark:hover:text-white"
+                    view === item.id ? "text-white" : "text-gray-400 hover:text-white"
                   )}
                 >
                   {view === item.id && (
@@ -447,31 +447,82 @@ function AppContent() {
                 </button>
               ))}
             </div>
+
+            {/* Icons used on both Desktop and Mobile */}
+            <div className="flex items-center gap-2">
+              <motion.button
+                whileTap={{ scale: 0.95 }}
+                onClick={() => setIsSettingsOpen(true)}
+                className="p-2 hover:bg-white/10 rounded-full transition-colors text-spotify-grey hover:text-white"
+                title="Settings"
+              >
+                <Settings className="w-6 h-6" />
+              </motion.button>
+
+              <motion.button
+                whileTap={{ scale: 0.95 }}
+                onClick={handleSync}
+                disabled={isSyncing}
+                className={cn(
+                  "p-2 hover:bg-white/10 rounded-full transition-colors text-spotify-grey hover:text-white",
+                  isSyncing && "animate-spin text-spotify-green"
+                )}
+                title="Sync with Last.fm"
+              >
+                <RefreshCw className="w-6 h-6" />
+              </motion.button>
+            </div>
+
+            {/* Mobile Menu Toggle */}
             <motion.button
               whileTap={{ scale: 0.95 }}
-              onClick={() => setIsSettingsOpen(true)}
-              className="p-2 hover:bg-white/10 rounded-full transition-colors text-spotify-grey hover:text-white"
-              title="Settings"
+              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+              className="lg:hidden p-2 hover:bg-white/10 rounded-full transition-colors text-white"
             >
-              <Settings className="w-6 h-6" />
+              {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
             </motion.button>
 
-            <motion.button
-              whileTap={{ scale: 0.95 }}
-              onClick={handleSync}
-              disabled={isSyncing}
-              className={cn(
-                "p-2 hover:bg-white/10 rounded-full transition-colors text-spotify-grey hover:text-white",
-                isSyncing && "animate-spin text-spotify-green"
-              )}
-              title="Sync with Last.fm"
-            >
-              <RefreshCw className="w-6 h-6" />
-            </motion.button>
-
-            <div className="h-6 w-px bg-white/10 mx-2" />
-            <ThemeToggle />
           </div>
+
+          {/* Mobile Navigation Menu */}
+          <AnimatePresence>
+            {isMobileMenuOpen && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                className="lg:hidden w-full overflow-hidden"
+              >
+                <div className="flex flex-col gap-2 pt-4 border-t border-white/5 mt-2">
+                  {[
+                    { id: 'scrobbles', icon: Disc, label: 'Scrobbles' },
+                    { id: 'library', icon: CheckCircle, label: 'Library' },
+                    { id: 'playlists', icon: Music, label: 'Playlists' },
+                    { id: 'undownloaded', icon: Download, label: 'Undownloaded' },
+                    { id: 'jobs', icon: Hourglass, label: 'Jobs' },
+                    { id: 'stats', icon: Trophy, label: 'Stats' },
+                  ].map((item) => (
+                    <button
+                      key={item.id}
+                      onClick={() => {
+                        navigate(item.id === 'scrobbles' ? '/' : `/${item.id}`);
+                        setIsMobileMenuOpen(false);
+                      }}
+                      className={cn(
+                        "w-full px-4 py-3 rounded-xl text-left font-medium transition-all flex items-center gap-3",
+                        view === item.id
+                          ? "bg-spotify-green text-white shadow-lg shadow-spotify-green/20"
+                          : "hover:bg-white/5 text-gray-400 hover:text-white"
+                      )}
+                    >
+                      <item.icon className="w-5 h-5" />
+                      <span>{item.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </GlassCard>
 
         {/* Content */}
@@ -638,21 +689,21 @@ function AppContent() {
 
                                 <div className={cn("flex gap-4", view === 'library' || view === 'undownloaded' ? "flex-col items-start w-full h-full" : "items-center")}>
                                   <div className={cn(
-                                    "rounded-md overflow-hidden bg-black/5 dark:bg-spotify-dark relative flex items-center justify-center text-spotify-grey shadow-lg transition-transform duration-500 ease-out group-hover:rotate-x-6 group-hover:rotate-y-6 group-hover:scale-105",
+                                    "rounded-md overflow-hidden bg-spotify-dark relative flex items-center justify-center text-spotify-grey shadow-lg transition-transform duration-500 ease-out group-hover:rotate-x-6 group-hover:rotate-y-6 group-hover:scale-105",
                                     view === 'library' || view === 'undownloaded' ? "w-full aspect-square mb-2" : "w-16 h-16",
                                     isQueued && track.status !== 'completed' && "opacity-50 pointer-events-none"
                                   )}>
                                     {imageSrc ? (
                                       <img src={imageSrc} alt={track.title} className="w-full h-full object-cover" />
                                     ) : (
-                                      <div className="w-full h-full flex flex-col items-center justify-center bg-linear-to-br from-gray-200 to-gray-300 dark:from-spotify-dark dark:to-spotify-grey/20 p-2 text-center">
+                                      <div className="w-full h-full flex flex-col items-center justify-center bg-linear-to-br from-spotify-dark to-spotify-grey/20 p-2 text-center">
                                         {view === 'library' || view === 'undownloaded' ? (
                                           <>
-                                            <span className="font-bold text-black dark:text-white text-sm line-clamp-2">{track.title}</span>
-                                            <span className="text-xs text-black/70 dark:text-spotify-grey line-clamp-1 mt-1">{track.artist}</span>
+                                            <span className="font-bold text-white text-sm line-clamp-2">{track.title}</span>
+                                            <span className="text-xs text-spotify-grey line-clamp-1 mt-1">{track.artist}</span>
                                           </>
                                         ) : (
-                                          <Music className="w-8 h-8 text-black/50 dark:text-spotify-grey/50" />
+                                          <Music className="w-8 h-8 text-spotify-grey/50" />
                                         )}
                                       </div>
                                     )}
@@ -774,11 +825,9 @@ function AppContent() {
 
 function App() {
   return (
-    <ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme">
-      <PlayerProvider>
-        <AppContent />
-      </PlayerProvider>
-    </ThemeProvider>
+    <PlayerProvider>
+      <AppContent />
+    </PlayerProvider>
   );
 }
 
