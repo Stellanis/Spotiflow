@@ -109,11 +109,12 @@ function AppContent() {
     return () => controller.abort();
   }, [username]);
 
-  const fetchScrobbles = async (signal) => {
-    if (!username) return;
+  const fetchScrobbles = async (signal, userOverride) => {
+    const userToFetch = userOverride || username;
+    if (!userToFetch) return;
     setLoading(true);
     try {
-      const response = await axios.get(`${API_URL}/scrobbles/${username}`, { signal });
+      const response = await axios.get(`${API_URL}/scrobbles/${userToFetch}`, { signal });
       setTracks(response.data);
     } catch (error) {
       if (axios.isCancel(error)) return;
@@ -188,6 +189,48 @@ function AppContent() {
       toast.error("Failed to fetch library");
     } finally {
       if (!signal?.aborted) setLoading(false);
+    }
+  };
+
+  const prefetchStats = async (userOverride) => {
+    const user = userOverride || username;
+    if (!user) return;
+
+    const periods = ['overall', '1month']; // Prefetch most common periods
+
+    try {
+      const promises = [
+        // Top Tracks for main periods
+        ...periods.map(period => axios.get(`${API_URL}/stats/top-tracks/${user}`, { params: { period, limit: 50 } })),
+
+        // Activity Chart
+        axios.get(`${API_URL}/stats/chart`, { params: { user, period: '1month' } }),
+
+        // Listening Clock
+        axios.get(`${API_URL}/stats/listening-clock/${user}`, { params: { period: 'overall' } }),
+
+        // Genre Breakdown
+        axios.get(`${API_URL}/stats/genre-breakdown/${user}`, { params: { period: 'overall' } }),
+
+        // On This Day
+        axios.get(`${API_URL}/stats/on-this-day/${user}`),
+
+        // Streak
+        axios.get(`${API_URL}/stats/streak/${user}`),
+
+        // Diversity
+        axios.get(`${API_URL}/stats/diversity/${user}`, { params: { period: 'overall' } }),
+
+        // Mainstream
+        axios.get(`${API_URL}/stats/mainstream/${user}`, { params: { period: 'overall' } }),
+
+        // Top Artists
+        axios.get(`${API_URL}/stats/top-artists/${user}`, { params: { period: 'overall', limit: 3 } })
+      ];
+
+      await Promise.all(promises);
+    } catch (error) {
+      console.error("Error prefetching stats:", error);
     }
   };
 
@@ -337,6 +380,15 @@ function AppContent() {
           } catch (error) {
             console.error("Failed to save tutorial status:", error);
           }
+        }}
+        onTutorialComplete={async (newUsername) => {
+          setUsername(newUsername);
+          // Prefetch scrobbles, downloads, AND stats
+          await Promise.all([
+            fetchScrobbles(null, newUsername),
+            fetchDownloads(null),
+            prefetchStats(newUsername)
+          ]);
         }}
       />
       <TrackStatsModal
