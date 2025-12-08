@@ -48,6 +48,9 @@ function AppContent() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
 
+  const [hiddenFeatures, setHiddenFeatures] = useState(new Set());
+
+
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(50);
@@ -75,6 +78,9 @@ function AppContent() {
         if (response.data.TUTORIAL_SEEN !== 'true') {
           setShowTutorial(true);
         }
+
+        const hidden = response.data.HIDDEN_FEATURES ? response.data.HIDDEN_FEATURES.split(',') : [];
+        setHiddenFeatures(new Set(hidden));
       } catch (error) {
         console.error("Error fetching settings:", error);
       }
@@ -354,6 +360,15 @@ function AppContent() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  const navItems = [
+    { id: 'scrobbles', icon: Disc, label: 'Scrobbles' },
+    { id: 'library', icon: CheckCircle, label: 'Library' },
+    { id: 'playlists', icon: Music, label: 'Playlists' },
+    { id: 'undownloaded', icon: Download, label: 'Undownloaded' },
+    { id: 'jobs', icon: Hourglass, label: 'Jobs' },
+    { id: 'stats', icon: Trophy, label: 'Stats' },
+  ].filter(item => !hiddenFeatures.has(item.id));
+
   return (
     <div className="min-h-screen bg-background text-foreground p-8 pb-32 transition-colors duration-300">
       <Toaster position="bottom-right" toastOptions={{
@@ -365,9 +380,10 @@ function AppContent() {
       <SettingsModal
         isOpen={isSettingsOpen}
         onClose={() => setIsSettingsOpen(false)}
-        onSave={(newUsername, newAutoDownload) => {
+        onSave={(newUsername, newAutoDownload, newHiddenFeatures) => {
           setUsername(newUsername);
           setAutoDownload(newAutoDownload);
+          setHiddenFeatures(new Set(newHiddenFeatures));
         }}
         onReplayTutorial={() => setShowTutorial(true)}
       />
@@ -419,14 +435,7 @@ function AppContent() {
           <div className="flex items-center gap-4 flex-wrap justify-end md:justify-center flex-1">
             {/* Desktop Navigation Tabs */}
             <div className="hidden lg:flex bg-white/10 p-1 rounded-full border border-white/5">
-              {[
-                { id: 'scrobbles', icon: Disc, label: 'Scrobbles' },
-                { id: 'library', icon: CheckCircle, label: 'Library' },
-                { id: 'playlists', icon: Music, label: 'Playlists' },
-                { id: 'undownloaded', icon: Download, label: 'Undownloaded' },
-                { id: 'jobs', icon: Hourglass, label: 'Jobs' },
-                { id: 'stats', icon: Trophy, label: 'Stats' },
-              ].map((item) => (
+              {navItems.map((item) => (
                 <button
                   key={item.id}
                   onClick={() => navigate(item.id === 'scrobbles' ? '/' : `/${item.id}`)}
@@ -494,14 +503,7 @@ function AppContent() {
                 className="lg:hidden w-full overflow-hidden"
               >
                 <div className="flex flex-col gap-2 pt-4 border-t border-white/5 mt-2">
-                  {[
-                    { id: 'scrobbles', icon: Disc, label: 'Scrobbles' },
-                    { id: 'library', icon: CheckCircle, label: 'Library' },
-                    { id: 'playlists', icon: Music, label: 'Playlists' },
-                    { id: 'undownloaded', icon: Download, label: 'Undownloaded' },
-                    { id: 'jobs', icon: Hourglass, label: 'Jobs' },
-                    { id: 'stats', icon: Trophy, label: 'Stats' },
-                  ].map((item) => (
+                  {navItems.map((item) => (
                     <button
                       key={item.id}
                       onClick={() => {
