@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
 import { motion } from 'framer-motion';
-import { Calendar, MapPin, Ticket, ExternalLink, Loader2, Music, Search, Star, RefreshCw } from 'lucide-react';
+import { Calendar, MapPin, Ticket, ExternalLink, Loader2, Music, Search, Star, RefreshCw, Heart } from 'lucide-react';
 
 // Define Country Sets
 const EUROPE_COUNTRIES = new Set([
@@ -15,6 +15,7 @@ const AMERICAS_COUNTRIES = new Set([
 export default function Concerts() {
     const [allConcerts, setAllConcerts] = useState([]);
     const [topArtists, setTopArtists] = useState([]);
+    const [favorites, setFavorites] = useState(new Set());
     const [loading, setLoading] = useState(true);
     const [syncing, setSyncing] = useState(false);
     const [error, setError] = useState(null);
@@ -26,6 +27,7 @@ export default function Concerts() {
     useEffect(() => {
         fetchAllConcerts();
         fetchTopArtists();
+        fetchFavorites();
     }, []);
 
     const fetchAllConcerts = async () => {
@@ -52,6 +54,15 @@ export default function Concerts() {
         }
     };
 
+    const fetchFavorites = async () => {
+        try {
+            const response = await axios.get('/api/concerts/favorites');
+            setFavorites(new Set(response.data));
+        } catch (err) {
+            console.error("Error fetching favorites:", err);
+        }
+    };
+
     const handleSync = async () => {
         try {
             setSyncing(true);
@@ -67,6 +78,26 @@ export default function Concerts() {
         } catch (err) {
             console.error("Sync error:", err);
             setSyncing(false);
+        }
+    };
+
+    const toggleFavorite = async (artist, e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        try {
+            const response = await axios.post('/api/concerts/favorites', { artist });
+            if (response.data.status === 'added') {
+                setFavorites(prev => new Set([...prev, artist]));
+                setTopArtists(prev => [...prev, artist]); // Ensure it passes filter immediately
+            } else {
+                setFavorites(prev => {
+                    const next = new Set(prev);
+                    next.delete(artist);
+                    return next;
+                });
+            }
+        } catch (err) {
+            console.error("Error toggling favorite:", err);
         }
     };
 
@@ -255,8 +286,15 @@ export default function Concerts() {
 
                             <div className="p-4 flex-1 flex flex-col space-y-3">
                                 <div>
-                                    <h3 className="font-bold text-white text-lg leading-tight line-clamp-1 group-hover:text-spotify-green transition-colors">
-                                        {concert.artist}
+                                    <h3 className="font-bold text-white text-lg leading-tight line-clamp-1 group-hover:text-spotify-green transition-colors flex items-center justify-between gap-2">
+                                        <span className="truncate">{concert.artist}</span>
+                                        <button
+                                            onClick={(e) => toggleFavorite(concert.artist, e)}
+                                            className="focus:outline-none hover:scale-110 transition-transform shrink-0"
+                                            title="Toggle Favorite"
+                                        >
+                                            <Heart className={`w-5 h-5 ${favorites.has(concert.artist) ? 'fill-spotify-green text-spotify-green' : 'text-spotify-grey hover:text-white'}`} />
+                                        </button>
                                     </h3>
                                     <p className="text-spotify-grey text-sm line-clamp-1">{concert.title}</p>
                                 </div>

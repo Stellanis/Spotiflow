@@ -4,7 +4,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 from geopy.geocoders import Nominatim
 from geopy.distance import geodesic
-from database import get_setting, add_concert, get_cached_concerts, clear_concerts, get_all_artists
+from database import get_setting, add_concert, get_cached_concerts, clear_concerts, get_all_artists, get_favorite_artists
 from core import lastfm_service
 
 class ConcertService:
@@ -31,10 +31,13 @@ class ConcertService:
         # Get user artists (Top 150 to stay safe with rate limits)
         # 150 * 1 call = 150 calls. Safe.
         
-        # 1. Get Local DB Artists
+        # 0. Get Favorite Artists (Priority 1)
+        favorite_artists = get_favorite_artists()
+
+        # 1. Get Local DB Artists (Priority 2)
         local_artists = get_all_artists()
         
-        # 2. Get Last.fm Top Artists (if user configured)
+        # 2. Get Last.fm Top Artists (if user configured) (Priority 3)
         lastfm_artists = []
         lastfm_user = get_setting('LASTFM_USER')
         if lastfm_user:
@@ -47,7 +50,8 @@ class ConcertService:
 
         # Combine and Deduplicate
         # Use set for uniqueness, but preserve order (roughly) by adding lists
-        combined_artists = list(dict.fromkeys(local_artists + lastfm_artists))
+        # Favorites first -> they will be included in the slice
+        combined_artists = list(dict.fromkeys(favorite_artists + local_artists + lastfm_artists))
         
         top_artists = combined_artists[:150]
         
