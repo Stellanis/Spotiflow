@@ -372,6 +372,29 @@ class LastFMService:
         self.cache.set(cache_key, tags)
         return tags
 
+    def get_artist_image(self, artist_name):
+        cache_key = f"artist_image_{artist_name}"
+        cached = self.cache.get(cache_key)
+        if cached:
+            return cached
+
+        params = {
+            "method": "artist.getinfo",
+            "artist": artist_name
+        }
+        
+        data = self.client.request("GET", params)
+        image_url = None
+        
+        if data and "artist" in data:
+            a = data["artist"]
+            lastfm_images = a.get("image", [])
+            # Use image provider to get best image
+            image_url = self.image_provider.get_image(lastfm_images, artist_name, None)
+            
+        self.cache.set(cache_key, image_url)
+        return image_url
+
     def get_on_this_day(self, user: str):
         now = datetime.now()
         years_back = 5

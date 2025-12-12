@@ -39,8 +39,8 @@ class ConcertService:
         lastfm_user = get_setting('LASTFM_USER')
         if lastfm_user:
             try:
-                # Fetch top 100 artists from Last.fm
-                lfm_data = lastfm_service.get_top_artists(lastfm_user, limit=100)
+                # Fetch top 100 artists from Last.fm (12 months period as requested)
+                lfm_data = lastfm_service.get_top_artists(lastfm_user, period='12month', limit=100)
                 lastfm_artists = [a['name'] for a in lfm_data]
             except Exception as e:
                 print(f"Error fetching Last.fm artists for sync: {e}")
@@ -370,6 +370,9 @@ class ConcertService:
                 elif country == "Belgium": country = "BE"
                 elif country == "Czech Republic": country = "CZ"
                 
+                # Fetch image from Last.fm if Bandsintown doesn't provide one (it usually doesn't in this endpoint)
+                image_url = lastfm_service.get_artist_image(artist)
+
                 concert = {
                     "id": f"bit_{event['id']}",
                     "source": "Bandsintown",
@@ -381,7 +384,7 @@ class ConcertService:
                     "city": venue.get("city"),
                     "country": country,
                     "url": event.get("url"),
-                    "image": None 
+                    "image": image_url 
                 }
                 artist_events.append(concert)
                 
