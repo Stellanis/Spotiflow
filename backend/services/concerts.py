@@ -5,6 +5,7 @@ from datetime import datetime
 from geopy.geocoders import Nominatim
 from geopy.distance import geodesic
 from database import get_setting, add_concert, get_cached_concerts, clear_concerts, get_all_artists
+from core import lastfm_service
 
 class ConcertService:
     def __init__(self):
@@ -29,8 +30,26 @@ class ConcertService:
         """
         # Get user artists (Top 150 to stay safe with rate limits)
         # 150 * 1 call = 150 calls. Safe.
-        all_artists = get_all_artists()
-        top_artists = all_artists[:150]
+        
+        # 1. Get Local DB Artists
+        local_artists = get_all_artists()
+        
+        # 2. Get Last.fm Top Artists (if user configured)
+        lastfm_artists = []
+        lastfm_user = get_setting('LASTFM_USER')
+        if lastfm_user:
+            try:
+                # Fetch top 100 artists from Last.fm
+                lfm_data = lastfm_service.get_top_artists(lastfm_user, limit=100)
+                lastfm_artists = [a['name'] for a in lfm_data]
+            except Exception as e:
+                print(f"Error fetching Last.fm artists for sync: {e}")
+
+        # Combine and Deduplicate
+        # Use set for uniqueness, but preserve order (roughly) by adding lists
+        combined_artists = list(dict.fromkeys(local_artists + lastfm_artists))
+        
+        top_artists = combined_artists[:150]
         
         # 1. Ticketmaster Global Search (Targeted)
         # We search specifically for these artists, globally.
