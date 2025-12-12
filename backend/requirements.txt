@@ -7,3 +7,4 @@ requests==2.32.5
 apscheduler==3.11.1
 mutagen==1.47.0
 pytest
+geopy
