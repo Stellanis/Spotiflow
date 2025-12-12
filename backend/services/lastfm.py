@@ -178,7 +178,8 @@ class LastFMService:
         # Fetch all pages
         all_tracks = []
         page = 1
-        limit = 200
+        page = 1
+        limit = 50
         
         while True:
             params = {
