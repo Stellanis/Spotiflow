@@ -102,6 +102,14 @@ def init_db():
          print("Migrating database: adding country column to concerts")
          c.execute("ALTER TABLE concerts ADD COLUMN country TEXT")
 
+    # Create Favorite Artists table
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS favorite_artists (
+            artist TEXT PRIMARY KEY,
+            created_at TIMESTAMP
+        )
+    ''')
+    
     conn.commit()
     conn.close()
 
@@ -343,3 +351,38 @@ def clear_concerts(city=None):
         c.execute("DELETE FROM concerts")
     conn.commit()
     conn.close()
+
+def add_favorite_artist(artist):
+    conn = sqlite3.connect(DB_NAME)
+    c = conn.cursor()
+    try:
+        c.execute('INSERT OR IGNORE INTO favorite_artists (artist, created_at) VALUES (?, ?)', (artist, datetime.now()))
+        conn.commit()
+        return True
+    finally:
+        conn.close()
+
+def remove_favorite_artist(artist):
+    conn = sqlite3.connect(DB_NAME)
+    c = conn.cursor()
+    try:
+        c.execute('DELETE FROM favorite_artists WHERE artist = ?', (artist,))
+        conn.commit()
+        return True
+    finally:
+        conn.close()
+
+def get_favorite_artists():
+    conn = sqlite3.connect(DB_NAME)
+    c = conn.cursor()
+    # Ensure table exists (for existing dbs running this code before restart)
+    # Actually init_db runs on startup.
+    try:
+        c.execute('SELECT artist FROM favorite_artists ORDER BY artist')
+        rows = c.fetchall()
+        return [row[0] for row in rows]
+    except:
+        return []
+    finally:
+        conn.close()
+
