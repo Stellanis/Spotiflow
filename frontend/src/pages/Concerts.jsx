@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
 import { motion } from 'framer-motion';
-import { Calendar, MapPin, Ticket, ExternalLink, Loader2, Music, Search, Star } from 'lucide-react';
+import { Calendar, MapPin, Ticket, ExternalLink, Loader2, Music, Search, Star, RefreshCw } from 'lucide-react';
 
 // Define Country Sets
 const EUROPE_COUNTRIES = new Set([
@@ -16,6 +16,7 @@ export default function Concerts() {
     const [allConcerts, setAllConcerts] = useState([]);
     const [topArtists, setTopArtists] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [syncing, setSyncing] = useState(false);
     const [error, setError] = useState(null);
 
     const [searchTerm, setSearchTerm] = useState('');
@@ -48,6 +49,24 @@ export default function Concerts() {
             setTopArtists(response.data);
         } catch (err) {
             console.error("Error fetching top artists:", err);
+        }
+    };
+
+    const handleSync = async () => {
+        try {
+            setSyncing(true);
+            // Trigger sync
+            await axios.post('/api/concerts/sync');
+
+            // Poll for completion or simple timeout for UX
+            // Since it's background, we'll just wait a bit and re-fetch
+            setTimeout(() => {
+                fetchAllConcerts();
+                setSyncing(false);
+            }, 3000);
+        } catch (err) {
+            console.error("Sync error:", err);
+            setSyncing(false);
         }
     };
 
@@ -128,7 +147,17 @@ export default function Concerts() {
         <div className="p-8 space-y-8 pb-24">
             <div className="flex flex-col space-y-4">
                 <div className="flex flex-col space-y-2">
-                    <h1 className="text-3xl font-bold text-white tracking-tight">Concerts Repository</h1>
+                    <div className="flex items-center justify-between">
+                        <h1 className="text-3xl font-bold text-white tracking-tight">Concerts Repository</h1>
+                        <button
+                            onClick={handleSync}
+                            disabled={syncing}
+                            className="flex items-center gap-2 px-4 py-2 bg-spotify-green/10 text-spotify-green hover:bg-spotify-green/20 rounded-full transition-colors disabled:opacity-50"
+                        >
+                            <RefreshCw className={`w-4 h-4 ${syncing ? 'animate-spin' : ''}`} />
+                            <span className="font-bold text-sm">{syncing ? 'Syncing...' : 'Sync Now'}</span>
+                        </button>
+                    </div>
                     <p className="text-spotify-grey">Global tour dates for your library (Synced Daily at 3 AM)</p>
                 </div>
 
