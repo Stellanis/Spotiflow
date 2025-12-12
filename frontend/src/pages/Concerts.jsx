@@ -28,6 +28,7 @@ export default function Concerts() {
 
     const [searchTerm, setSearchTerm] = useState('');
     const [filterTopOnly, setFilterTopOnly] = useState(false);
+    const [filterRemindersOnly, setFilterRemindersOnly] = useState(false);
     const [filterContinent, setFilterContinent] = useState('ALL'); // ALL, EU, AM
 
     useEffect(() => {
@@ -133,6 +134,11 @@ export default function Concerts() {
                 // API returns exact names from DB. Concert artist should match.
                 return topSet.has(concert.artist.toLowerCase());
             });
+        }
+
+        // 3. Filter by Reminders Only if enabled
+        if (filterRemindersOnly) {
+            result = result.filter(concert => reminders.has(concert.id));
         }
 
         // 2. Filter by Search Term
@@ -244,6 +250,17 @@ export default function Concerts() {
                         >
                             <Star className={`w-4 h-4 ${filterTopOnly ? 'fill-black' : ''}`} />
                             <span>Top 50 Only</span>
+                        </button>
+
+                        <button
+                            onClick={() => setFilterRemindersOnly(!filterRemindersOnly)}
+                            className={`flex items-center gap-2 px-4 py-2 rounded-lg border transition-all ${filterRemindersOnly
+                                ? 'bg-spotify-green text-black border-spotify-green font-bold'
+                                : 'bg-white/5 text-spotify-grey border-white/10 hover:bg-white/10'
+                                }`}
+                        >
+                            <Heart className={`w-4 h-4 ${filterRemindersOnly ? 'fill-black' : ''}`} />
+                            <span>Reminders Only</span>
                         </button>
 
                         <div className="text-sm text-spotify-grey whitespace-nowrap min-w-[100px] text-right">
