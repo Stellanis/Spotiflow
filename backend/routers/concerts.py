@@ -58,6 +58,29 @@ def toggle_favorite_artist(request: FavoriteArtistRequest):
 def get_favorites():
     return get_favorite_artists()
 
+class ReminderRequest(BaseModel):
+    concert_id: str
+
+@router.post("/concerts/reminders")
+def toggle_concert_reminder(request: ReminderRequest):
+    """
+    Toggle reminder status for a concert.
+    """
+    from database import add_reminder, remove_reminder, get_reminders # Import here to avoid circular or early import issues if any
+    
+    current_reminders = get_reminders()
+    if request.concert_id in current_reminders:
+        remove_reminder(request.concert_id)
+        return {"status": "removed", "concert_id": request.concert_id, "is_set": False}
+    else:
+        add_reminder(request.concert_id)
+        return {"status": "added", "concert_id": request.concert_id, "is_set": True}
+
+@router.get("/concerts/reminders")
+def get_concert_reminders_list():
+    from database import get_reminders
+    return get_reminders()
+
 @router.get("/concerts")
 def get_concerts(city: str = None):
     """

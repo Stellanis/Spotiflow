@@ -10,7 +10,7 @@ import { TutorialModal } from './TutorialModal';
 import { AddToPlaylistModal } from './components/AddToPlaylistModal';
 import { Playlists } from './components/Playlists';
 import { FilterDropdown } from './components/FilterDropdown';
-import { Download, Music, Disc, Search, CheckCircle, Loader2, Settings, ChevronLeft, ChevronRight, ChevronDown, RefreshCw, Hourglass, Trophy, Plus, Play, Trash2, ArrowLeft, Info, Menu, X, Ticket } from 'lucide-react';
+import { Download, Music, Disc, Search, CheckCircle, Loader2, Settings, ChevronLeft, ChevronRight, ChevronDown, RefreshCw, Hourglass, Trophy, Plus, Play, Trash2, ArrowLeft, Info, Menu, X, Ticket, Heart } from 'lucide-react';
 import { GlassCard } from './components/GlassCard';
 import Jobs from './Jobs';
 import Stats from './components/Stats';
@@ -51,6 +51,9 @@ function AppContent() {
 
   const [hiddenFeatures, setHiddenFeatures] = useState(new Set());
 
+  // Favorites State
+  const [favoriteArtists, setFavoriteArtists] = useState(new Set());
+
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -87,7 +90,17 @@ function AppContent() {
       }
     };
     fetchSettings();
+    fetchFavorites();
   }, []);
+
+  const fetchFavorites = async () => {
+    try {
+      const response = await axios.get(`${API_URL}/concerts/favorites`);
+      setFavoriteArtists(new Set(response.data));
+    } catch (err) {
+      console.error("Error fetching favorites:", err);
+    }
+  };
 
   // Debounce search query
   useEffect(() => {
@@ -359,6 +372,27 @@ function AppContent() {
     setItemsPerPage(Number(e.target.value));
     setCurrentPage(1);
     window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const toggleFavoriteArtist = async (artist, e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    try {
+      const response = await axios.post(`${API_URL}/concerts/favorites`, { artist });
+      if (response.data.status === 'added') {
+        setFavoriteArtists(prev => new Set([...prev, artist]));
+      } else {
+        setFavoriteArtists(prev => {
+          const next = new Set(prev);
+          next.delete(artist);
+          return next;
+        });
+      }
+      toast.success(response.data.status === 'added' ? `Added ${artist} to favorites` : `Removed ${artist} from favorites`);
+    } catch (err) {
+      console.error("Error toggling favorite:", err);
+      toast.error("Failed to update favorites");
+    }
   };
 
   const navItems = [
@@ -774,9 +808,20 @@ function AppContent() {
                                     <h3 className={cn("font-semibold truncate w-full", view === 'library' || view === 'undownloaded' ? "text-sm" : "text-lg")}>
                                       {track.title}
                                     </h3>
-                                    <p className={cn("text-spotify-grey truncate w-full", view === 'library' || view === 'undownloaded' ? "text-xs" : "")}>
-                                      {track.artist}
-                                    </p>
+                                    <div className="flex items-center justify-between w-full">
+                                      <p className={cn("text-spotify-grey truncate", view === 'library' || view === 'undownloaded' ? "text-xs flex-1" : "")}>
+                                        {track.artist}
+                                      </p>
+                                      {view === 'library' && (
+                                        <button
+                                          onClick={(e) => toggleFavoriteArtist(track.artist, e)}
+                                          className="hover:scale-110 transition-transform p-1 -mr-1"
+                                          title={favoriteArtists.has(track.artist) ? "Unfavorite Artist" : "Favorite Artist"}
+                                        >
+                                          <Heart className={cn("w-4 h-4", favoriteArtists.has(track.artist) ? "fill-spotify-green text-spotify-green" : "text-spotify-grey hover:text-white")} />
+                                        </button>
+                                      )}
+                                    </div>
                                     {view !== 'library' && view !== 'undownloaded' && (
                                       <p className="text-xs text-spotify-grey/60 mt-1">{track.album}</p>
                                     )}

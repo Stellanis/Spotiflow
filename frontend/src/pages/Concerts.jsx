@@ -15,7 +15,13 @@ const AMERICAS_COUNTRIES = new Set([
 export default function Concerts() {
     const [allConcerts, setAllConcerts] = useState([]);
     const [topArtists, setTopArtists] = useState([]);
-    const [favorites, setFavorites] = useState(new Set());
+    const [reminders, setReminders] = useState(new Set());
+    const [favorites, setFavorites] = useState(new Set()); // Still need favorites for Top 50 filter logic if we want to show it, but wait, the prompt says "Favorites still filter Top 50".
+    // Actually, the `topArtists` state is fetched from `/api/concerts/top-artists`, which ALREADY includes favorites on the backend.
+    // So I don't need `favorites` state here for filtering, BUT I do needed `reminders` state for the heart icon.
+    // I will keep `favorites` state purely to fetch the data for debug or if I need it, but actually `topArtists` covers the filter requirement.
+    // The user said: "the favorite should be in library and not the concert page".
+    // So I will REMOVE favorites state usage from here completely, and replace with reminders.
     const [loading, setLoading] = useState(true);
     const [syncing, setSyncing] = useState(false);
     const [error, setError] = useState(null);
@@ -27,7 +33,7 @@ export default function Concerts() {
     useEffect(() => {
         fetchAllConcerts();
         fetchTopArtists();
-        fetchFavorites();
+        fetchReminders();
     }, []);
 
     const fetchAllConcerts = async () => {
@@ -54,12 +60,12 @@ export default function Concerts() {
         }
     };
 
-    const fetchFavorites = async () => {
+    const fetchReminders = async () => {
         try {
-            const response = await axios.get('/api/concerts/favorites');
-            setFavorites(new Set(response.data));
+            const response = await axios.get('/api/concerts/reminders');
+            setReminders(new Set(response.data));
         } catch (err) {
-            console.error("Error fetching favorites:", err);
+            console.error("Error fetching reminders:", err);
         }
     };
 
@@ -81,23 +87,22 @@ export default function Concerts() {
         }
     };
 
-    const toggleFavorite = async (artist, e) => {
+    const toggleReminder = async (concertId, e) => {
         e.preventDefault();
         e.stopPropagation();
         try {
-            const response = await axios.post('/api/concerts/favorites', { artist });
+            const response = await axios.post('/api/concerts/reminders', { concert_id: concertId });
             if (response.data.status === 'added') {
-                setFavorites(prev => new Set([...prev, artist]));
-                setTopArtists(prev => [...prev, artist]); // Ensure it passes filter immediately
+                setReminders(prev => new Set([...prev, concertId]));
             } else {
-                setFavorites(prev => {
+                setReminders(prev => {
                     const next = new Set(prev);
-                    next.delete(artist);
+                    next.delete(concertId);
                     return next;
                 });
             }
         } catch (err) {
-            console.error("Error toggling favorite:", err);
+            console.error("Error toggling reminder:", err);
         }
     };
 
@@ -289,11 +294,11 @@ export default function Concerts() {
                                     <h3 className="font-bold text-white text-lg leading-tight line-clamp-1 group-hover:text-spotify-green transition-colors flex items-center justify-between gap-2">
                                         <span className="truncate">{concert.artist}</span>
                                         <button
-                                            onClick={(e) => toggleFavorite(concert.artist, e)}
+                                            onClick={(e) => toggleReminder(concert.id, e)}
                                             className="focus:outline-none hover:scale-110 transition-transform shrink-0"
-                                            title="Toggle Favorite"
+                                            title="Toggle Reminder"
                                         >
-                                            <Heart className={`w-5 h-5 ${favorites.has(concert.artist) ? 'fill-spotify-green text-spotify-green' : 'text-spotify-grey hover:text-white'}`} />
+                                            <Heart className={`w-5 h-5 ${reminders.has(concert.id) ? 'fill-spotify-green text-spotify-green' : 'text-spotify-grey hover:text-white'}`} />
                                         </button>
                                     </h3>
                                     <p className="text-spotify-grey text-sm line-clamp-1">{concert.title}</p>

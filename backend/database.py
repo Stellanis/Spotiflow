@@ -109,6 +109,15 @@ def init_db():
             created_at TIMESTAMP
         )
     ''')
+
+    # Create Concert Reminders table
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS concert_reminders (
+            concert_id TEXT PRIMARY KEY,
+            remind_at TIMESTAMP,
+            created_at TIMESTAMP
+        )
+    ''')
     
     conn.commit()
     conn.close()
@@ -383,6 +392,48 @@ def get_favorite_artists():
         return [row[0] for row in rows]
     except:
         return []
+    finally:
+        conn.close()
+
+def add_reminder(concert_id, remind_at=None):
+    conn = sqlite3.connect(DB_NAME)
+    c = conn.cursor()
+    try:
+        c.execute('INSERT OR REPLACE INTO concert_reminders (concert_id, remind_at, created_at) VALUES (?, ?, ?)', (concert_id, remind_at, datetime.now()))
+        conn.commit()
+        return True
+    finally:
+        conn.close()
+
+def remove_reminder(concert_id):
+    conn = sqlite3.connect(DB_NAME)
+    c = conn.cursor()
+    try:
+        c.execute('DELETE FROM concert_reminders WHERE concert_id = ?', (concert_id,))
+        conn.commit()
+        return True
+    finally:
+        conn.close()
+
+def get_reminders():
+    conn = sqlite3.connect(DB_NAME)
+    c = conn.cursor()
+    try:
+        c.execute('SELECT concert_id FROM concert_reminders')
+        rows = c.fetchall()
+        return [row[0] for row in rows]
+    except:
+        return []
+    finally:
+        conn.close()
+
+def is_reminder_set(concert_id):
+    conn = sqlite3.connect(DB_NAME)
+    c = conn.cursor()
+    try:
+        c.execute('SELECT 1 FROM concert_reminders WHERE concert_id = ?', (concert_id,))
+        result = c.fetchone()
+        return result is not None
     finally:
         conn.close()
 
