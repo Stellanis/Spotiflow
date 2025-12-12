@@ -28,6 +28,15 @@ class ImageProvider:
                     deezer_url = self._fetch_deezer_image(artist, title)
                     if deezer_url:
                         image_url = deezer_url
+            elif artist:
+                # Artist-only fallback (for Concerts/Profiles)
+                fallback_url = self._fetch_itunes_artist_image(artist)
+                if fallback_url:
+                    image_url = fallback_url
+                else:
+                    deezer_url = self._fetch_deezer_artist_image(artist)
+                    if deezer_url:
+                        image_url = deezer_url
         
         return image_url
 
@@ -104,4 +113,68 @@ class ImageProvider:
                     return album.get("cover_xl") or album.get("cover_big") or album.get("cover_medium")
         except Exception as e:
             print(f"Error fetching from Deezer: {e}")
+        return None
+
+    def _fetch_itunes_artist_image(self, artist):
+        """Fallback to iTunes Search API for artist image."""
+        cache_key = f"itunes_artist_{artist}"
+        if cache_key in self._image_cache:
+            return self._image_cache[cache_key]
+
+        img_url = None
+        try:
+            term = urllib.parse.quote(artist)
+            url = f"https://itunes.apple.com/search?term={term}&entity=musicArtist&limit=1"
+            
+            # Reuse curl logic if regular request might fail, but requests is usually fine for iTunes
+            # Using requests for simplicity unless blocked
+            response = requests.get(url, timeout=5)
+            if response.status_code == 200:
+                data = response.json()
+                if data["resultCount"] > 0:
+                    # Apple Music doesn't always return generic artist images in 'musicArtist' search without extra work,
+                    # but sometimes it does via `artistLinkUrl`? No, usually `amgArtistId` etc.
+                    # Actually, `musicArtist` entity searches return `artistName`, `primaryGenreName`, etc. but often NO `artworkUrl`.
+                    # Alternate strategy: Search for an album by the artist and take the artwork?
+                    # "entity=album"
+                    pass
+
+            # Method 2: Search for top album
+            url = f"https://itunes.apple.com/search?term={term}&entity=album&limit=1"
+            response = requests.get(url, timeout=5)
+            if response.status_code == 200:
+                data = response.json()
+                if data["resultCount"] > 0:
+                     img_url = data["results"][0].get("artworkUrl100")
+                     if img_url:
+                        img_url = img_url.replace("100x100bb", "600x600bb")
+
+        except Exception as e:
+            print(f"Error fetching artist from iTunes: {e}")
+
+        if img_url:
+            self._image_cache[cache_key] = img_url
+            
+        return img_url
+
+    def _fetch_deezer_artist_image(self, artist):
+        """Fallback to Deezer API for artist image."""
+        try:
+            # Query artist directly
+            # "https://api.deezer.com/search/artist?q={artist}"
+            query = f'"{artist}"'
+            params = {
+                "q": query,
+                "limit": 1
+            }
+            url = "https://api.deezer.com/search/artist"
+            response = requests.get(url, params=params, timeout=5)
+            
+            if response.status_code == 200:
+                data = response.json()
+                if "data" in data and len(data["data"]) > 0:
+                    a = data["data"][0]
+                    return a.get("picture_xl") or a.get("picture_big") or a.get("picture_medium")
+        except Exception as e:
+            print(f"Error fetching artist from Deezer: {e}")
         return None

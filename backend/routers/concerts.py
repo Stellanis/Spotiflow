@@ -3,6 +3,7 @@ from services.concerts import ConcertService
 from fastapi import APIRouter, Depends, HTTPException, Query, BackgroundTasks
 from services.concerts import ConcertService
 from database import get_all_artists, get_setting
+from core import lastfm_service
 
 router = APIRouter()
 concert_service = ConcertService()
@@ -10,10 +11,22 @@ concert_service = ConcertService()
 @router.get("/concerts/top-artists")
 def get_top_artists():
     """
-    Get top 50 artists from library (cached in DB).
+    Get top 50 artists from library.
+    Returns: List of artist names (strings).
     """
-    all_artists = get_all_artists()
-    return all_artists[:50]
+    try:
+        user = get_setting('LASTFM_USER')
+        if user:
+            # Fetch top 50 from last year
+            top_artists_data = lastfm_service.get_top_artists(user, period='12month', limit=50)
+            return [a['name'] for a in top_artists_data]
+            
+        all_artists = get_all_artists()
+        return all_artists[:50]
+    except Exception as e:
+        print(f"Error fetching top artists: {e}")
+        all_artists = get_all_artists()
+        return all_artists[:50]
 
 @router.get("/concerts")
 def get_concerts(city: str = None):
