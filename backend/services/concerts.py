@@ -4,7 +4,6 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 from geopy.geocoders import Nominatim
 from geopy.distance import geodesic
-from geopy.distance import geodesic
 from database import get_setting, add_concert, get_cached_concerts, clear_concerts, get_all_artists
 
 class ConcertService:
