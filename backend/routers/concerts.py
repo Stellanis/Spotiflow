@@ -40,8 +40,9 @@ def sync_concerts(city: str = None, radius: int = 100, background_tasks: Backgro
     if not city:
         city = get_setting('concerts_city')
         
-    if not city:
-         raise HTTPException(status_code=400, detail="City not configured")
+    # Global sync does not require a city
+    # if not city:
+    #      raise HTTPException(status_code=400, detail="City not configured")
 
     # Run in background to not block UI
     background_tasks.add_task(concert_service.sync_concerts, city, radius)
