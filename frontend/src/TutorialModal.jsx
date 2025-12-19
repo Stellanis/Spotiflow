@@ -48,7 +48,6 @@ const steps = [
         description: "Enter your Last.fm credentials to start fetching your scrobbles.",
         icon: <Key className="w-16 h-16 text-yellow-500" />,
         color: "bg-yellow-500",
-        color: "bg-yellow-500",
         id: 'lastfm',
         isInputStep: true
     },
