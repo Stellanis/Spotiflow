@@ -427,6 +427,7 @@ def get_reminders():
     finally:
         conn.close()
 
+
 def is_reminder_set(concert_id):
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
@@ -434,6 +435,24 @@ def is_reminder_set(concert_id):
         c.execute('SELECT 1 FROM concert_reminders WHERE concert_id = ?', (concert_id,))
         result = c.fetchone()
         return result is not None
+    finally:
+        conn.close()
+
+def delete_past_concerts(current_date):
+    """
+    Delete concerts where date is strictly less than current_date (YYYY-MM-DD).
+    """
+    conn = sqlite3.connect(DB_NAME)
+    c = conn.cursor()
+    try:
+        # Date is stored as TEXT YYYY-MM-DD, so string comparison works
+        c.execute('DELETE FROM concerts WHERE date < ?', (current_date,))
+        deleted_count = c.rowcount
+        conn.commit()
+        if deleted_count > 0:
+            print(f"Deleted {deleted_count} past concerts from database.")
+    except Exception as e:
+        print(f"Error deleting past concerts: {e}")
     finally:
         conn.close()
 
