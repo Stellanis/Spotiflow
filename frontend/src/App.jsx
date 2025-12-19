@@ -1,8 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import axios from 'axios';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { useRef, useCallback } from 'react';
 
 import { cn } from './utils';
 import { SettingsModal } from './SettingsModal';
@@ -18,328 +17,139 @@ import { TrackStatsModal } from './components/TrackStatsModal';
 import { SkeletonCard } from './components/SkeletonCard';
 import Concerts from './pages/Concerts';
 
-
-
-
 import { Toaster, toast } from 'react-hot-toast';
 
 import { PlayerProvider, usePlayer } from './contexts/PlayerContext';
 import { PlayerBar } from './components/PlayerBar';
+import { useSettings } from './hooks/useSettings';
+import { useLibrary } from './hooks/useLibrary';
+import { useDownloads } from './hooks/useDownloads';
 
 const API_URL = '/api';
 
 function AppContent() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { playTrack } = usePlayer();
 
   // Derive view from URL
   const view = location.pathname === '/' ? 'scrobbles' : location.pathname.slice(1);
-  // Valid views for safety, though existing logic handles most cases
-  // const [view, setView] = useState('scrobbles'); // REMOVED
-  const [username, setUsername] = useState('');
-  const [tracks, setTracks] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [downloading, setDownloading] = useState({});
-  const [downloadedTracks, setDownloadedTracks] = useState([]);
+
+  // Custom Hooks
+  const {
+    username,
+    setUsername,
+    autoDownload,
+    setAutoDownload,
+    hiddenFeatures,
+    setHiddenFeatures,
+    showTutorial,
+    setShowTutorial,
+    fetchSettings,
+    closeTutorial
+  } = useSettings();
+
+  const {
+    scrobbles,
+    loadingScrobbles,
+    favoriteArtists,
+    filterOptions,
+    isSyncing,
+    fetchScrobbles,
+    fetchFavorites,
+    fetchFilters,
+    toggleFavoriteArtist,
+    handleSync
+  } = useLibrary(username);
+
+  const {
+    downloadedTracks,
+    setDownloadedTracks,
+    loadingDownloads,
+    downloading,
+    currentPage,
+    setCurrentPage,
+    itemsPerPage,
+    setItemsPerPage,
+    totalPages,
+    artistFilter,
+    setArtistFilter,
+    albumFilter,
+    setAlbumFilter,
+    searchQuery,
+    setSearchQuery,
+    debouncedSearchQuery,
+    setDebouncedSearchQuery,
+    fetchDownloads,
+    handleDownload,
+    handleDownloadAll
+  } = useDownloads();
+
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [autoDownload, setAutoDownload] = useState(true);
-  const [isSyncing, setIsSyncing] = useState(false);
-  const [showTutorial, setShowTutorial] = useState(false);
   const [selectedTrack, setSelectedTrack] = useState(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-
-
-  const [hiddenFeatures, setHiddenFeatures] = useState(new Set());
-
-  // Favorites State
-  const [favoriteArtists, setFavoriteArtists] = useState(new Set());
-
-
-  // Pagination state
-  const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(50);
-  const [totalPages, setTotalPages] = useState(1);
-
-  // Search state
-  const [searchQuery, setSearchQuery] = useState('');
-  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
-
-  // Playlist State
   const [playlistTrackToAdd, setPlaylistTrackToAdd] = useState(null);
-  const [selectedPlaylistId, setSelectedPlaylistId] = useState(null);
 
+  // Initial Fetch
   useEffect(() => {
-    // Fetch settings on mount to get the username
-    const fetchSettings = async () => {
-      try {
-        const response = await axios.get(`${API_URL}/settings`);
-        if (response.data.LASTFM_USER) {
-          setUsername(response.data.LASTFM_USER);
-        }
-        setAutoDownload(response.data.AUTO_DOWNLOAD !== 'false');
-
-        // Check if tutorial has been seen
-        if (response.data.TUTORIAL_SEEN !== 'true') {
-          setShowTutorial(true);
-        }
-
-        const hidden = response.data.HIDDEN_FEATURES ? response.data.HIDDEN_FEATURES.split(',') : [];
-        setHiddenFeatures(new Set(hidden));
-      } catch (error) {
-        console.error("Error fetching settings:", error);
-      }
-    };
     fetchSettings();
     fetchFavorites();
-  }, []);
-
-  const fetchFavorites = async () => {
-    try {
-      const response = await axios.get(`${API_URL}/concerts/favorites`);
-      setFavoriteArtists(new Set(response.data));
-    } catch (err) {
-      console.error("Error fetching favorites:", err);
-    }
-  };
+  }, [fetchSettings, fetchFavorites]);
 
   // Debounce search query
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedSearchQuery(searchQuery);
-      setCurrentPage(1); // Reset to page 1 on new search
+      if (searchQuery !== debouncedSearchQuery) {
+        setCurrentPage(1);
+      }
     }, 500);
-
     return () => clearTimeout(timer);
-  }, [searchQuery]);
+  }, [searchQuery, setCurrentPage, debouncedSearchQuery, setDebouncedSearchQuery]);
 
-  // Reset search and pagination when view changes
+  // View Change Side Effects
   useEffect(() => {
     setSearchQuery('');
     setDebouncedSearchQuery('');
     setCurrentPage(1);
-    setDownloadedTracks([]); // Clear tracks to prevent showing stale data while loading
-  }, [view]);
+    // Clear downloads list to prevent stale data
+    if (view === 'library' || view === 'undownloaded') {
+      setDownloadedTracks([]);
+    }
+  }, [view, setCurrentPage, setSearchQuery, setDebouncedSearchQuery, setDownloadedTracks]);
 
-  // Fetch scrobbles whenever username changes (if not empty)
+  // Fetch Logic based on View
   useEffect(() => {
     const controller = new AbortController();
-    if (username && view === 'scrobbles') {
+
+    if (view === 'scrobbles') {
+      // Scrobbles fetch uses username from hook
       fetchScrobbles(controller.signal);
+    } else if (view === 'library' || view === 'undownloaded') {
+      fetchDownloads(view, controller.signal);
     }
-    return () => controller.abort();
-  }, [username]);
 
-  const fetchScrobbles = async (signal, userOverride) => {
-    const userToFetch = userOverride || username;
-    if (!userToFetch) return;
-    setLoading(true);
-    try {
-      const response = await axios.get(`${API_URL}/scrobbles/${userToFetch}`, { signal });
-      setTracks(response.data);
-    } catch (error) {
-      if (axios.isCancel(error)) return;
-      console.error("Error fetching scrobbles:", error);
-    } finally {
-      if (!signal?.aborted) setLoading(false);
-    }
-  };
-
-  // Filters
-  const [artistFilter, setArtistFilter] = useState('');
-  const [albumFilter, setAlbumFilter] = useState('');
-  const [filterOptions, setFilterOptions] = useState({ artists: [], albums: [] });
-
-  // Fetch filters when artist filter changes or on mount
-  useEffect(() => {
     if (view === 'library') {
-      const fetchFilters = async () => {
-        try {
-          const params = {};
-          if (artistFilter) params.artist = artistFilter;
-          const response = await axios.get(`${API_URL}/filters`, { params });
-          setFilterOptions(prev => ({
-            // artists: response.data.artists, // Always get full artist list? Or filtered? Let's use full list effectively but maybe backend logic needs tweak if we want to narrow down artists. For now, keeping full artist list is fine or maybe only filtered albums. 
-            // Wait, if I select an Artist, I want to see their Albums.
-            // If I select nothing, I see all Artists and all Albums.
-            // Backend `get_filters` returns { artists: get_all_artists(), albums: get_all_albums(artist) }
-            // So if artist is set, artists list is still FULL list (good for switching), but albums are filtered.
-            artists: response.data.artists,
-            albums: response.data.albums
-          }));
-        } catch (error) {
-          console.error("Error fetching filters:", error);
-        }
-      };
-      fetchFilters();
+      fetchFilters(artistFilter);
     }
-  }, [view, artistFilter]);
 
-  const fetchDownloads = async (signal) => {
-    setLoading(true);
-    try {
-      const params = {
-        page: currentPage,
-        limit: itemsPerPage
-      };
-
-      if (view === 'library') {
-        params.status = 'completed';
-        if (artistFilter) params.artist = artistFilter;
-        if (albumFilter) params.album = albumFilter;
-      } else if (view === 'undownloaded') {
-        params.status = 'pending';
-      }
-
-      if (debouncedSearchQuery) {
-        params.search = debouncedSearchQuery;
-      }
-
-      const response = await axios.get(`${API_URL}/downloads`, { params, signal });
-
-      if (currentPage === 1) {
-        setDownloadedTracks(response.data.items);
-      } else {
-        setDownloadedTracks(prev => [...prev, ...response.data.items]);
-      }
-
-      setTotalPages(response.data.total_pages);
-    } catch (error) {
-      if (axios.isCancel(error)) return;
-      console.error("Error fetching downloads:", error);
-      toast.error("Failed to fetch library");
-    } finally {
-      if (!signal?.aborted) setLoading(false);
-    }
-  };
-
-  const prefetchStats = async (userOverride) => {
-    const user = userOverride || username;
-    if (!user) return;
-
-    const periods = ['overall', '1month']; // Prefetch most common periods
-
-    try {
-      const promises = [
-        // Top Tracks for main periods
-        ...periods.map(period => axios.get(`${API_URL}/stats/top-tracks/${user}`, { params: { period, limit: 50 } })),
-
-        // Activity Chart
-        axios.get(`${API_URL}/stats/chart`, { params: { user, period: '1month' } }),
-
-        // Listening Clock
-        axios.get(`${API_URL}/stats/listening-clock/${user}`, { params: { period: 'overall' } }),
-
-        // Genre Breakdown
-        axios.get(`${API_URL}/stats/genre-breakdown/${user}`, { params: { period: 'overall' } }),
-
-        // On This Day
-        axios.get(`${API_URL}/stats/on-this-day/${user}`),
-
-        // Streak
-        axios.get(`${API_URL}/stats/streak/${user}`),
-
-        // Diversity
-        axios.get(`${API_URL}/stats/diversity/${user}`, { params: { period: 'overall' } }),
-
-        // Mainstream
-        axios.get(`${API_URL}/stats/mainstream/${user}`, { params: { period: 'overall' } }),
-
-        // Top Artists
-        axios.get(`${API_URL}/stats/top-artists/${user}`, { params: { period: 'overall', limit: 3 } })
-      ];
-
-      await Promise.all(promises);
-    } catch (error) {
-      console.error("Error prefetching stats:", error);
-    }
-  };
-
-  const handleDownload = async (track) => {
-    const query = `${track.artist} - ${track.title}`;
-    setDownloading(prev => ({ ...prev, [query]: 'loading' }));
-    try {
-      await axios.post(`${API_URL}/download`, {
-        query,
-        artist: track.artist,
-        title: track.title,
-        album: track.album,
-        image: track.image || track.image_url
-      });
-      setDownloading(prev => ({ ...prev, [query]: 'success' }));
-      toast.success(`Downloading "${track.title}"`);
-
-      // If we are in library or undownloaded view, update the list locally
-      if (view === 'library' || view === 'undownloaded') {
-        setDownloadedTracks(prev => prev.map(t => {
-          if (t.artist === track.artist && t.title === track.title) {
-            return { ...t, status: 'completed' };
-          }
-          return t;
-        }));
-      }
-    } catch (error) {
-      console.error("Error downloading:", error);
-      setDownloading(prev => ({ ...prev, [query]: 'error' }));
-      const errorMessage = error.response?.data?.detail || error.message || "Unknown error";
-      toast.error(`Failed to download "${track.title}": ${errorMessage}`);
-    }
-  };
-
-  const handleDownloadAll = async () => {
-    if (!confirm("Are you sure you want to download all pending tracks?")) return;
-
-    // Set all current tracks to loading state to disable buttons
-    const newDownloadingState = { ...downloading };
-    downloadedTracks.forEach(track => {
-      const query = `${track.artist} - ${track.title}`;
-      newDownloadingState[query] = 'loading';
-    });
-    setDownloading(newDownloadingState);
-
-    try {
-      const response = await axios.post(`${API_URL}/download/all`);
-      toast.success(`Started downloading ${response.data.count} tracks`);
-      // Refresh list after a short delay
-      setTimeout(() => {
-        fetchDownloads();
-      }, 1000);
-    } catch (error) {
-      console.error("Error downloading all:", error);
-      toast.error("Failed to start bulk download");
-      // Revert loading state on error
-      setDownloading(prev => {
-        const next = { ...prev };
-        downloadedTracks.forEach(track => {
-          const query = `${track.artist} - ${track.title}`;
-          delete next[query];
-        });
-        return next;
-      });
-    }
-  };
-
-  const handleSync = async () => {
-    setIsSyncing(true);
-    try {
-      await axios.post(`${API_URL}/sync`);
-      toast.success("Sync started");
-      // Wait a bit to allow backend to process some items, then refresh view
-      setTimeout(() => {
-        if (view === 'scrobbles') fetchScrobbles();
-        else if (view === 'library' || view === 'undownloaded') fetchDownloads();
-      }, 2000);
-    } catch (error) {
-      console.error("Error syncing:", error);
-      toast.error("Failed to start sync");
-    } finally {
-      setTimeout(() => setIsSyncing(false), 1000);
-    }
-  };
+    return () => controller.abort();
+  }, [
+    view,
+    username,
+    fetchScrobbles,
+    fetchDownloads,
+    currentPage,
+    debouncedSearchQuery,
+    artistFilter,
+    albumFilter,
+    fetchFilters
+  ]);
 
   // Infinite Scroll Observer
   const observer = useRef();
   const lastTrackElementRef = useCallback(node => {
-    if (loading) return;
+    if (loadingDownloads) return;
     if (observer.current) observer.current.disconnect();
     observer.current = new IntersectionObserver(entries => {
       if (entries[0].isIntersecting && currentPage < totalPages) {
@@ -347,51 +157,28 @@ function AppContent() {
       }
     });
     if (node) observer.current.observe(node);
-  }, [loading, totalPages, currentPage]);
+  }, [loadingDownloads, totalPages, currentPage, setCurrentPage]);
 
-  useEffect(() => {
-    const controller = new AbortController();
-    if (view === 'scrobbles') {
-      if (username) fetchScrobbles(controller.signal);
-    } else if (view === 'library' || view === 'undownloaded') {
-      fetchDownloads(controller.signal);
-    }
-    return () => controller.abort();
-  }, [view, currentPage, debouncedSearchQuery, artistFilter, albumFilter]); // Removed itemsPerPage
-
-  const currentTracks = view === 'library' || view === 'undownloaded'
-    ? downloadedTracks
-    : tracks;
-
-  const handlePageChange = (pageNumber) => {
-    setCurrentPage(pageNumber);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
-
-  const handleItemsPerPageChange = (e) => {
-    setItemsPerPage(Number(e.target.value));
-    setCurrentPage(1);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
-
-  const toggleFavoriteArtist = async (artist, e) => {
-    e.preventDefault();
-    e.stopPropagation();
+  // Prefetch Stats helpers (kept here for now, or could move to useStats if created)
+  const prefetchStats = async (userOverride) => {
+    const user = userOverride || username;
+    if (!user) return;
+    const periods = ['overall', '1month'];
     try {
-      const response = await axios.post(`${API_URL}/concerts/favorites`, { artist });
-      if (response.data.status === 'added') {
-        setFavoriteArtists(prev => new Set([...prev, artist]));
-      } else {
-        setFavoriteArtists(prev => {
-          const next = new Set(prev);
-          next.delete(artist);
-          return next;
-        });
-      }
-      toast.success(response.data.status === 'added' ? `Added ${artist} to favorites` : `Removed ${artist} from favorites`);
-    } catch (err) {
-      console.error("Error toggling favorite:", err);
-      toast.error("Failed to update favorites");
+      const promises = [
+        ...periods.map(period => axios.get(`${API_URL}/stats/top-tracks/${user}`, { params: { period, limit: 50 } })),
+        axios.get(`${API_URL}/stats/chart`, { params: { user, period: '1month' } }),
+        axios.get(`${API_URL}/stats/listening-clock/${user}`, { params: { period: 'overall' } }),
+        axios.get(`${API_URL}/stats/genre-breakdown/${user}`, { params: { period: 'overall' } }),
+        axios.get(`${API_URL}/stats/on-this-day/${user}`),
+        axios.get(`${API_URL}/stats/streak/${user}`),
+        axios.get(`${API_URL}/stats/diversity/${user}`, { params: { period: 'overall' } }),
+        axios.get(`${API_URL}/stats/mainstream/${user}`, { params: { period: 'overall' } }),
+        axios.get(`${API_URL}/stats/top-artists/${user}`, { params: { period: 'overall', limit: 3 } })
+      ];
+      await Promise.all(promises);
+    } catch (error) {
+      console.error("Error prefetching stats:", error);
     }
   };
 
@@ -404,6 +191,21 @@ function AppContent() {
     { id: 'stats', icon: Trophy, label: 'Stats' },
     { id: 'concerts', icon: Ticket, label: 'Concerts' },
   ].filter(item => !hiddenFeatures.has(item.id));
+
+  const currentTracks = (view === 'library' || view === 'undownloaded') ? downloadedTracks : scrobbles;
+  const isLoading = (view === 'library' || view === 'undownloaded') ? loadingDownloads : loadingScrobbles;
+
+  const onSync = () => {
+    handleSync(() => {
+      if (view === 'scrobbles') fetchScrobbles();
+      else if (view === 'library' || view === 'undownloaded') fetchDownloads(view);
+    });
+  };
+
+  const onDownloadAll = async () => {
+    await handleDownloadAll();
+    setTimeout(() => fetchDownloads(view), 1000);
+  };
 
   return (
     <div className="min-h-screen bg-background text-foreground p-8 pb-32 transition-colors duration-300">
@@ -425,20 +227,12 @@ function AppContent() {
       />
       <TutorialModal
         isOpen={showTutorial}
-        onClose={async () => {
-          setShowTutorial(false);
-          try {
-            await axios.post(`${API_URL}/settings`, { tutorial_seen: true });
-          } catch (error) {
-            console.error("Failed to save tutorial status:", error);
-          }
-        }}
+        onClose={closeTutorial}
         onTutorialComplete={async (newUsername) => {
           setUsername(newUsername);
-          // Prefetch scrobbles, downloads, AND stats
           await Promise.all([
             fetchScrobbles(null, newUsername),
-            fetchDownloads(null),
+            fetchDownloads('library'), // Default to library prefetch?
             prefetchStats(newUsername)
           ]);
         }}
@@ -455,7 +249,6 @@ function AppContent() {
         track={playlistTrackToAdd}
       />
       <div className="w-[95%] mx-auto space-y-8">
-
 
         {/* Header */}
         <GlassCard className="flex flex-col md:flex-row items-center justify-between p-6 gap-4">
@@ -506,7 +299,7 @@ function AppContent() {
 
               <motion.button
                 whileTap={{ scale: 0.95 }}
-                onClick={handleSync}
+                onClick={onSync}
                 disabled={isSyncing}
                 className={cn(
                   "p-2 hover:bg-white/10 rounded-full transition-colors text-spotify-grey hover:text-white",
@@ -587,7 +380,7 @@ function AppContent() {
               {view === 'undownloaded' && downloadedTracks.length > 0 && (
                 <motion.button
                   whileTap={{ scale: 0.95 }}
-                  onClick={handleDownloadAll}
+                  onClick={onDownloadAll}
                   className="flex items-center gap-2 px-4 py-2 bg-spotify-green text-white rounded-full text-sm font-medium hover:scale-105 transition-transform"
                 >
                   <Download className="w-4 h-4" />
@@ -633,7 +426,7 @@ function AppContent() {
               </div>
             )}
 
-            {loading && (view === 'scrobbles' ? tracks.length === 0 : downloadedTracks.length === 0) ? (
+            {isLoading && (view === 'scrobbles' ? currentTracks.length === 0 : downloadedTracks.length === 0) ? (
               <div className={cn(
                 "grid gap-4",
                 view === 'library' || view === 'undownloaded' ? "grid-cols-2 @md:grid-cols-3 @lg:grid-cols-4 @xl:grid-cols-5 @2xl:grid-cols-6" : "grid-cols-1"
@@ -647,7 +440,7 @@ function AppContent() {
               </div>
             ) : (
               <div className="relative min-h-[200px]">
-                {loading && (
+                {isLoading && (
                   <div className="absolute inset-0 flex items-center justify-center z-10 bg-background/50 backdrop-blur-sm rounded-xl transition-all duration-300">
                     <Loader2 className="w-10 h-10 animate-spin text-spotify-green" />
                   </div>
@@ -686,7 +479,7 @@ function AppContent() {
                           </p>
                         </div>
                       ) : (
-                        (view === 'scrobbles' ? tracks : currentTracks).map((track, index) => {
+                        currentTracks.map((track, index) => {
                           const query = `${track.artist} - ${track.title}`;
                           const isLibraryItemDownloaded = (view === 'library' || view === 'undownloaded') && track.status === 'completed';
                           const status = isLibraryItemDownloaded || track.downloaded ? 'success' : downloading[query];
@@ -694,7 +487,6 @@ function AppContent() {
                           const isQueued = downloading[query] === 'loading' || downloading[query] === 'success';
 
                           // Use a more stable key strategy.
-                          // Ideally track.timestamp for scrobbles (unique event) and track.id for library.
                           const uniqueKey = track.timestamp || track.id || `${track.artist}-${track.title}-${index}`;
 
                           return (
@@ -765,7 +557,7 @@ function AppContent() {
                                             whileTap={{ scale: 0.9 }}
                                             onClick={(e) => {
                                               e.stopPropagation();
-                                              handleDownload(track);
+                                              handleDownload(track, view);
                                             }}
                                             className="p-3 bg-spotify-green rounded-full text-white shadow-lg shadow-black/40"
                                           >
@@ -831,7 +623,7 @@ function AppContent() {
                                 {view !== 'library' && view !== 'undownloaded' && (
                                   <motion.button
                                     whileTap={{ scale: 0.9 }}
-                                    onClick={() => handleDownload(track)}
+                                    onClick={() => handleDownload(track, view)}
                                     disabled={status === 'loading' || status === 'success'}
                                     className={cn(
                                       "p-3 rounded-full transition-all duration-300",
@@ -861,7 +653,7 @@ function AppContent() {
             )}
 
             {/* Infinite Scroll Loading Indicator */}
-            {(view === 'library' || view === 'undownloaded') && loading && downloadedTracks.length > 0 && (
+            {(view === 'library' || view === 'undownloaded') && isLoading && downloadedTracks.length > 0 && (
               <div className="py-4 flex justify-center w-full">
                 <Loader2 className="w-6 h-6 animate-spin text-spotify-green" />
               </div>
