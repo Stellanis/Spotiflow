@@ -1,6 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, BackgroundTasks
 from services.concerts import ConcertService
-from database import get_all_artists, get_setting, add_favorite_artist, remove_favorite_artist, get_favorite_artists
+from database import get_all_artists, get_setting, add_favorite_artist, remove_favorite_artist, get_favorite_artists, delete_past_concerts
+from datetime import datetime
+
 from core import lastfm_service
 from pydantic import BaseModel
 
@@ -93,6 +95,10 @@ def get_concerts(city: str = None):
     #     city = get_setting('concerts_city')
     
     try:
+        # Purge past concerts first
+        today = datetime.now().strftime("%Y-%m-%d")
+        delete_past_concerts(today)
+        
         concerts = concert_service.get_all_concerts(city=city)
         return concerts
     except Exception as e:
