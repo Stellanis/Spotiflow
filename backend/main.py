@@ -49,15 +49,14 @@ async def lifespan(app: FastAPI):
         scheduler.add_job(refresh_daily_stats, 'cron', hour=2, minute=0, id='daily_stats_refresh')
     
     # 3. Schedule Daily Concert Sync
-    city = get_setting('concerts_city')
-    if city:
-        concert_service = ConcertService()
+    # Runs unconditionally for global artist discovery
+    concert_service = ConcertService()
+    if not scheduler.get_job('concert_sync_daily'):
         scheduler.add_job(
             concert_service.sync_concerts, 
             'cron', 
             hour=3, 
             minute=0,
-            args=[city],
             id='concert_sync_daily'
         )
     

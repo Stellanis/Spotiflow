@@ -33,27 +33,48 @@ class ConcertService:
         
         # 0. Get Favorite Artists (Priority 1)
         favorite_artists = get_favorite_artists()
-
-        # 1. Get Local DB Artists (Priority 2)
-        local_artists = get_all_artists()
         
-        # 2. Get Last.fm Top Artists (if user configured) (Priority 3)
-        lastfm_artists = []
+        # 1. Get Local DB Artists with counts
+        from database import get_all_artists_with_counts
+        local_artist_counts = get_all_artists_with_counts()
+        
+        # 2. Get Last.fm Top Artists (Overall - Priority source)
+        lastfm_artists_data = []
         lastfm_user = get_setting('LASTFM_USER')
         if lastfm_user:
             try:
-                # Fetch top 100 artists from Last.fm (12 months period as requested)
-                lfm_data = lastfm_service.get_top_artists(lastfm_user, period='12month', limit=100)
-                lastfm_artists = [a['name'] for a in lfm_data]
+                # Fetch top 500 artists from Last.fm (Overall to catch all favorites)
+                # Increasing to 500 to cast a wide net for the user's history
+                lastfm_artists_data = lastfm_service.get_top_artists(lastfm_user, period='overall', limit=500)
             except Exception as e:
                 print(f"Error fetching Last.fm artists for sync: {e}")
 
-        # Combine and Deduplicate
-        # Use set for uniqueness, but preserve order (roughly) by adding lists
-        # Favorites first -> they will be included in the slice
-        combined_artists = list(dict.fromkeys(favorite_artists + local_artists + lastfm_artists))
+
+        # Smart Merge Algorithm
+        # Goal: Top 300 artists by playcount, but Favorites always included.
         
-        top_artists = combined_artists[:150]
+        artist_scores = {}
+        
+        # A. Process Last.fm Data
+        for artist_obj in lastfm_artists_data:
+            name = artist_obj['name']
+            count = artist_obj['playcount']
+            artist_scores[name] = max(artist_scores.get(name, 0), count)
+            
+        # B. Process Local Data (Merge/Update max score)
+        for name, count in local_artist_counts.items():
+             artist_scores[name] = max(artist_scores.get(name, 0), count)
+             
+        # C. Process Favorites (Override with SUPER score)
+        for name in favorite_artists:
+            artist_scores[name] = 1_000_000 # Ensure they are always at the top
+            
+        # D. Sort and Slice
+        # Sort by score DESC
+        sorted_artists = sorted(artist_scores.items(), key=lambda item: item[1], reverse=True)
+        
+        # Take top 300 keys
+        top_artists = [item[0] for item in sorted_artists[:300]]
         
         # 1. Ticketmaster Global Search (Targeted)
         # We search specifically for these artists, globally.
@@ -68,24 +89,43 @@ class ConcertService:
                     tm_events.extend(result)
         
         # 2. Bandsintown (Fallback/Supplement)
-        # We perform global search for Top 20 artists (BIT doesn't handle bulk well, strict rate limits?)
-        # unique app_id "my_app" usually permits decent volume.
+        # We perform global search for ALL top artists now.
+        # BIT handles single-artist queries well.
         bit_events = []
-        # Always fetch BIT for top 20, regardless of city filter (since we want repository)
-        # If city is set, we might filter in memory, but here we want VALID global data.
-        # But wait, original logic was "Fetch BIT if city provided". 
-        # Now we want "Fetch BIT globally for Top Artists" to catch what TM misses.
-        
-        # Let's fetch BIT for Top 50 to match TM roughly, or maybe Top 30?
-        # Let's try Top 30 to be safe on response times.
-        # User requested Fox Stevenson, who might be > 30. Increasing to 50.
-        # Fox Stevenson is rank 72 (alphabetical). Increasing to 100.
-        target_bit_artists = top_artists[:100]
+        target_bit_artists = top_artists # Sync all 300
         bit_events = self._fetch_bandsintown_bulk(target_bit_artists, city, radius=radius)
         
         # 3. Deduplicate and Save
         # Merge lists and remove duplicates based on Artist + Date
         all_events = self._deduplicate(tm_events + bit_events)
+        
+        # 4. Sequential Geocoding for Missing Coordinates
+        # Performed here to respect Nominatim rate limits (1 req/sec)
+        import time
+        print(f"Starting sequential geocoding for {len(all_events)} events...")
+        for event in all_events:
+            if event['lat'] is None or event['lng'] is None:
+               city = event.get('city')
+               if city and city != "Unknown City":
+                   query = city
+                   if event.get('country') and event.get('country') != "Unknown":
+                       query += f", {event['country']}"
+                   
+                   # Try venue-specific search first for better precision? 
+                   # "Arena-Wien, Wien" works better than just "Wien"
+                   if event.get('venue') and event.get('venue') != "Unknown Venue":
+                       venue_query = f"{event['venue']}, {query}"
+                       coords = self._get_coordinates(venue_query)
+                       if not coords:
+                           coords = self._get_coordinates(query) # Fallback to city
+                   else:
+                       coords = self._get_coordinates(query)
+                       
+                   if coords:
+                       event['lat'] = coords[0]
+                       event['lng'] = coords[1]
+                       # Be nice to Nominatim
+                       time.sleep(1.1) 
         
         count = 0
         for event in all_events:
@@ -100,7 +140,9 @@ class ConcertService:
                 event.get('country'),
                 event['url'], 
                 event.get('image_url') or event.get('image'), 
-                event['source']
+                event['source'],
+                event.get('lat'),
+                event.get('lng')
             )
             count += 1
             
@@ -182,9 +224,11 @@ class ConcertService:
                         "city": city,
                         "country": country,
                         "url": event.get("url"),
-                        "image_url": image_url
+                        "image_url": image_url,
+                        "lat": float(venue_data.get("location", {}).get("latitude")) if venue_data.get("location", {}).get("latitude") else None,
+                        "lng": float(venue_data.get("location", {}).get("longitude")) if venue_data.get("location", {}).get("longitude") else None
                     }
-                    
+
                     add_concert(
                         concert["id"], 
                         concert["artist"], 
@@ -196,7 +240,9 @@ class ConcertService:
                         concert["country"],
                         concert["url"],
                         concert["image_url"],
-                        concert["source"]
+                        concert["source"],
+                        concert["lat"],
+                        concert["lng"]
                     )
                     
                     events.append(concert)
@@ -388,8 +434,11 @@ class ConcertService:
                     "city": venue.get("city"),
                     "country": country,
                     "url": event.get("url"),
-                    "image": image_url 
+                    "image": image_url,
+                    "lat": float(venue.get('latitude')) if venue.get('latitude') else None,
+                    "lng": float(venue.get('longitude')) if venue.get('longitude') else None
                 }
+                
                 artist_events.append(concert)
                 
             return artist_events
@@ -407,10 +456,19 @@ class ConcertService:
             if key not in unique:
                 unique[key] = e
             else:
-                # If we already have it, maybe merge info? 
-                # Prefer Ticketmaster for links/images usually?
-                if e['source'] == 'Ticketmaster':
-                    unique[key] = e
+                current = unique[key]
+                # Prefer event with coordinates
+                current_has_coords = current.get('lat') is not None and current.get('lng') is not None
+                new_has_coords = e.get('lat') is not None and e.get('lng') is not None
+                
+                if not current_has_coords and new_has_coords:
+                     unique[key] = e
+                elif current_has_coords and not new_has_coords:
+                     pass # Keep current
+                else:
+                    # Both have coords or both don't. Prefer Ticketmaster.
+                    if e['source'] == 'Ticketmaster':
+                        unique[key] = e
         return list(unique.values())
 
     def _get_coordinates(self, city):

@@ -1,4 +1,4 @@
-import { Play, Pause, SkipBack, SkipForward, Volume2, Loader2, Maximize2, Download } from 'lucide-react';
+import { Play, Pause, SkipBack, SkipForward, Volume2, Loader2, Maximize2, Download, Mic2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { usePlayer } from '../contexts/PlayerContext';
 import { cn } from '../utils';
@@ -12,7 +12,7 @@ function formatDuration(seconds) {
 }
 
 export function PlayerBar() {
-    const { currentTrack, isPlaying, togglePlay, progress, duration, seek, volume, updateVolume, isReady, activeDownloads, nextTrack, prevTrack } = usePlayer();
+    const { currentTrack, isPlaying, togglePlay, progress, duration, seek, volume, updateVolume, isReady, activeDownloads, nextTrack, prevTrack, showLyrics, toggleLyrics } = usePlayer();
     const navigate = useNavigate();
 
     // Show nothing if no track and no downloads
@@ -115,6 +115,14 @@ export function PlayerBar() {
                 )}
 
                 <div className="h-8 w-px bg-white/10 mx-2" />
+
+                <button
+                    onClick={toggleLyrics}
+                    className={`text-spotify-grey hover:text-white transition-colors ${showLyrics ? 'text-spotify-green' : ''}`}
+                    title="Lyrics"
+                >
+                    <Mic2 className="w-5 h-5" />
+                </button>
 
                 <Volume2 className="w-5 h-5 text-spotify-grey" />
                 <input
