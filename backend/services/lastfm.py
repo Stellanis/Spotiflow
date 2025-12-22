@@ -179,7 +179,7 @@ class LastFMService:
         all_tracks = []
         page = 1
         page = 1
-        limit = 50
+        limit = 200
         
         while True:
             params = {
@@ -209,7 +209,8 @@ class LastFMService:
             attr = data["recenttracks"].get("@attr", {})
             total_pages = int(attr.get("totalPages", 1))
             
-            if page >= total_pages or page >= 5:
+            # Safety break at 200 pages (approx 40k tracks)
+            if page >= total_pages or page >= 200:
                 break
                 
             page += 1
@@ -632,3 +633,138 @@ class LastFMService:
         result = {"score": round(final_score), "label": label}
         self.cache.set(cache_key, result)
         return result
+
+    def sync_scrobbles_to_db(self, user: str):
+        from database import add_scrobble, get_latest_scrobble_timestamp
+        
+        last_ts = get_latest_scrobble_timestamp(user)
+        # Fetch from last_ts + 1
+        start_ts = last_ts + 1 if last_ts > 0 else 0
+        
+        print(f"Syncing scrobbles for {user} starting from {start_ts}...")
+        
+        # We use a loop similar to _get_recent_tracks_cached but focusing on "from" parameter
+        page = 1
+        limit = 200
+        new_scrobbles_count = 0
+        
+        while True:
+            params = {
+                "method": "user.getrecenttracks",
+                "user": user,
+                "limit": limit,
+                "page": page,
+                "from": start_ts
+            }
+            
+            data = self.client.request("GET", params)
+            if not data or "recenttracks" not in data or "track" not in data["recenttracks"]:
+                break
+                
+            tracks = data["recenttracks"]["track"]
+            if isinstance(tracks, dict):
+                tracks = [tracks]
+            
+            if not tracks:
+                break
+
+            # Filter out now playing
+            valid_tracks = [t for t in tracks if not ("@attr" in t and t["@attr"].get("nowplaying") == "true")]
+            
+            if not valid_tracks:
+                 if page == 1: break # No new tracks at all
+            
+            for t in valid_tracks:
+                if "date" not in t: continue
+                
+                artist = t.get("artist", {}).get("#text")
+                title = t.get("name")
+                album = t.get("album", {}).get("#text")
+                image_url = t.get("image", [{}])[-1].get("#text")
+                ts = int(t["date"]["uts"])
+                
+                add_scrobble(user, artist, title, album, image_url, ts)
+                new_scrobbles_count += 1
+            
+            attr = data["recenttracks"].get("@attr", {})
+            total_pages = int(attr.get("totalPages", 1))
+            
+            if page >= total_pages or page >= 200:
+                break
+                
+            page += 1
+            time.sleep(0.5) # Be gentle with API
+            
+        print(f"Sync complete. Added {new_scrobbles_count} new scrobbles.")
+        return new_scrobbles_count
+
+    def get_chart_data_db(self, user: str, period: str = "1month"):
+        from database import get_scrobbles_in_range
+        
+        # Calculate time range
+        now = int(time.time())
+        day_seconds = 86400
+        period_map = {
+            "7day": 7, "1month": 30, "3month": 90, 
+            "6month": 180, "12month": 365, "overall": 365*10
+        }
+        days = period_map.get(period, 30)
+        start_ts = now - (days * day_seconds)
+        
+        scrobbles = get_scrobbles_in_range(user, start_ts, now)
+        
+        daily_counts = {}
+        current_ts = start_ts
+        # Initialize all days with 0
+        while current_ts <= now:
+            date_str = datetime.fromtimestamp(current_ts).strftime('%Y-%m-%d')
+            daily_counts[date_str] = 0
+            current_ts += day_seconds
+            
+        for s in scrobbles:
+            ts = s['timestamp']
+            date_str = datetime.fromtimestamp(ts).strftime('%Y-%m-%d')
+            if date_str in daily_counts:
+                daily_counts[date_str] += 1
+        
+        return [{"date": k, "count": v} for k, v in sorted(daily_counts.items())]
+
+    def get_listening_streak_db(self, user: str):
+        from database import get_scrobbles_from_db
+        
+        # Fetch generic bulk of recent scrobbles, say last 5000
+        scrobbles = get_scrobbles_from_db(user, limit=5000)
+        
+        if not scrobbles:
+            return {"current_streak": 0}
+            
+        active_days = set()
+        for s in scrobbles:
+            ts = s['timestamp']
+            date_str = datetime.fromtimestamp(ts).strftime('%Y-%m-%d')
+            active_days.add(date_str)
+            
+        streak = 0
+        check_date = datetime.now()
+        today_str = check_date.strftime('%Y-%m-%d')
+        
+        if today_str in active_days:
+            streak += 1
+            
+        while True:
+            check_date -= timedelta(days=1)
+            date_str = check_date.strftime('%Y-%m-%d')
+            if date_str in active_days:
+                if streak == 0 and date_str != today_str: 
+                    streak += 1
+                elif streak > 0:
+                    streak += 1
+            else:
+                if streak == 0:
+                    pass 
+                break
+                
+            if streak > 3650: # Safety break 10 years
+                break
+        
+        return {"current_streak": streak}
