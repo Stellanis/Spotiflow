@@ -1,7 +1,23 @@
 import { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
 import { motion } from 'framer-motion';
-import { Calendar, MapPin, Ticket, ExternalLink, Loader2, Music, Search, Star, RefreshCw, Heart } from 'lucide-react';
+import { Calendar, MapPin, Ticket, ExternalLink, Loader2, Music, Search, Star, RefreshCw, Heart, Map as MapIcon, List } from 'lucide-react';
+import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
+import 'leaflet/dist/leaflet.css';
+import L from 'leaflet';
+
+// Fix for default marker icon in Vite/Leaflet
+import icon from 'leaflet/dist/images/marker-icon.png';
+import iconShadow from 'leaflet/dist/images/marker-shadow.png';
+
+let DefaultIcon = L.icon({
+    iconUrl: icon,
+    shadowUrl: iconShadow,
+    iconSize: [25, 41],
+    iconAnchor: [12, 41]
+});
+
+L.Marker.prototype.options.icon = DefaultIcon;
 
 // Define Country Sets
 const EUROPE_COUNTRIES = new Set([
@@ -12,16 +28,22 @@ const AMERICAS_COUNTRIES = new Set([
     'US', 'CA', 'MX', 'BR', 'AR', 'CL', 'CO', 'PE', 'VE', 'UY', 'PY', 'BO', 'EC'
 ]);
 
+function MapUpdater({ concerts }) {
+    const map = useMap();
+    useEffect(() => {
+        if (concerts.length > 0) {
+            const bounds = L.latLngBounds(concerts.map(c => [c.lat, c.lng]));
+            map.fitBounds(bounds, { padding: [50, 50], maxZoom: 10 });
+        }
+    }, [concerts, map]);
+    return null;
+}
+
 export default function Concerts() {
     const [allConcerts, setAllConcerts] = useState([]);
     const [topArtists, setTopArtists] = useState([]);
     const [reminders, setReminders] = useState(new Set());
-    const [favorites, setFavorites] = useState(new Set()); // Still need favorites for Top 50 filter logic if we want to show it, but wait, the prompt says "Favorites still filter Top 50".
-    // Actually, the `topArtists` state is fetched from `/api/concerts/top-artists`, which ALREADY includes favorites on the backend.
-    // So I don't need `favorites` state here for filtering, BUT I do needed `reminders` state for the heart icon.
-    // I will keep `favorites` state purely to fetch the data for debug or if I need it, but actually `topArtists` covers the filter requirement.
-    // The user said: "the favorite should be in library and not the concert page".
-    // So I will REMOVE favorites state usage from here completely, and replace with reminders.
+
     const [loading, setLoading] = useState(true);
     const [syncing, setSyncing] = useState(false);
     const [error, setError] = useState(null);
@@ -30,6 +52,8 @@ export default function Concerts() {
     const [filterTopOnly, setFilterTopOnly] = useState(false);
     const [filterRemindersOnly, setFilterRemindersOnly] = useState(false);
     const [filterContinent, setFilterContinent] = useState('ALL'); // ALL, EU, AM
+
+    const [viewMode, setViewMode] = useState('list'); // 'list' | 'map'
 
     useEffect(() => {
         fetchAllConcerts();
@@ -41,8 +65,9 @@ export default function Concerts() {
         setLoading(true);
         setError(null);
         try {
-            // Fetch all cached concerts (full repository)
             const response = await axios.get('/api/concerts');
+            // Filter out concerts without valid dates if needed, but repo should enable keeping them.
+            // For map, we need coords.
             setAllConcerts(response.data);
         } catch (err) {
             console.error("Error fetching concerts:", err);
@@ -73,11 +98,7 @@ export default function Concerts() {
     const handleSync = async () => {
         try {
             setSyncing(true);
-            // Trigger sync
             await axios.post('/api/concerts/sync');
-
-            // Poll for completion or simple timeout for UX
-            // Since it's background, we'll just wait a bit and re-fetch
             setTimeout(() => {
                 fetchAllConcerts();
                 setSyncing(false);
@@ -89,8 +110,10 @@ export default function Concerts() {
     };
 
     const toggleReminder = async (concertId, e) => {
-        e.preventDefault();
-        e.stopPropagation();
+        if (e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
         try {
             const response = await axios.post('/api/concerts/reminders', { concert_id: concertId });
             if (response.data.status === 'added') {
@@ -114,34 +137,26 @@ export default function Concerts() {
         // 1. Filter by Continent
         if (filterContinent !== 'ALL') {
             result = result.filter(concert => {
-                const code = concert.country; // This might be "US", "GB", etc. or undefined if waiting for sync
-                if (!code) return false; // Hide if no country data
-
-                if (filterContinent === 'EU') {
-                    return EUROPE_COUNTRIES.has(code);
-                } else if (filterContinent === 'AM') {
-                    return AMERICAS_COUNTRIES.has(code);
-                }
+                const code = concert.country;
+                if (!code) return false;
+                if (filterContinent === 'EU') return EUROPE_COUNTRIES.has(code);
+                else if (filterContinent === 'AM') return AMERICAS_COUNTRIES.has(code);
                 return true;
             });
         }
 
-        // 2. Filter by Top Artists if enabled
+        // 2. Filter by Top Artists
         if (filterTopOnly && topArtists.length > 0) {
             const topSet = new Set(topArtists.map(a => a.toLowerCase()));
-            result = result.filter(concert => {
-                // Check if concert artist is in top artists (fuzzy or exact?)
-                // API returns exact names from DB. Concert artist should match.
-                return topSet.has(concert.artist.toLowerCase());
-            });
+            result = result.filter(concert => topSet.has(concert.artist.toLowerCase()));
         }
 
-        // 3. Filter by Reminders Only if enabled
+        // 3. Filter by Reminders
         if (filterRemindersOnly) {
             result = result.filter(concert => reminders.has(concert.id));
         }
 
-        // 2. Filter by Search Term
+        // 4. Search
         if (searchTerm) {
             const lowerTerm = searchTerm.toLowerCase();
             result = result.filter(concert =>
@@ -152,14 +167,19 @@ export default function Concerts() {
         }
 
         return result;
-    }, [allConcerts, searchTerm, filterTopOnly, topArtists, filterContinent]);
+    }, [allConcerts, searchTerm, filterTopOnly, topArtists, filterContinent, filterRemindersOnly, reminders]);
+
+    // Map Data: items with lat/lng
+    const mapConcerts = useMemo(() => {
+        return filteredConcerts.filter(c => c.lat && c.lng);
+    }, [filteredConcerts]);
 
     const formatDate = (dateString) => {
         if (!dateString) return 'TBA';
         return new Date(dateString).toLocaleDateString(undefined, {
-            weekday: 'long',
+            weekday: 'short',
             year: 'numeric',
-            month: 'long',
+            month: 'short',
             day: 'numeric'
         });
     };
@@ -176,9 +196,7 @@ export default function Concerts() {
     if (error) {
         return (
             <div className="flex flex-col items-center justify-center min-h-[50vh] space-y-4 text-center px-4">
-                <div className="w-16 h-16 rounded-full bg-red-500/20 flex items-center justify-center mb-2">
-                    <Music className="w-8 h-8 text-red-500" />
-                </div>
+                <Music className="w-16 h-16 text-red-500/50" />
                 <h2 className="text-xl font-bold text-white">Oops!</h2>
                 <p className="text-spotify-grey max-w-md">{error}</p>
             </div>
@@ -186,21 +204,47 @@ export default function Concerts() {
     }
 
     return (
-        <div className="p-8 space-y-8 pb-24">
+        <div className="p-8 space-y-6 pb-24 h-full flex flex-col">
             <div className="flex flex-col space-y-4">
-                <div className="flex flex-col space-y-2">
-                    <div className="flex items-center justify-between">
-                        <h1 className="text-3xl font-bold text-white tracking-tight">Concerts Repository</h1>
+                <div className="flex items-center justify-between">
+                    <div>
+                        <h1 className="text-3xl font-bold text-white tracking-tight flex items-center gap-3">
+                            Concerts Repository
+                            <span className="text-xs font-normal bg-white/10 px-2 py-0.5 rounded-full text-spotify-grey">
+                                {filteredConcerts.length} events
+                            </span>
+                        </h1>
+                        <p className="text-spotify-grey mt-1">Global tour dates from Ticketmaster & Bandsintown</p>
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                        {/* View Toggle */}
+                        <div className="flex bg-white/5 rounded-lg p-1 border border-white/10">
+                            <button
+                                onClick={() => setViewMode('list')}
+                                className={`p-2 rounded-md transition-all ${viewMode === 'list' ? 'bg-spotify-green text-black shadow-lg' : 'text-spotify-grey hover:text-white'}`}
+                                title="List View"
+                            >
+                                <List className="w-5 h-5" />
+                            </button>
+                            <button
+                                onClick={() => setViewMode('map')}
+                                className={`p-2 rounded-md transition-all ${viewMode === 'map' ? 'bg-spotify-green text-black shadow-lg' : 'text-spotify-grey hover:text-white'}`}
+                                title="Map View"
+                            >
+                                <MapIcon className="w-5 h-5" />
+                            </button>
+                        </div>
+
                         <button
                             onClick={handleSync}
                             disabled={syncing}
                             className="flex items-center gap-2 px-4 py-2 bg-spotify-green/10 text-spotify-green hover:bg-spotify-green/20 rounded-full transition-colors disabled:opacity-50"
                         >
                             <RefreshCw className={`w-4 h-4 ${syncing ? 'animate-spin' : ''}`} />
-                            <span className="font-bold text-sm">{syncing ? 'Syncing...' : 'Sync Now'}</span>
+                            <span className="font-bold text-sm hidden md:inline">{syncing ? 'Syncing...' : 'Sync'}</span>
                         </button>
                     </div>
-                    <p className="text-spotify-grey">Global tour dates for your library (Synced Daily at 3 AM)</p>
                 </div>
 
                 <div className="flex flex-col lg:flex-row gap-4 bg-white/5 p-4 rounded-xl border border-white/10 items-center">
@@ -216,136 +260,144 @@ export default function Concerts() {
                     </div>
 
                     <div className="flex flex-wrap gap-2">
-                        {/* Continent Toggles */}
                         <div className="flex bg-black/20 rounded-lg p-1 border border-white/10">
-                            <button
-                                onClick={() => setFilterContinent('ALL')}
-                                className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${filterContinent === 'ALL' ? 'bg-white/10 text-white' : 'text-spotify-grey hover:text-white'
-                                    }`}
-                            >
-                                All
-                            </button>
-                            <button
-                                onClick={() => setFilterContinent('EU')}
-                                className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${filterContinent === 'EU' ? 'bg-white/10 text-white' : 'text-spotify-grey hover:text-white'
-                                    }`}
-                            >
-                                Europe
-                            </button>
-                            <button
-                                onClick={() => setFilterContinent('AM')}
-                                className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${filterContinent === 'AM' ? 'bg-white/10 text-white' : 'text-spotify-grey hover:text-white'
-                                    }`}
-                            >
-                                Americas
-                            </button>
+                            {['ALL', 'EU', 'AM'].map(region => (
+                                <button
+                                    key={region}
+                                    onClick={() => setFilterContinent(region)}
+                                    className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${filterContinent === region ? 'bg-white/10 text-white' : 'text-spotify-grey hover:text-white'}`}
+                                >
+                                    {region === 'ALL' ? 'All' : region === 'EU' ? 'Europe' : 'Americas'}
+                                </button>
+                            ))}
                         </div>
 
                         <button
                             onClick={() => setFilterTopOnly(!filterTopOnly)}
-                            className={`flex items-center gap-2 px-4 py-2 rounded-lg border transition-all ${filterTopOnly
-                                ? 'bg-spotify-green text-black border-spotify-green font-bold'
-                                : 'bg-white/5 text-spotify-grey border-white/10 hover:bg-white/10'
-                                }`}
+                            className={`flex items-center gap-2 px-3 py-2 rounded-lg border transition-all text-sm ${filterTopOnly ? 'bg-spotify-green text-black border-spotify-green font-bold' : 'bg-white/5 text-spotify-grey border-white/10 hover:bg-white/10'}`}
                         >
                             <Star className={`w-4 h-4 ${filterTopOnly ? 'fill-black' : ''}`} />
-                            <span>Top 50 Only</span>
+                            <span className="hidden sm:inline">Top 50</span>
                         </button>
 
                         <button
                             onClick={() => setFilterRemindersOnly(!filterRemindersOnly)}
-                            className={`flex items-center gap-2 px-4 py-2 rounded-lg border transition-all ${filterRemindersOnly
-                                ? 'bg-spotify-green text-black border-spotify-green font-bold'
-                                : 'bg-white/5 text-spotify-grey border-white/10 hover:bg-white/10'
-                                }`}
+                            className={`flex items-center gap-2 px-3 py-2 rounded-lg border transition-all text-sm ${filterRemindersOnly ? 'bg-spotify-green text-black border-spotify-green font-bold' : 'bg-white/5 text-spotify-grey border-white/10 hover:bg-white/10'}`}
                         >
                             <Heart className={`w-4 h-4 ${filterRemindersOnly ? 'fill-black' : ''}`} />
-                            <span>Reminders Only</span>
+                            <span className="hidden sm:inline">Reminders</span>
                         </button>
-
-                        <div className="text-sm text-spotify-grey whitespace-nowrap min-w-[100px] text-right">
-                            {filteredConcerts.length} events
-                        </div>
                     </div>
                 </div>
             </div>
 
-            {filteredConcerts.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-20 bg-white/5 rounded-2xl border border-white/10">
-                    <div className="w-16 h-16 rounded-full bg-white/10 flex items-center justify-center mb-4">
-                        <MapPin className="w-8 h-8 text-spotify-grey" />
+            {/* Content Area */}
+            {viewMode === 'list' ? (
+                // LIST VIEW
+                filteredConcerts.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-20 bg-white/5 rounded-2xl border border-white/10">
+                        <div className="w-16 h-16 rounded-full bg-white/10 flex items-center justify-center mb-4">
+                            <MapPin className="w-8 h-8 text-spotify-grey" />
+                        </div>
+                        <h3 className="text-xl font-bold text-white mb-2">No Concerts Found</h3>
+                        <p className="text-spotify-grey">Try adjusting your filters.</p>
                     </div>
-                    <h3 className="text-xl font-bold text-white mb-2">No Concerts Found</h3>
-                    <p className="text-spotify-grey">
-                        {searchTerm || filterTopOnly || filterContinent !== 'ALL' ? "No matches for your filter." : "Your library has no upcoming concerts."}
-                    </p>
-                </div>
+                ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                        {filteredConcerts.map((concert) => (
+                            <motion.div
+                                key={concert.id}
+                                initial={{ opacity: 0, scale: 0.95 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                className="group bg-spotify-light-grey rounded-xl overflow-hidden hover:bg-white/10 transition-colors border border-white/5 hover:border-white/20 flex flex-col"
+                            >
+                                <div className="relative aspect-video bg-black/40">
+                                    {concert.image_url ? (
+                                        <img src={concert.image_url} alt={concert.title} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
+                                    ) : (
+                                        <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-spotify-dark to-spotify-light-grey">
+                                            <Ticket className="w-12 h-12 text-white/20" />
+                                        </div>
+                                    )}
+                                    <div className="absolute top-2 right-2 bg-black/60 backdrop-blur-md px-2 py-1 rounded text-xs text-white font-medium border border-white/10">
+                                        {concert.source}
+                                    </div>
+                                </div>
+
+                                <div className="p-4 flex-1 flex flex-col space-y-3">
+                                    <div>
+                                        <h3 className="font-bold text-white text-lg leading-tight line-clamp-1 group-hover:text-spotify-green transition-colors flex items-center justify-between gap-2">
+                                            <span className="truncate">{concert.artist}</span>
+                                            <button
+                                                onClick={(e) => toggleReminder(concert.id, e)}
+                                                className="focus:outline-none hover:scale-110 transition-transform shrink-0"
+                                            >
+                                                <Heart className={`w-5 h-5 ${reminders.has(concert.id) ? 'fill-spotify-green text-spotify-green' : 'text-spotify-grey hover:text-white'}`} />
+                                            </button>
+                                        </h3>
+                                        <p className="text-spotify-grey text-sm line-clamp-1">{concert.title}</p>
+                                    </div>
+
+                                    <div className="space-y-2 text-sm text-spotify-grey flex-1">
+                                        <div className="flex items-center gap-2">
+                                            <Calendar className="w-4 h-4 shrink-0" />
+                                            <span>{formatDate(concert.date)}</span>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <MapPin className="w-4 h-4 shrink-0" />
+                                            <span className="line-clamp-1">{concert.venue}, {concert.city}</span>
+                                        </div>
+                                    </div>
+
+                                    <a href={concert.url} target="_blank" rel="noopener noreferrer" className="mt-4 flex items-center justify-center gap-2 bg-white text-black font-bold py-2 px-4 rounded-full hover:scale-105 transition-transform w-full text-sm">
+                                        <span>Get Tickets</span>
+                                        <ExternalLink className="w-4 h-4" />
+                                    </a>
+                                </div>
+                            </motion.div>
+                        ))}
+                    </div>
+                )
             ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                    {filteredConcerts.map((concert) => (
-                        <motion.div
-                            key={concert.id}
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            className="group bg-spotify-light-grey rounded-xl overflow-hidden hover:bg-white/10 transition-colors border border-white/5 hover:border-white/20 flex flex-col"
-                        >
-                            <div className="relative aspect-video bg-black/40">
-                                {concert.image_url ? (
-                                    <img
-                                        src={concert.image_url}
-                                        alt={concert.title}
-                                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                                    />
-                                ) : (
-                                    <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-spotify-dark to-spotify-light-grey">
-                                        <Ticket className="w-12 h-12 text-white/20" />
-                                    </div>
-                                )}
-                                <div className="absolute top-2 right-2 bg-black/60 backdrop-blur-md px-2 py-1 rounded text-xs text-white font-medium border border-white/10">
-                                    {concert.source}
-                                </div>
-                            </div>
+                // MAP VIEW
+                <div className="h-[600px] w-full rounded-2xl overflow-hidden border border-white/10 relative">
+                    {mapConcerts.length === 0 ? (
+                        <div className="absolute inset-0 flex items-center justify-center bg-spotify-dark/90 z-10">
+                            <p className="text-white">No dates with coordinates found in filter.</p>
+                        </div>
+                    ) : (
+                        <MapContainer center={[20, 0]} zoom={2} style={{ height: '100%', width: '100%' }}>
+                            <TileLayer
+                                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                                url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+                            />
+                            <MapUpdater concerts={mapConcerts} />
 
-                            <div className="p-4 flex-1 flex flex-col space-y-3">
-                                <div>
-                                    <h3 className="font-bold text-white text-lg leading-tight line-clamp-1 group-hover:text-spotify-green transition-colors flex items-center justify-between gap-2">
-                                        <span className="truncate">{concert.artist}</span>
-                                        <button
-                                            onClick={(e) => toggleReminder(concert.id, e)}
-                                            className="focus:outline-none hover:scale-110 transition-transform shrink-0"
-                                            title="Toggle Reminder"
-                                        >
-                                            <Heart className={`w-5 h-5 ${reminders.has(concert.id) ? 'fill-spotify-green text-spotify-green' : 'text-spotify-grey hover:text-white'}`} />
-                                        </button>
-                                    </h3>
-                                    <p className="text-spotify-grey text-sm line-clamp-1">{concert.title}</p>
-                                </div>
-
-                                <div className="space-y-2 text-sm text-spotify-grey flex-1">
-                                    <div className="flex items-center gap-2">
-                                        <Calendar className="w-4 h-4 shrink-0" />
-                                        <span>{formatDate(concert.date)}</span>
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                        <MapPin className="w-4 h-4 shrink-0" />
-                                        <span className="line-clamp-1">
-                                            {concert.venue}, {concert.city}
-                                        </span>
-                                    </div>
-                                </div>
-
-                                <a
-                                    href={concert.url}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="mt-4 flex items-center justify-center gap-2 bg-white text-black font-bold py-2 px-4 rounded-full hover:scale-105 transition-transform w-full"
+                            {mapConcerts.map(concert => (
+                                <Marker
+                                    key={concert.id}
+                                    position={[concert.lat, concert.lng]}
                                 >
-                                    <span>Get Tickets</span>
-                                    <ExternalLink className="w-4 h-4" />
-                                </a>
-                            </div>
-                        </motion.div>
-                    ))}
+                                    <Popup className="text-black">
+                                        <div className="flex flex-col gap-2 min-w-[200px]">
+                                            <h3 className="font-bold text-sm">{concert.artist}</h3>
+                                            <p className="text-xs">{concert.title}</p>
+                                            <p className="text-xs text-gray-500">{formatDate(concert.date)}</p>
+                                            <p className="text-xs">{concert.venue}, {concert.city}</p>
+                                            <a href={concert.url} target="_blank" className="text-xs text-blue-600 hover:underline">Get Tickets</a>
+                                            <button
+                                                onClick={(e) => toggleReminder(concert.id, e)}
+                                                className={`text-xs flex items-center gap-1 ${reminders.has(concert.id) ? 'text-green-600' : 'text-gray-400'}`}
+                                            >
+                                                <Heart className={`w-3 h-3 ${reminders.has(concert.id) ? 'fill-current' : ''}`} />
+                                                {reminders.has(concert.id) ? 'Reminder Set' : 'Remind Me'}
+                                            </button>
+                                        </div>
+                                    </Popup>
+                                </Marker>
+                            ))}
+                        </MapContainer>
+                    )}
                 </div>
             )}
         </div>

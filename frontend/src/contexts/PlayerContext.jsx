@@ -12,6 +12,7 @@ export function PlayerProvider({ children }) {
     const [queue, setQueue] = useState([]);
     const [queueIndex, setQueueIndex] = useState(-1);
     const [activeDownloads, setActiveDownloads] = useState([]);
+    const [showLyrics, setShowLyrics] = useState(false);
 
     const audioRef = useRef(new Audio());
     const wsRef = useRef(null);
@@ -195,7 +196,10 @@ export function PlayerProvider({ children }) {
             activeDownloads,
             nextTrack,
             prevTrack,
-            queue
+            queue,
+            showLyrics,
+            toggleLyrics: () => setShowLyrics(prev => !prev),
+            setShowLyrics
         }}>
             {children}
         </PlayerContext.Provider>

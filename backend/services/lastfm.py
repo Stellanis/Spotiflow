@@ -768,3 +768,51 @@ class LastFMService:
                 break
         
         return {"current_streak": streak}
+
+    def generate_sonic_diary(self, user: str):
+        # 1. Get Weekly Top Tracks
+        top_tracks = self.get_top_tracks(user, period="7day", limit=5)
+        # 2. Get Weekly Top Artists
+        try:
+            top_artists = self.get_top_artists(user, period="7day", limit=3)
+        except:
+             top_artists = []
+
+        if not top_tracks:
+            return None
+            
+        # Analysis
+        top_track = top_tracks[0]
+        top_artist = top_artists[0] if top_artists else {"name": top_track['artist']}
+        
+        # Heuristic Templates "AI"
+        import random
+        
+        intros = [
+            f"This week, your world revolved around {top_artist['name']}.",
+            f"You've been obsessing over {top_artist['name']} lately.",
+            f"The soundtrack of your week? Definitely {top_artist['name']}."
+        ]
+        
+        middles = [
+            f"'{top_track['title']}' was on repeat.",
+            f"You couldn't stop listening to '{top_track['title']}'.",
+            f"'{top_track['title']}' by {top_track['artist']} really hit the spot this week."
+        ]
+        
+        outros = [
+            "Keep the vibe going!",
+            "Wonder what next week will sound like?",
+            "A solid week of discovery."
+        ]
+        
+        story = f"{random.choice(intros)} {random.choice(middles)} {random.choice(outros)}"
+        
+        return {
+            "title": "Weekly Sonic Diary",
+            "content": story,
+            "stats": {
+                "top_artist": top_artist,
+                "top_track": top_track
+            }
+        }

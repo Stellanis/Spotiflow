@@ -123,3 +123,13 @@ def get_top_artists(user: str, period: str = "1month", limit: int = 10):
     except Exception as e:
         logger.error(f"Error getting top artists: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+@router.get("/sonic-diary/{user}")
+def get_sonic_diary(user: str):
+    try:
+        data = lastfm_service.generate_sonic_diary(user)
+        if not data:
+            raise HTTPException(status_code=404, detail="Not enough data for diary")
+        return data
+    except Exception as e:
+        logger.error(f"Error generating sonic diary: {e}")
+        raise HTTPException(status_code=500, detail=str(e))

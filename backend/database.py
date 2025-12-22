@@ -82,6 +82,8 @@ def init_db():
             url TEXT,
             image_url TEXT,
             source TEXT,
+            lat REAL,
+            lng REAL,
             created_at TIMESTAMP
         )
     ''')
@@ -101,6 +103,11 @@ def init_db():
     if 'country' not in c_columns:
          print("Migrating database: adding country column to concerts")
          c.execute("ALTER TABLE concerts ADD COLUMN country TEXT")
+
+    if 'lat' not in c_columns:
+         print("Migrating database: adding lat/lng columns to concerts")
+         c.execute("ALTER TABLE concerts ADD COLUMN lat REAL")
+         c.execute("ALTER TABLE concerts ADD COLUMN lng REAL")
 
     # Create Favorite Artists table
     c.execute('''
@@ -385,6 +392,40 @@ def get_all_artists():
     conn.close()
     return [row[0] for row in rows if row[0]]
 
+    return [row[0] for row in rows if row[0]]
+
+def get_all_artists_with_counts():
+    """
+    Returns a dictionary {artist_name: play_count}
+    """
+    conn = sqlite3.connect(DB_NAME)
+    c = conn.cursor()
+    scores = {}
+    
+    # 1. From Scrobbles
+    try:
+        c.execute('SELECT artist, COUNT(*) as count FROM scrobbles GROUP BY artist')
+        rows = c.fetchall()
+        for row in rows:
+            if row[0]:
+                scores[row[0]] = row[1]
+    except Exception:
+        pass
+        
+    # 2. From Downloads (Fallback - give them score of 1 if not present)
+    try:
+        c.execute('SELECT DISTINCT artist FROM downloads WHERE status = "completed"')
+        rows = c.fetchall()
+        for row in rows:
+            artist = row[0]
+            if artist and artist not in scores:
+                scores[artist] = 1 # Minimum score for existing artists
+    except Exception:
+        pass
+        
+    conn.close()
+    return scores
+
 def get_all_albums(artist=None):
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
@@ -419,13 +460,13 @@ def get_all_settings():
     conn.close()
     return {row[0]: row[1] for row in rows}
 
-def add_concert(concert_id, artist, title, date, time, venue, city, country, url, image_url, source):
+def add_concert(concert_id, artist, title, date, time, venue, city, country, url, image_url, source, lat=None, lng=None):
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
     try:
         c.execute('''
-            INSERT INTO concerts (id, artist, title, date, time, venue, city, country, url, image_url, source, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO concerts (id, artist, title, date, time, venue, city, country, url, image_url, source, lat, lng, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(id) DO UPDATE SET
                 artist=excluded.artist,
                 title=excluded.title,
@@ -437,8 +478,10 @@ def add_concert(concert_id, artist, title, date, time, venue, city, country, url
                 url=excluded.url,
                 image_url=excluded.image_url,
                 source=excluded.source,
+                lat=excluded.lat,
+                lng=excluded.lng,
                 created_at=excluded.created_at
-        ''', (concert_id, artist, title, date, time, venue, city, country, url, image_url, source, datetime.now()))
+        ''', (concert_id, artist, title, date, time, venue, city, country, url, image_url, source, lat, lng, datetime.now()))
         conn.commit()
     except Exception as e:
         print(f"Error adding concert: {e}")
