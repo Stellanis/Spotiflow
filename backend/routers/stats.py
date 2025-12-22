@@ -31,14 +31,34 @@ def get_track_info(user: str, artist: str, track: str):
         logger.error(f"Error fetching track info: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+@router.post("/sync/{user}")
+def sync_stats(user: str, background_tasks: BackgroundTasks):
+    """
+    Trigger a sync of recent scrobbles to the local database.
+    """
+    background_tasks.add_task(lastfm_service.sync_scrobbles_to_db, user)
+    return {"status": "sync_started", "message": "Scrobble sync started in background"}
+
 @router.get("/chart")
 def get_chart_data(user: str, period: str = "1month", artist: str = None, track: str = None):
     try:
-        data = lastfm_service.get_chart_data(user, period, artist, track)
+        # If artist/track filtering is used, we might want to stick to API or implement filtering in DB
+        # For now, let's use DB for general chart, fallback to API for specific filtering if needed?
+        # Our get_chart_data_db only does general user chart.
+        if artist or track:
+             # Fallback to API/Cache for filtered
+             return lastfm_service.get_chart_data(user, period, artist, track)
+             
+        # Use local DB for main activity chart
+        data = lastfm_service.get_chart_data_db(user, period)
         return data
     except Exception as e:
         logger.error(f"Error fetching chart data: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        # Fallback to API if DB fails?
+        try:
+            return lastfm_service.get_chart_data(user, period, artist, track)
+        except:
+            raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/listening-clock/{user}")
 def get_listening_clock(user: str, period: str = "1month"):
@@ -70,11 +90,13 @@ def get_on_this_day(user: str):
 @router.get("/streak/{user}")
 def get_streak(user: str):
     try:
-        data = lastfm_service.get_listening_streak(user)
+        # Use local DB for streak
+        data = lastfm_service.get_listening_streak_db(user)
         return data
     except Exception as e:
         logger.error(f"Error fetching streak data: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        # Fallback
+        return lastfm_service.get_listening_streak(user)
 
 @router.get("/diversity/{user}")
 def get_diversity(user: str, period: str = "1month"):

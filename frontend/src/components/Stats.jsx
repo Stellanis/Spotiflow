@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Loader2, Music, Trophy, Calendar } from 'lucide-react';
+import { Loader2, Music, Trophy, Calendar, RefreshCw } from 'lucide-react';
 import { GlassCard } from './GlassCard';
 import { SkeletonCard } from './SkeletonCard';
 import { cn } from '../utils';
@@ -41,12 +41,35 @@ export default function Stats({ username, onTrackClick }) {
         { value: '12month', label: 'Last Year' },
     ];
 
+    const [syncing, setSyncing] = useState(false);
+
     useEffect(() => {
         if (username) {
+            // Trigger background sync on mount to ensure we have latest data
+            syncStats();
+
             fetchTopTracks();
             fetchChartData();
         }
     }, [username, period]);
+
+    const syncStats = async () => {
+        if (syncing) return;
+        setSyncing(true);
+        try {
+            await axios.post(`${API_URL}/stats/sync/${username}`);
+            // After sync starts, we might want to poll or just wait a bit and re-fetch chart?
+            // Since it's background, immediate re-fetch might not show everything. 
+            // Let's rely on the user or a delayed re-fetch.
+            setTimeout(() => {
+                fetchChartData(); // Refresh charts after a partial sync might have happened
+            }, 2000);
+        } catch (error) {
+            console.error("Sync error:", error);
+        } finally {
+            setSyncing(false);
+        }
+    };
 
     const fetchTopTracks = async () => {
         setLoading(true);
@@ -61,7 +84,6 @@ export default function Stats({ username, onTrackClick }) {
             setLoading(false);
         }
     };
-
 
     const fetchChartData = async () => {
         try {
@@ -138,6 +160,18 @@ export default function Stats({ username, onTrackClick }) {
                     </div>
                 </div>
             </div>
+
+            <div className="flex items-center justify-end gap-2 no-capture group-[.capturing]/stats:hidden">
+                <button
+                    onClick={syncStats}
+                    disabled={syncing}
+                    className="p-2 rounded-full hover:bg-white/10 text-spotify-grey hover:text-white transition-colors disabled:opacity-50"
+                    title="Sync with Last.fm"
+                >
+                    <RefreshCw className={cn("w-4 h-4", syncing && "animate-spin")} />
+                </button>
+            </div>
+
 
             {/* Activity Chart */}
             <GlassCard className="p-6">
