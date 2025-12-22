@@ -2,7 +2,7 @@
 
 A self-hosted application that automatically downloads your recent Last.fm scrobbles as high-quality MP3s, organized perfectly for Plex.
 
-![Dashboard Preview](assets/dashboard.png)
+![Dashboard Preview](assets/dashboard_2025.png)
 
 ## 🚀 Features
 
@@ -11,12 +11,14 @@ A self-hosted application that automatically downloads your recent Last.fm scrob
 -   **Plex-Ready Organization**: Automatically sorts files into `Artist/Album/Song.mp3`.
 -   **Metadata Injection**: Embeds correct Artist, Title, and Album tags (ignoring messy YouTube titles).
 -   **Modern UI**: Beautiful, responsive dashboard built with React, Vite, and Tailwind CSS v4.
--   **Theming**: Fully customizable with Light/Dark modes and multiple color themes (Violet, Blue, Green, Orange, Red, Slate).
+-   **Concert Explorations**: Find upcoming concerts for your favorite artists with advanced filtering (Top 50, Location, Global).
+-   **Concert Reminders**: Set reminders for specific concerts and view them in a dedicated list.
+-   **Playlist Analytics**: "Nerdy Attributes" (Hipster Index, Mood Analysis), reordering, and deep customization for playlists.
+-   **Theming**: Fully customizable with a focus on a sleek Dark Mode experience.
 -   **Library Management**: View your downloaded collection, search for tracks, and manually trigger downloads.
 -   **Undownloaded View**: Quickly see which scrobbles haven't been downloaded yet, search them, and queue them all with one click.
 -   **Job Management**: Monitor active and pending downloads in real-time with a dedicated Jobs page.
--   **Advanced Statistics**: Visualize your listening habits with top tracks, activity charts, and more.
--   **Playlists**: Create and manage playlists from your downloaded library.
+-   **Advanced Statistics**: Visualize your listening habits with top tracks, activity charts, listening streaks, and more.
 -   **Interactive Tutorial**: A built-in guide to help you get started and configure your API keys on the first run.
 -   **Dockerized**: Easy deployment on local machines or NAS (Synology, Unraid, etc.).
 
@@ -24,31 +26,35 @@ A self-hosted application that automatically downloads your recent Last.fm scrob
 
 ### Dashboard
 Overview of your recent scrobbles and activity.
-![Dashboard Preview](assets/dashboard_v2.png)
+![Dashboard Preview](assets/dashboard_2025.png)
 
 ### Library
 Browse your downloaded collection with album art and metadata.
-![Library View](assets/library_v2.png)
+![Library View](assets/library_2025.png)
 
 ### Statistics
 Deep dive into your listening trends.
-![Stats View](assets/stats_v2.png)
+![Stats View](assets/stats_2025.png)
+
+### Concerts
+Find upcoming shows near you or globally.
+![Concerts View](assets/concerts_2025.png)
+
+### Playlist Insights
+Analyze your playlists with unique metrics like "Hipster Index".
+![Playlist Insights](assets/playlist_insights_2025.png)
 
 ### Undownloaded Tracks
 See what's missing from your library and download everything with a single click.
-![Undownloaded View](assets/undownloaded_v2.png)
+![Undownloaded View](assets/undownloaded_2025.png)
 
 ### Job Queue
 Track the status of your downloads in real-time.
-![Jobs Page](assets/jobs_v2.png)
+![Jobs Page](assets/jobs_2025.png)
 
 ### Settings & Theming
 Configure API keys, update intervals, and customize the look and feel of the app.
-![Settings Page](assets/settings_v2.png)
-
-### First-Run Tutorial
-Helpful guide to get you set up quickly.
-![Tutorial](assets/tutorial_v2.png)
+![Settings Page](assets/settings_2025.png)
 
 ## 🛠️ Tech Stack
 
