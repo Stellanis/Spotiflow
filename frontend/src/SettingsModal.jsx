@@ -2,7 +2,10 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Save, Loader2 } from 'lucide-react';
 import axios from 'axios';
-import { cn } from './utils';
+import { LastFMConfig } from './components/settings/LastFMConfig';
+import { ConcertsConfig } from './components/settings/ConcertsConfig';
+import { BehaviorConfig } from './components/settings/BehaviorConfig';
+import { InterfaceConfig } from './components/settings/InterfaceConfig';
 
 const API_URL = '/api';
 
@@ -18,6 +21,7 @@ export function SettingsModal({ isOpen, onClose, onSave, onReplayTutorial }) {
     const [saving, setSaving] = useState(false);
     const [tmApiKey, setTmApiKey] = useState('');
     const [bitAppId, setBitAppId] = useState('');
+
     useEffect(() => {
         if (isOpen) {
             fetchSettings();
@@ -33,7 +37,7 @@ export function SettingsModal({ isOpen, onClose, onSave, onReplayTutorial }) {
             setUsername(response.data.LASTFM_USER || '');
             setUpdateInterval(response.data.SCROBBLE_UPDATE_INTERVAL || 30);
             setLimitCount(response.data.SCROBBLE_LIMIT_COUNT || 20);
-            setAutoDownload(response.data.AUTO_DOWNLOAD !== 'false'); // Default to true
+            setAutoDownload(response.data.AUTO_DOWNLOAD !== 'false');
 
             const hidden = response.data.HIDDEN_FEATURES ? response.data.HIDDEN_FEATURES.split(',') : [];
             setHiddenFeatures(new Set(hidden));
@@ -59,14 +63,12 @@ export function SettingsModal({ isOpen, onClose, onSave, onReplayTutorial }) {
                 hidden_features: Array.from(hiddenFeatures).join(',')
             };
 
-            // Only send API key/secret if they are not masked (i.e. user changed them)
             if (apiKey && !apiKey.includes('*')) {
                 payload.lastfm_api_key = apiKey;
             }
             if (apiSecret && !apiSecret.includes('*')) {
                 payload.lastfm_api_secret = apiSecret;
             }
-
             if (tmApiKey && !tmApiKey.includes('*')) {
                 payload.tm_api_key = tmApiKey;
             }
@@ -75,7 +77,7 @@ export function SettingsModal({ isOpen, onClose, onSave, onReplayTutorial }) {
             }
 
             await axios.post(`${API_URL}/settings`, payload);
-            onSave(username, autoDownload, Array.from(hiddenFeatures)); // Pass back the new username, autoDownload state, and hidden features
+            onSave(username, autoDownload, Array.from(hiddenFeatures));
             onClose();
         } catch (error) {
             console.error("Error saving settings:", error);
@@ -109,7 +111,6 @@ export function SettingsModal({ isOpen, onClose, onSave, onReplayTutorial }) {
         <AnimatePresence>
             {isOpen && (
                 <>
-                    {/* Backdrop */}
                     <motion.div
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
@@ -118,7 +119,6 @@ export function SettingsModal({ isOpen, onClose, onSave, onReplayTutorial }) {
                         className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50"
                     />
 
-                    {/* Modal */}
                     <motion.div
                         initial={{ opacity: 0, scale: 0.95, y: 20 }}
                         animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -143,139 +143,28 @@ export function SettingsModal({ isOpen, onClose, onSave, onReplayTutorial }) {
                                     </div>
                                 ) : (
                                     <div className="space-y-6">
+                                        <LastFMConfig
+                                            apiKey={apiKey} setApiKey={setApiKey}
+                                            apiSecret={apiSecret} setApiSecret={setApiSecret}
+                                            username={username} setUsername={setUsername}
+                                        />
 
-                                        {/* API Settings Section */}
-                                        <div className="space-y-4">
-                                            <h3 className="text-sm font-semibold text-white uppercase tracking-wider border-b border-white/10 pb-2">Last.fm Config</h3>
-                                            <div className="space-y-2">
-                                                <label className="text-sm font-medium text-spotify-grey">API Key</label>
-                                                <input
-                                                    type="text"
-                                                    value={apiKey}
-                                                    onChange={(e) => setApiKey(e.target.value)}
-                                                    className="w-full bg-black/20 border border-white/10 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-spotify-green transition-colors"
-                                                    placeholder="Enter API Key"
-                                                />
-                                            </div>
+                                        <ConcertsConfig
+                                            tmApiKey={tmApiKey} setTmApiKey={setTmApiKey}
+                                            bitAppId={bitAppId} setBitAppId={setBitAppId}
+                                        />
 
-                                            <div className="space-y-2">
-                                                <label className="text-sm font-medium text-spotify-grey">Shared Secret</label>
-                                                <input
-                                                    type="password"
-                                                    value={apiSecret}
-                                                    onChange={(e) => setApiSecret(e.target.value)}
-                                                    className="w-full bg-black/20 border border-white/10 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-spotify-green transition-colors"
-                                                    placeholder="Enter Shared Secret"
-                                                />
-                                            </div>
+                                        <BehaviorConfig
+                                            updateInterval={updateInterval} setUpdateInterval={setUpdateInterval}
+                                            limitCount={limitCount} setLimitCount={setLimitCount}
+                                            autoDownload={autoDownload} setAutoDownload={setAutoDownload}
+                                        />
 
-                                            <div className="space-y-2">
-                                                <label className="text-sm font-medium text-spotify-grey">Username</label>
-                                                <input
-                                                    type="text"
-                                                    value={username}
-                                                    onChange={(e) => setUsername(e.target.value)}
-                                                    className="w-full bg-black/20 border border-white/10 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-spotify-green transition-colors"
-                                                    placeholder="Enter Username"
-                                                />
-                                            </div>
-                                        </div>
-
-                                        {/* Concerts Config Section */}
-                                        <div className="space-y-4">
-                                            <h3 className="text-sm font-semibold text-white uppercase tracking-wider border-b border-white/10 pb-2">Concerts Config</h3>
-                                            <div className="space-y-2">
-                                                <label className="text-sm font-medium text-spotify-grey">Ticketmaster API Key</label>
-                                                <input
-                                                    type="text"
-                                                    value={tmApiKey}
-                                                    onChange={(e) => setTmApiKey(e.target.value)}
-                                                    className="w-full bg-black/20 border border-white/10 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-spotify-green transition-colors"
-                                                    placeholder="Enter Ticketmaster API Key"
-                                                />
-                                            </div>
-                                            <div className="space-y-2">
-                                                <label className="text-sm font-medium text-spotify-grey">Bandsintown App ID</label>
-                                                <input
-                                                    type="text"
-                                                    value={bitAppId}
-                                                    onChange={(e) => setBitAppId(e.target.value)}
-                                                    className="w-full bg-black/20 border border-white/10 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-spotify-green transition-colors"
-                                                    placeholder="Enter App ID (optional)"
-                                                />
-                                            </div>
-                                        </div>
-
-                                        {/* Behavior Section */}
-                                        <div className="space-y-4">
-                                            <h3 className="text-sm font-semibold text-white uppercase tracking-wider border-b border-white/10 pb-2">Behavior</h3>
-                                            <div className="grid grid-cols-2 gap-4">
-                                                <div className="space-y-2">
-                                                    <label className="text-sm font-medium text-spotify-grey">Update (min)</label>
-                                                    <input
-                                                        type="number"
-                                                        value={updateInterval}
-                                                        onChange={(e) => setUpdateInterval(e.target.value)}
-                                                        className="w-full bg-black/20 border border-white/10 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-spotify-green transition-colors"
-                                                        min="1"
-                                                    />
-                                                </div>
-                                                <div className="space-y-2">
-                                                    <label className="text-sm font-medium text-spotify-grey">Check Limit</label>
-                                                    <input
-                                                        type="number"
-                                                        value={limitCount}
-                                                        onChange={(e) => setLimitCount(e.target.value)}
-                                                        className="w-full bg-black/20 border border-white/10 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-spotify-green transition-colors"
-                                                        min="1"
-                                                    />
-                                                </div>
-                                            </div>
-
-                                            <div className="flex items-center justify-between p-3 bg-black/20 rounded-lg border border-white/10">
-                                                <div className="space-y-0.5">
-                                                    <label className="text-sm font-medium text-white block">Auto Download</label>
-                                                    <p className="text-xs text-spotify-grey">Download new scrobbles</p>
-                                                </div>
-                                                <button
-                                                    onClick={() => setAutoDownload(!autoDownload)}
-                                                    className={cn(
-                                                        "w-12 h-6 rounded-full transition-colors relative",
-                                                        autoDownload ? "bg-spotify-green" : "bg-white/10"
-                                                    )}
-                                                >
-                                                    <div className={cn(
-                                                        "w-4 h-4 rounded-full bg-white absolute top-1 transition-all",
-                                                        autoDownload ? "left-7" : "left-1"
-                                                    )} />
-                                                </button>
-                                            </div>
-                                        </div>
-
-                                        {/* Interface Section */}
-                                        <div className="space-y-4">
-                                            <h3 className="text-sm font-semibold text-white uppercase tracking-wider border-b border-white/10 pb-2">Interface Visibility</h3>
-                                            <div className="space-y-2">
-                                                {features.map(feature => (
-                                                    <div key={feature.id} className="flex items-center justify-between p-3 bg-black/20 rounded-lg border border-white/10">
-                                                        <span className="text-sm font-medium text-white">{feature.label}</span>
-                                                        <button
-                                                            onClick={() => toggleFeature(feature.id)}
-                                                            className={cn(
-                                                                "w-12 h-6 rounded-full transition-colors relative",
-                                                                !hiddenFeatures.has(feature.id) ? "bg-spotify-green" : "bg-white/10"
-                                                            )}
-                                                        >
-                                                            <div className={cn(
-                                                                "w-4 h-4 rounded-full bg-white absolute top-1 transition-all",
-                                                                !hiddenFeatures.has(feature.id) ? "left-7" : "left-1"
-                                                            )} />
-                                                        </button>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </div>
-
+                                        <InterfaceConfig
+                                            hiddenFeatures={hiddenFeatures}
+                                            toggleFeature={toggleFeature}
+                                            features={features}
+                                        />
                                     </div>
                                 )}
                             </div>
@@ -313,8 +202,7 @@ export function SettingsModal({ isOpen, onClose, onSave, onReplayTutorial }) {
                         </div>
                     </motion.div>
                 </>
-            )
-            }
-        </AnimatePresence >
+            )}
+        </AnimatePresence>
     );
 }

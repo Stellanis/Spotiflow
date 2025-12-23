@@ -4,6 +4,7 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from dotenv import load_dotenv
 from services.lastfm import LastFMService
 from services.downloader import DownloaderService
+from services.analytics import AnalyticsService
 
 load_dotenv()
 
@@ -20,5 +21,6 @@ logger = logging.getLogger("spotiflow")
 
 # Shared Instances
 lastfm_service = LastFMService()
+analytics_service = AnalyticsService(lastfm_service)
 downloader_service = DownloaderService()
 scheduler = BackgroundScheduler()
