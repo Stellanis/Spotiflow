@@ -1,11 +1,24 @@
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 from typing import List, Optional
-import sqlite3
 from datetime import datetime
 from collections import Counter
 from core import lastfm_service, logger
-from database import DB_NAME, get_download_info, get_setting
+from database import DB_NAME, get_setting, get_download_info
+from database import (
+    get_playlists_with_stats,
+    create_playlist as repo_create_playlist,
+    get_playlist_by_id,
+    get_playlist_songs,
+    add_song_to_playlist as repo_add_song,
+    remove_song_from_playlist as repo_remove_song,
+    delete_playlist as repo_delete_playlist,
+    update_playlist_details,
+    reorder_playlist_songs,
+    get_top_local_artists,
+    find_local_song,
+    add_songs_to_playlist_batch
+)
 
 router = APIRouter(tags=["playlists"])
 
@@ -44,50 +57,9 @@ class Playlist(BaseModel):
 class PlaylistDetail(Playlist):
     songs: List[dict] = []
 
-def get_db():
-    conn = sqlite3.connect(DB_NAME)
-    conn.row_factory = sqlite3.Row
-    try:
-        yield conn
-    finally:
-        conn.close()
-
 @router.get("/playlists", response_model=List[Playlist])
 async def get_playlists():
-    conn = sqlite3.connect(DB_NAME)
-    conn.row_factory = sqlite3.Row
-    try:
-        c = conn.cursor()
-        c.execute('''
-            SELECT p.*, COUNT(ps.id) as song_count 
-            FROM playlists p 
-            LEFT JOIN playlist_songs ps ON p.id = ps.playlist_id 
-            GROUP BY p.id
-            ORDER BY p.created_at DESC
-        ''')
-        rows = c.fetchall()
-        
-        playlists = []
-        for row in rows:
-            p = dict(row)
-            # Fetch up to 4 images for the collage
-            c.execute('''
-                SELECT DISTINCT d.image_url 
-                FROM playlist_songs ps 
-                JOIN downloads d ON ps.song_query = d.query 
-                WHERE ps.playlist_id = ? AND d.image_url IS NOT NULL AND d.image_url != ''
-                ORDER BY ps.position ASC 
-                LIMIT 4
-            ''', (p['id'],))
-            images = [r[0] for r in c.fetchall()]
-            p['images'] = images
-            playlists.append(p)
-    finally:
-        conn.close()
-    
-    return playlists
-
-
+    return get_playlists_with_stats()
 
 @router.post("/playlists/generate/top")
 async def generate_top_playlist(req: PlaylistGenerateTop):
@@ -101,55 +73,33 @@ async def generate_top_playlist(req: PlaylistGenerateTop):
         if not tracks:
             raise HTTPException(status_code=400, detail="No top tracks found or API error")
             
-        # Match with local DB
-        conn = sqlite3.connect(DB_NAME)
-        try:
-            c = conn.cursor()
+        # Create Playlist
+        playlist = repo_create_playlist(req.name, req.description, 'manual')
+        if not playlist:
+            raise HTTPException(status_code=400, detail="Playlist with this name already exists")
+        
+        playlist_id = playlist['id']
+        songs_to_add = []
+        
+        for track in tracks:
+            artist = track['artist']
+            title = track['title']
             
-            # Create Playlist
-            created_at = datetime.now()
-            c.execute('INSERT INTO playlists (name, description, type, created_at) VALUES (?, ?, ?, ?)', 
-                      (req.name, req.description, 'manual', created_at))
-            playlist_id = c.lastrowid
-            
-            # Find Matches
-            added_count = 0
-            for track in tracks:
-                # Query format: "Artist - Title"
-                # We try exact match first
-                query = f"{track['artist']} - {track['title']}"
+            # Find in local DB
+            query = find_local_song(artist, title)
+            if query:
+                songs_to_add.append(query)
                 
-                # Check if exists in downloads (completed)
-                c.execute('SELECT query FROM downloads WHERE query = ? AND status = "completed"', (query,))
-                row = c.fetchone()
-                
-                if not row:
-                    # Try sloppy match? (Simple string search might be dangerous for "Playlist", let's stick to query id)
-                    # Maybe try search by artist AND title separately?
-                    c.execute('SELECT query FROM downloads WHERE artist = ? AND title = ? AND status = "completed"', 
-                              (track['artist'], track['title']))
-                    row = c.fetchone()
-                    
-                if row:
-                    song_query = row[0]
-                    # Add to playlist
-                    c.execute('INSERT INTO playlist_songs (playlist_id, song_query, position, added_at) VALUES (?, ?, ?, ?)',
-                              (playlist_id, song_query, added_count, datetime.now()))
-                    added_count += 1
-                    
-            conn.commit()
+        # Batch add
+        added_count = add_songs_to_playlist_batch(playlist_id, songs_to_add)
+
+        return {
+            "id": playlist_id,
+            "name": req.name,
+            "song_count": added_count,
+            "message": f"Created playlist with {added_count} matching songs."
+        }
             
-            return {
-                "id": playlist_id,
-                "name": req.name,
-                "song_count": added_count,
-                "message": f"Created playlist with {added_count} songs matched from your top tracks."
-            }
-        finally:
-            conn.close()
-            
-    except sqlite3.IntegrityError:
-        raise HTTPException(status_code=400, detail="Playlist with this name already exists")
     except Exception as e:
         logger.error(f"Error generating top playlist: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -161,115 +111,64 @@ async def generate_genre_playlist(req: PlaylistGenerateGenre):
         raise HTTPException(status_code=400, detail="LastFM user not configured")
         
     try:
-        # 1. Get Top Artists (Proxy for "My Artists")
-        # Reuse logic or rely on local library
-        conn = sqlite3.connect(DB_NAME)
+        # 1. Get Top Artists
+        top_local_artists = get_top_local_artists(limit=50)
         
-        try:
-            c = conn.cursor()
-            c.execute('SELECT artist, COUNT(*) as cnt FROM downloads GROUP BY artist ORDER BY cnt DESC LIMIT 50')
-            top_local_artists = [r[0] for r in c.fetchall()]
-            
-            valid_artists = []
-            target_tag = req.tag.lower()
-            
-            # Need to close conn? No, keep it open for playlist creation if we proceed. 
-            # But scanning tags takes time, maybe close and reopen? 
-            # SQLite allows one connection per thread/task. Let's keep it.
-            
-            for artist in top_local_artists:
-                tags = lastfm_service._get_artist_tags(artist)
-                if any(target_tag in t.lower() for t in tags):
-                    valid_artists.append(artist)
-                    
-            if not valid_artists:
-                 return {"message": f"No artists found with tag '{req.tag}' in your top 50 local artists."}
-                 
-            # Create Playlist
-            created_at = datetime.now()
-            c.execute('INSERT INTO playlists (name, description, type, created_at) VALUES (?, ?, ?, ?)', 
-                      (req.name, req.description, 'manual', created_at))
-            playlist_id = c.lastrowid
-            
-            # Add songs by these artists
-            placeholders = ','.join(['?'] * len(valid_artists))
-            c.execute(f'''
-                SELECT query FROM downloads 
-                WHERE artist IN ({placeholders}) AND status = "completed"
-                ORDER BY RANDOM() LIMIT 100
-            ''', valid_artists)
-            
-            songs = c.fetchall()
-            for idx, (q,) in enumerate(songs):
-                 c.execute('INSERT INTO playlist_songs (playlist_id, song_query, position, added_at) VALUES (?, ?, ?, ?)',
-                              (playlist_id, q, idx, datetime.now()))
-                              
-            conn.commit()
-            
-            return {
-                "id": playlist_id,
-                "name": req.name,
-                "song_count": len(songs),
-                "message": f"Created genre mix with {len(songs)} songs from {len(valid_artists)} artists."
-            }
-        finally:
-            conn.close()
+        valid_artists = []
+        target_tag = req.tag.lower()
+        
+        for artist in top_local_artists:
+            # Use public method (renamed in refactor)
+            tags = lastfm_service.get_artist_tags(artist)
+            if any(target_tag in t.lower() for t in tags):
+                valid_artists.append(artist)
+                
+        if not valid_artists:
+                return {"message": f"No artists found with tag '{req.tag}' in your top 50 local artists."}
+                
+        # Create Playlist
+        playlist = repo_create_playlist(req.name, req.description, 'manual')
+        if not playlist:
+            raise HTTPException(status_code=400, detail="Playlist with this name already exists")
+        
+        playlist_id = playlist['id']
+        
+        # Add songs - Use recommendation helper to pick random songs from these artists
+        candidates = get_candidates_for_recommendation(valid_artists, limit=50)
+        songs_to_add = [row['query'] for row in candidates]
+        
+        added_count = add_songs_to_playlist_batch(playlist_id, songs_to_add)
+        
+        return {
+            "id": playlist_id,
+            "name": req.name,
+            "song_count": added_count,
+            "message": f"Created genre mix for {len(valid_artists)} artists with {added_count} songs."
+        }
 
-    except sqlite3.IntegrityError:
-        raise HTTPException(status_code=400, detail="Playlist with this name already exists")
     except Exception as e:
         logger.error(f"Error generating genre playlist: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/playlists", response_model=Playlist)
 async def create_playlist(playlist: PlaylistCreate):
-    conn = sqlite3.connect(DB_NAME)
-    c = conn.cursor()
-    try:
-        created_at = datetime.now()
-        c.execute('INSERT INTO playlists (name, description, type, rules, color, created_at) VALUES (?, ?, ?, ?, ?, ?)', 
-                  (playlist.name, playlist.description, playlist.type, playlist.rules, playlist.color, created_at))
-        playlist_id = c.lastrowid
-        conn.commit()
-        return {
-            "id": playlist_id,
-            "name": playlist.name,
-            "description": playlist.description,
-            "type": playlist.type,
-            "rules": playlist.rules,
-            "color": playlist.color,
-            "created_at": str(created_at),
-            "song_count": 0
-        }
-    except sqlite3.IntegrityError:
+    res = repo_create_playlist(playlist.name, playlist.description, playlist.type, playlist.rules, playlist.color)
+    if not res:
         raise HTTPException(status_code=400, detail="Playlist with this name already exists")
-    finally:
-        conn.close()
+    return res
 
 @router.get("/playlists/tags")
 async def get_available_tags():
-    """
-    Scans recent/top artists in library and returns aggregated tags.
-    """
     try:
-        conn = sqlite3.connect(DB_NAME)
-        c = conn.cursor()
-        # Get top 50 local artists by song count
-        c.execute('SELECT artist, COUNT(*) as cnt FROM downloads GROUP BY artist ORDER BY cnt DESC LIMIT 50')
-        artists = [r[0] for r in c.fetchall()]
-        conn.close()
-        
+        artists = get_top_local_artists(limit=50)
         tag_counts = Counter()
-        from core import lastfm_service # Ensure import
         
         for artist in artists:
-            tags = lastfm_service._get_artist_tags(artist)
+            tags = lastfm_service.get_artist_tags(artist)
             for tag in tags:
                 tag_counts[tag] += 1
                 
-        # Return top 50 tags
-        top_tags = [tag for tag, count in tag_counts.most_common(50)]
-        return top_tags
+        return [tag for tag, count in tag_counts.most_common(50)]
         
     except Exception as e:
         logger.error(f"Error fetching tags: {e}")
@@ -277,152 +176,58 @@ async def get_available_tags():
 
 @router.get("/playlists/{playlist_id}", response_model=PlaylistDetail)
 async def get_playlist_detail(playlist_id: int):
-    conn = sqlite3.connect(DB_NAME)
-    conn.row_factory = sqlite3.Row
-    try:
-        c = conn.cursor()
+    playlist = get_playlist_by_id(playlist_id)
+    if not playlist:
+        raise HTTPException(status_code=404, detail="Playlist not found")
         
-        # Get playlist info
-        c.execute('SELECT * FROM playlists WHERE id = ?', (playlist_id,))
-        playlist = c.fetchone()
-        if not playlist:
-            raise HTTPException(status_code=404, detail="Playlist not found")
-            
-        # Get songs
-        if playlist['type'] == 'smart' and playlist['rules']:
-            import json
-            try:
-                rules_data = json.loads(playlist['rules'])
-                match_type = rules_data.get('match_type', 'all') # 'all' (AND) or 'any' (OR)
-                rules = rules_data.get('rules', [])
-                
-                if not rules:
-                    songs = []
-                else:
-                    query_parts = ["SELECT 0 as position, * FROM downloads WHERE status = 'completed'"]
-                    conditions = []
-                    params = []
-                    
-                    for rule in rules:
-                        field = rule.get('field')
-                        operator = rule.get('operator')
-                        value = rule.get('value')
-                        
-                        clause = ""
-                        if field in ['artist', 'album', 'title']:
-                            if operator == 'contains':
-                                clause = f"{field} LIKE ?"
-                                params.append(f"%{value}%")
-                            elif operator == 'is':
-                                clause = f"{field} = ?"
-                                params.append(value)
-                            elif operator == 'is_not':
-                                clause = f"{field} != ?"
-                                params.append(value)
-                        elif field == 'created_at':
-                            # Value expected to be days ago, or specific date? 
-                            # Let's assume 'days_ago' for simplicity in V1 for "Recently Added"
-                            # Or 'date_range'
-                            pass 
-
-                        if clause:
-                            conditions.append(clause)
-                    
-                    if conditions:
-                        join_op = " AND " if match_type == 'all' else " OR "
-                        query_parts.append(f"AND ({join_op.join(conditions)})")
-                    
-                    query_parts.append("ORDER BY created_at DESC")
-                    
-                    sql = " ".join(query_parts)
-                    c.execute(sql, params)
-                    songs = c.fetchall()
-            except Exception as e:
-                print(f"Error executing smart playlist strings: {e}")
-                songs = []
-                
-        else:
-            # Manual playlist
-            c.execute('''
-                SELECT ps.position, d.* 
-                FROM playlist_songs ps
-                JOIN downloads d ON ps.song_query = d.query
-                WHERE ps.playlist_id = ?
-                ORDER BY ps.position ASC
-            ''', (playlist_id,))
-            songs = c.fetchall()
+    raw_songs = get_playlist_songs(playlist_id, playlist['type'], playlist['rules'])
+    
+    # Process songs (add audio_url)
+    song_list = []
+    from routers.downloads import sanitize_filename
+    images = []
+    
+    for song in raw_songs:
+        item = dict(song)
+        # Handle cases where song might be missing fields if query failed? No, repo handles it.
+        # But we need basic validation
+        if 'artist' not in item: continue 
         
-        # Process songs (add audio_url)
-        song_list = []
-        from routers.downloads import sanitize_filename
-        images = [] # Collect images for the playlist cover
-        for song in songs:
-            item = dict(song)
-            s_artist = sanitize_filename(item['artist'])
-            s_album = sanitize_filename(item['album'])
-            s_title = sanitize_filename(item['title'])
-            item['audio_url'] = f"/api/audio/{s_artist}/{s_album}/{s_title}.mp3"
-            song_list.append(item)
-            
-            # Collect unique images up to 4
-            if item.get('image_url') and item['image_url'] not in images and len(images) < 4:
-                images.append(item['image_url'])
+        s_artist = sanitize_filename(item['artist'])
+        s_album = sanitize_filename(item['album'])
+        s_title = sanitize_filename(item['title'])
+        item['audio_url'] = f"/api/audio/{s_artist}/{s_album}/{s_title}.mp3"
+        song_list.append(item)
         
-        result = dict(playlist)
-        result['created_at'] = str(result['created_at'])
-        result['songs'] = song_list
-        result['song_count'] = len(song_list)
-        result['images'] = images
-        return result
-    finally:
-        conn.close()
+        if item.get('image_url') and item['image_url'] not in images and len(images) < 4:
+            images.append(item['image_url'])
+    
+    result = dict(playlist)
+    result['created_at'] = str(result['created_at'])
+    result['songs'] = song_list
+    result['song_count'] = len(song_list)
+    result['images'] = images
+    return result
 
 @router.post("/playlists/{playlist_id}/add")
 async def add_song_to_playlist(playlist_id: int, song: PlaylistAddSong):
-    conn = sqlite3.connect(DB_NAME)
-    try:
-        c = conn.cursor()
-        
-        # Verify playlist exists
-        c.execute('SELECT id FROM playlists WHERE id = ?', (playlist_id,))
-        if not c.fetchone():
-            raise HTTPException(status_code=404, detail="Playlist not found")
+    playlist = get_playlist_by_id(playlist_id)
+    if not playlist:
+        raise HTTPException(status_code=404, detail="Playlist not found")
 
-        # Get max position
-        c.execute('SELECT MAX(position) FROM playlist_songs WHERE playlist_id = ?', (playlist_id,))
-        row = c.fetchone()
-        max_pos = row[0] if row else None
-        next_pos = (max_pos + 1) if max_pos is not None else 0
+    pos = repo_add_song(playlist_id, song.song_query)
+    if pos is None:
+        raise HTTPException(status_code=400, detail="Could not add song")
         
-        try:
-            c.execute('''
-                INSERT INTO playlist_songs (playlist_id, song_query, position, added_at)
-                VALUES (?, ?, ?, ?)
-            ''', (playlist_id, song.song_query, next_pos, datetime.now()))
-            conn.commit()
-        except Exception as e:
-            raise HTTPException(status_code=400, detail=str(e))
-            
-        return {"status": "added", "position": next_pos}
-    finally:
-        conn.close()
+    return {"status": "added", "position": pos}
 
 @router.put("/playlists/{playlist_id}")
 async def update_playlist(playlist_id: int, playlist: PlaylistCreate):
-    conn = sqlite3.connect(DB_NAME)
-    c = conn.cursor()
-    try:
-        c.execute('UPDATE playlists SET name = ?, description = ? WHERE id = ?', 
-                  (playlist.name, playlist.description, playlist_id))
-        if c.rowcount == 0:
-            conn.close()
-            raise HTTPException(status_code=404, detail="Playlist not found")
-        conn.commit()
-    except sqlite3.IntegrityError:
-        conn.close()
-        raise HTTPException(status_code=400, detail="Playlist with this name already exists")
-    finally:
-        conn.close()
+    success = update_playlist_details(playlist_id, playlist.name, playlist.description)
+    if not success:
+         # Could be not found OR duplicate name. Repo returns False for both mostly, or Exception.
+         # For simplicity assuming it failed.
+         raise HTTPException(status_code=400, detail="Update failed (Playlist not found or name duplicate)")
     return {"status": "updated", "id": playlist_id}
 
 class ReorderItem(BaseModel):
@@ -431,55 +236,28 @@ class ReorderItem(BaseModel):
 
 @router.put("/playlists/{playlist_id}/reorder")
 async def reorder_playlist(playlist_id: int, items: List[ReorderItem]):
-    conn = sqlite3.connect(DB_NAME)
-    c = conn.cursor()
-    
-    # Verify playlist exists
-    c.execute('SELECT id FROM playlists WHERE id = ?', (playlist_id,))
-    if not c.fetchone():
-        conn.close()
-        raise HTTPException(status_code=404, detail="Playlist not found")
+    # Allow items to be passed as list of objects
+    # Repo expects objects or dicts, our Pydantic models work fine if we pass them directly? 
+    # Repo expects 'song_query' and 'new_position' attributes or keys. Pydantic models have attributes.
+    if not reorder_playlist_songs(playlist_id, items):
+        raise HTTPException(status_code=500, detail="Failed to reorder")
         
-    try:
-        # We'll use a transaction to update all positions safely
-        for item in items:
-            c.execute('UPDATE playlist_songs SET position = ? WHERE playlist_id = ? AND song_query = ?',
-                      (item.new_position, playlist_id, item.song_query))
-        conn.commit()
-    except Exception as e:
-        conn.close()
-        raise HTTPException(status_code=500, detail=str(e))
-        
-    conn.close()
     return {"status": "reordered"}
 
 @router.delete("/playlists/{playlist_id}/songs/{song_query}")
 async def remove_song_from_playlist(playlist_id: int, song_query: str):
-    conn = sqlite3.connect(DB_NAME)
-    try:
-        c = conn.cursor()
-        c.execute('DELETE FROM playlist_songs WHERE playlist_id = ? AND song_query = ?', (playlist_id, song_query))
-        conn.commit()
-        return {"status": "removed"}
-    finally:
-        conn.close()
+    repo_remove_song(playlist_id, song_query)
+    return {"status": "removed"}
 
 @router.delete("/playlists/{playlist_id}")
 async def delete_playlist(playlist_id: int):
-    conn = sqlite3.connect(DB_NAME)
-    try:
-        c = conn.cursor()
-        c.execute('DELETE FROM playlist_songs WHERE playlist_id = ?', (playlist_id,))
-        c.execute('DELETE FROM playlists WHERE id = ?', (playlist_id,))
-        conn.commit()
-        return {"status": "deleted"}
-    finally:
-        conn.close()
-
+    repo_delete_playlist(playlist_id)
+    return {"status": "deleted"}
 
 @router.get("/playlists/{playlist_id}/stats")
 async def get_playlist_stats(playlist_id: int):
-    # Fetch playlist details first to get the song list (which handles smart/manual logic)
+    # Reuse the detail logic to get songs
+    # This might be slightly inefficient calling full detail, but keeps logic centralized
     playlist_detail = await get_playlist_detail(playlist_id)
     songs = playlist_detail['songs']
     
@@ -488,19 +266,23 @@ async def get_playlist_stats(playlist_id: int):
             "total_songs": 0,
             "total_artists": 0,
             "top_artists": [],
-            "years_distribution": {}
+            "years_distribution": {},
+            "diversity_score": 0,
+            "dominant_vibe": "None",
+            "hipster_score": 0,
+            "primary_mood": "Neutral",
+            "mood_distribution": [],
+            "top_genres": [],
+            "timeline": {}
         }
         
     artists = [s['artist'] for s in songs if s.get('artist')]
     artist_counts = Counter(artists).most_common(5)
     
-    # Simple 'added_at' timeline (by month?) - strictly for manual playlists it's 'added_at', for smart it's 'created_at' of song
-    # Let's use 'created_at' which exists on downloads table and is what we have in song items
     dates = []
     for s in songs:
         dt = s.get('created_at')
         if dt:
-            # truncate to YYYY-MM
             try:
                 if isinstance(dt, str):
                     dates.append(dt[:7]) 
@@ -508,30 +290,19 @@ async def get_playlist_stats(playlist_id: int):
                     dates.append(str(dt)[:7])
             except: pass
             
-    timeline = dict(Counter(dates).most_common(12)) # Top 12 months? Or just sorted?
-    # Better to sort by date for a timeline
-    # Sort timeline
-    sorted_timeline = dict(sorted(timeline.items()))
+    timeline = dict(sorted(dict(Counter(dates).most_common(12)).items()))
 
     # --- ADVANCED STATS ---
-    # 1. Genre Distribution
-    # Optimized: We'll use the top 10 artists (reduced from 20) to estimate the playlist's "Vibe"
-    # and we will use a naive approach to avoid 10 sequential API calls if possible.
-    # But for now, reducing to 10 significantly speeds it up.
     top_artists_subset = [a for a, c in artist_counts[:10]]
     genre_counts = Counter()
     
-    # 2. Nerdy Stats: Hipster Index & Mood
     hipster_score = 0
     mood_distribution = {"Energy": 0, "Chill": 0, "Melancholic": 0, "Dark": 0}
     
     try:
-        from core import lastfm_service
-        
         total_listeners = 0
         artist_count_for_listeners = 0
         
-        # Define mood keywords
         mood_keywords = {
             "Energy": ["rock", "metal", "punk", "electronic", "dance", "pop", "hip-hop", "rap", "upbeat"],
             "Chill": ["ambient", "acoustic", "jazz", "lo-fi", "folk", "classical", "instrumental", "mellow"],
@@ -542,30 +313,24 @@ async def get_playlist_stats(playlist_id: int):
         for artist in top_artists_subset:
             count_in_playlist = next((c for a, c in artist_counts if a == artist), 1)
 
-            # A. Hipster Index (Listeners)
             listeners = lastfm_service.get_artist_listeners(artist)
             if listeners > 0:
                 total_listeners += listeners
                 artist_count_for_listeners += 1
                 
-            # B. Tags for Genres & Mood
             tags = lastfm_service._get_artist_tags(artist)
             
-            # Update Genre Counts
-            for tag in tags[:3]: # Top 3 tags only
+            for tag in tags[:3]: 
                 genre_counts[tag] += count_in_playlist
             
-            # Update Mood Analysis
             for tag in tags:
                 tag_lower = tag.lower()
                 for mood, keywords in mood_keywords.items():
                     if any(k in tag_lower for k in keywords):
                         mood_distribution[mood] += count_in_playlist
                         
-        # Calculate Hipster Score (0-100)
         if artist_count_for_listeners > 0:
             avg_listeners = total_listeners / artist_count_for_listeners
-            # Normalized log score logic
             import math
             min_l = math.log(10000)
             max_l = math.log(5000000)
@@ -585,23 +350,14 @@ async def get_playlist_stats(playlist_id: int):
         logger.error(f"Error calculating stats: {e}")
 
     top_genres = [{"name": g, "value": c} for g, c in genre_counts.most_common(10)]
-    
-    # Sort mood
     sorted_mood = sorted(mood_distribution.items(), key=lambda x: x[1], reverse=True)
     primary_mood = sorted_mood[0][0] if sorted_mood[0][1] > 0 else "Neutral"
 
-    top_genres = [{"name": g, "value": c} for g, c in genre_counts.most_common(10)]
-    
-    # 2. Diversity Score
-    # Simple: Unique Artists / Total Songs
     diversity_score = 0
     if len(songs) > 0:
         diversity_score = round((len(set(artists)) / len(songs)) * 100)
         
-    # 3. Dominant Vibe
-    dominant_vibe = "Eclectic"
-    if top_genres:
-        dominant_vibe = top_genres[0]['name']
+    dominant_vibe = top_genres[0]['name'] if top_genres else "Eclectic"
 
     return {
         "total_songs": len(songs),
@@ -613,64 +369,39 @@ async def get_playlist_stats(playlist_id: int):
         "mood_distribution": [{"name": k, "value": v} for k, v in sorted_mood if v > 0],
         "top_artists": [{"artist": a, "count": c} for a, c in artist_counts],
         "top_genres": top_genres,
-        "timeline": sorted_timeline
+        "timeline": timeline
     }
 
 @router.get("/playlists/{playlist_id}/recommendations")
 async def get_playlist_recommendations(playlist_id: int, limit: int = 10):
-    playlist_detail = await get_playlist_detail(playlist_id)
-    current_song_queries = {s['query'] for s in playlist_detail['songs']}
+    playlist = get_playlist_by_id(playlist_id)
+    if not playlist: return [] # Or 404
     
-    if not current_song_queries:
-        return []
-
-    # Strategy: Find songs by the same artists in the library that are NOT in the playlist
-    artists = list({s['artist'] for s in playlist_detail['songs'] if s.get('artist')})
+    # We need the list of artists currently in the playlist
+    songs = get_playlist_songs(playlist_id, playlist['type'], playlist['rules'])
+    artists = list({s['artist'] for s in songs if s.get('artist')})
+    current_queries = {s['song_query'] for s in songs}
     
-    if not artists:
-        return []
-        
-    conn = sqlite3.connect(DB_NAME)
-    conn.row_factory = sqlite3.Row
-    c = conn.cursor()
+    if not artists: return []
     
-    # We can't pass all artists if list is huge. Limit to top 20 artists
-    all_artists = [s['artist'] for s in playlist_detail['songs'] if s.get('artist')]
-    top_artists = [a for a, c in Counter(all_artists).most_common(20)]
+    # Get candidates from repo
+    # Limit number of artists to check to top 20 to be safe
+    top_artists = [a for a, c in Counter(artists).most_common(20)]
     
-    placeholders = ','.join(['?'] * len(top_artists))
-    query = f'''
-        SELECT * FROM downloads 
-        WHERE status = 'completed' 
-        AND artist IN ({placeholders})
-        ORDER BY RANDOM() 
-        LIMIT 50
-    '''
+    raw_recs = get_candidates_for_recommendation(top_artists, limit=50)
     
-    try:
-        c.execute(query, top_artists)
-        candidates = c.fetchall()
-        
-        recommendations = []
-        for r in candidates:
-            row = dict(r)
-            if row['query'] not in current_song_queries:
-                # Format it
-                from routers.downloads import sanitize_filename
-                s_artist = sanitize_filename(row['artist'])
-                s_album = sanitize_filename(row['album'])
-                s_title = sanitize_filename(row['title'])
-                row['audio_url'] = f"/api/audio/{s_artist}/{s_album}/{s_title}.mp3"
-                recommendations.append(row)
-                if len(recommendations) >= limit:
-                    break
-                    
-        conn.close()
-        return recommendations
-        
-    except Exception as e:
-        print(f"Error getting recs: {e}")
-        conn.close()
-        return []
-
+    recommendations = []
+    from routers.downloads import sanitize_filename
+    
+    for row in raw_recs:
+        if row['query'] not in current_queries:
+            s_artist = sanitize_filename(row['artist'])
+            s_album = sanitize_filename(row['album'])
+            s_title = sanitize_filename(row['title'])
+            row['audio_url'] = f"/api/audio/{s_artist}/{s_album}/{s_title}.mp3"
+            recommendations.append(row)
+            if len(recommendations) >= limit:
+                break
+                
+    return recommendations
 

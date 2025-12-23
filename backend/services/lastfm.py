@@ -158,7 +158,7 @@ class LastFMService:
         self.cache.set(cache_key, info)
         return info
 
-    def _get_recent_tracks_cached(self, user: str, period: str):
+    def get_cached_recent_tracks(self, user: str, period: str):
         now = int(time.time())
         day_seconds = 86400
         
@@ -177,7 +177,6 @@ class LastFMService:
 
         # Fetch all pages
         all_tracks = []
-        page = 1
         page = 1
         limit = 200
         
@@ -219,35 +218,6 @@ class LastFMService:
         self.cache.set(cache_key, all_tracks)
         return start_ts, all_tracks
 
-    def get_chart_data(self, user: str, period: str = "1month", artist: str = None, track: str = None):
-        start_ts, all_tracks = self._get_recent_tracks_cached(user, period)
-        now = int(time.time())
-        day_seconds = 86400
-        
-        filtered_tracks = []
-        for t in all_tracks:
-            if artist and t.get("artist", {}).get("#text").lower() != artist.lower():
-                continue
-            if track and t.get("name").lower() != track.lower():
-                continue
-            filtered_tracks.append(t)
-
-        daily_counts = {}
-        current_ts = start_ts
-        while current_ts <= now:
-            date_str = datetime.fromtimestamp(current_ts).strftime('%Y-%m-%d')
-            daily_counts[date_str] = 0
-            current_ts += day_seconds
-
-        for t in filtered_tracks:
-            if "date" in t:
-                ts = int(t["date"]["uts"])
-                date_str = datetime.fromtimestamp(ts).strftime('%Y-%m-%d')
-                if date_str in daily_counts:
-                        daily_counts[date_str] += 1
-        
-        return [{"date": k, "count": v} for k, v in sorted(daily_counts.items())]
-
     def prefetch_track_infos(self, user: str, tracks: list):
         import concurrent.futures
         
@@ -268,8 +238,15 @@ class LastFMService:
             executor.map(fetch_one, tracks)
             
         print("Prefetch complete.")
-
+    
     def refresh_stats_cache(self, user: str):
+        # This calls get_chart_data which is no longer here.
+        # Ideally this method should move to AnalyticsService or call it.
+        # But this method refreshes Top Tracks too.
+        # Let's keep it here but remove the chart data refresh part if it depends on analytics.
+        # Or better: Move this entire "Refresh" logic to a coordination service or just the tasks.
+        # I'll update it to only refresh tracks here.
+        
         print(f"Starting daily stats refresh for {user}...")
         periods = ['overall', '7day', '1month', '3month', '6month', '12month']
         
@@ -281,60 +258,8 @@ class LastFMService:
             except Exception as e:
                 print(f"Error refreshing {period}: {e}")
                 
-        print("Refreshing Activity Chart (1month)...")
-        cache_key = f"raw_recent_{user}_1month"
-        self.cache.delete(cache_key)
-        self.get_chart_data(user, period="1month")
+        # Chart refresh is now job of AnalyticsService
         print("Daily stats refresh complete.")
-
-    def get_listening_clock_data(self, user: str, period: str = "1month"):
-        start_ts, all_tracks = self._get_recent_tracks_cached(user, period)
-        hour_counts = {h: 0 for h in range(24)}
-        
-        for t in all_tracks:
-            if "date" in t:
-                ts = int(t["date"]["uts"])
-                dt = datetime.fromtimestamp(ts)
-                hour_counts[dt.hour] += 1
-                
-        return [{"hour": h, "count": c} for h, c in hour_counts.items()]
-
-    def get_genre_breakdown(self, user: str, period: str = "1month"):
-        cache_key = f"genres_{user}_{period}"
-        cached = self.cache.get(cache_key)
-        if cached:
-            return cached
-
-        params = {
-            "method": "user.gettopartists",
-            "user": user,
-            "period": period,
-            "limit": 20
-        }
-        
-        data = self.client.request("GET", params)
-        if not data:
-            return []
-            
-        artists = []
-        if "topartists" in data and "artist" in data["topartists"]:
-            artists = data["topartists"]["artist"]
-            if isinstance(artists, dict):
-                artists = [artists]
-        
-        tag_counts = Counter()
-        for artist in artists:
-            name = artist.get("name")
-            playcount = int(artist.get("playcount", 1))
-            
-            if name:
-                tags = self._get_artist_tags(name)
-                for tag in tags[:3]: 
-                    tag_counts[tag] += playcount
-        
-        result = [{"name": tag, "value": count} for tag, count in tag_counts.most_common(15)]
-        self.cache.set(cache_key, result)
-        return result
 
     def get_artist_listeners(self, artist_name):
         cache_key = f"artist_listeners_{artist_name}"
@@ -355,7 +280,7 @@ class LastFMService:
         
         return 0
 
-    def _get_artist_tags(self, artist_name):
+    def get_artist_tags(self, artist_name):
         cache_key = f"artist_tags_{artist_name}"
         cached = self.cache.get(cache_key)
         if cached:
@@ -458,51 +383,6 @@ class LastFMService:
         
         return history
 
-    def get_listening_streak(self, user: str):
-        cache_key = f"streak_{user}" 
-        cached = self.cache.get(cache_key)
-        if cached:
-             return cached
-
-        start_ts, all_tracks = self._get_recent_tracks_cached(user, "3month")
-        
-        if not all_tracks:
-            return {"current_streak": 0}
-            
-        active_days = set()
-        for t in all_tracks:
-            if "date" in t:
-                ts = int(t["date"]["uts"])
-                date_str = datetime.fromtimestamp(ts).strftime('%Y-%m-%d')
-                active_days.add(date_str)
-        
-        streak = 0
-        check_date = datetime.now()
-        today_str = check_date.strftime('%Y-%m-%d')
-        
-        if today_str in active_days:
-            streak += 1
-        
-        while True:
-            check_date -= timedelta(days=1)
-            date_str = check_date.strftime('%Y-%m-%d')
-            if date_str in active_days:
-                if streak == 0 and date_str != today_str: 
-                    streak += 1
-                elif streak > 0:
-                    streak += 1
-            else:
-                if streak == 0:
-                    pass 
-                break
-                
-            if streak > 100: 
-                break
-        
-        result = {"current_streak": streak}
-        self.cache.set(cache_key, result)
-        return result
-
     def get_top_artists(self, user: str, period: str = "1month", limit: int = 10):
         cache_key = f"top_artists_{user}_{period}_{limit}"
         cached = self.cache.get(cache_key)
@@ -536,112 +416,6 @@ class LastFMService:
         self.cache.set(cache_key, artists)
         return artists
 
-    def get_artist_diversity(self, user: str, period: str = "1month"):
-        import math
-        cache_key = f"diversity_{user}_{period}"
-        cached = self.cache.get(cache_key)
-        if cached:
-            return cached
-            
-        params = {
-            "method": "user.gettopartists",
-            "user": user,
-            "period": period,
-            "limit": 50 
-        }
-        
-        data = self.client.request("GET", params)
-        if not data: return {"score": 0, "label": "No Data"}
-
-        artists = []
-        if "topartists" in data and "artist" in data["topartists"]:
-            artists = data["topartists"]["artist"]
-            if isinstance(artists, dict): artists = [artists]
-        
-        if not artists: return {"score": 0, "label": "No Data"}
-
-        playcounts = [int(a.get("playcount", 1)) for a in artists]
-        total_plays = sum(playcounts)
-        
-        if total_plays == 0: return {"score": 0, "label": "No Data"}
-        
-        entropy = 0
-        for count in playcounts:
-            p = count / total_plays
-            if p > 0:
-                entropy -= p * math.log2(p)
-        
-        n = len(playcounts)
-        max_entropy = math.log2(n) if n > 1 else 1
-        normalized_score = (entropy / max_entropy) * 100 if max_entropy > 0 else 0
-        
-        if normalized_score >= 90: label = "Explorer"
-        elif normalized_score >= 70: label = "Eclectic"
-        elif normalized_score >= 50: label = "Balanced"
-        elif normalized_score >= 30: label = "Focused"
-        else: label = "Obsessive"
-        
-        result = {"score": round(normalized_score), "label": label}
-        self.cache.set(cache_key, result)
-        return result
-
-    def get_mainstream_score(self, user: str, period: str = "1month"):
-        import math
-        cache_key = f"mainstream_{user}_{period}"
-        cached = self.cache.get(cache_key)
-        if cached:
-            return cached
-            
-        params = {
-            "method": "user.gettopartists",
-            "user": user,
-            "period": period,
-            "limit": 50 
-        }
-        
-        data = self.client.request("GET", params)
-        if not data: return {"score": 0, "label": "No Data"}
-
-        artists = []
-        if "topartists" in data and "artist" in data["topartists"]:
-            artists = data["topartists"]["artist"]
-            if isinstance(artists, dict): artists = [artists]
-        
-        if not artists: return {"score": 0, "label": "No Data"}
-
-        top_10 = artists[:10]
-        total_pop_score = 0
-        total_weight = 0
-        
-        for a in top_10:
-            name = a.get("name")
-            user_playcount = int(a.get("playcount", 1))
-            
-            listeners = self.get_artist_listeners(name)
-            
-            if listeners > 0:
-                log_pop = math.log10(listeners)
-                max_log = 6.7
-                score = (log_pop / max_log) * 100
-                score = max(0, min(100, score))
-            else:
-                score = 0
-                
-            total_pop_score += score * user_playcount
-            total_weight += user_playcount
-            
-        final_score = total_pop_score / total_weight if total_weight > 0 else 0
-        
-        if final_score >= 85: label = "Mainstream"
-        elif final_score >= 70: label = "Popular"
-        elif final_score >= 50: label = "Trendy"
-        elif final_score >= 30: label = "Underground"
-        else: label = "Obscure"
-        
-        result = {"score": round(final_score), "label": label}
-        self.cache.set(cache_key, result)
-        return result
-
     def sync_scrobbles_to_db(self, user: str):
         from database import add_scrobble, get_latest_scrobble_timestamp
         
@@ -651,7 +425,7 @@ class LastFMService:
         
         print(f"Syncing scrobbles for {user} starting from {start_ts}...")
         
-        # We use a loop similar to _get_recent_tracks_cached but focusing on "from" parameter
+        # We use a loop similar to get_cached_recent_tracks but focusing on "from" parameter
         page = 1
         limit = 200
         new_scrobbles_count = 0
@@ -705,122 +479,3 @@ class LastFMService:
             
         print(f"Sync complete. Added {new_scrobbles_count} new scrobbles.")
         return new_scrobbles_count
-
-    def get_chart_data_db(self, user: str, period: str = "1month"):
-        from database import get_scrobbles_in_range
-        
-        # Calculate time range
-        now = int(time.time())
-        day_seconds = 86400
-        period_map = {
-            "7day": 7, "1month": 30, "3month": 90, 
-            "6month": 180, "12month": 365, "overall": 365*10
-        }
-        days = period_map.get(period, 30)
-        start_ts = now - (days * day_seconds)
-        
-        scrobbles = get_scrobbles_in_range(user, start_ts, now)
-        
-        daily_counts = {}
-        current_ts = start_ts
-        # Initialize all days with 0
-        while current_ts <= now:
-            date_str = datetime.fromtimestamp(current_ts).strftime('%Y-%m-%d')
-            daily_counts[date_str] = 0
-            current_ts += day_seconds
-            
-        for s in scrobbles:
-            ts = s['timestamp']
-            date_str = datetime.fromtimestamp(ts).strftime('%Y-%m-%d')
-            if date_str in daily_counts:
-                daily_counts[date_str] += 1
-        
-        return [{"date": k, "count": v} for k, v in sorted(daily_counts.items())]
-
-    def get_listening_streak_db(self, user: str):
-        from database import get_scrobbles_from_db
-        
-        # Fetch generic bulk of recent scrobbles, say last 5000
-        scrobbles = get_scrobbles_from_db(user, limit=5000)
-        
-        if not scrobbles:
-            return {"current_streak": 0}
-            
-        active_days = set()
-        for s in scrobbles:
-            ts = s['timestamp']
-            date_str = datetime.fromtimestamp(ts).strftime('%Y-%m-%d')
-            active_days.add(date_str)
-            
-        streak = 0
-        check_date = datetime.now()
-        today_str = check_date.strftime('%Y-%m-%d')
-        
-        if today_str in active_days:
-            streak += 1
-            
-        while True:
-            check_date -= timedelta(days=1)
-            date_str = check_date.strftime('%Y-%m-%d')
-            if date_str in active_days:
-                if streak == 0 and date_str != today_str: 
-                    streak += 1
-                elif streak > 0:
-                    streak += 1
-            else:
-                if streak == 0:
-                    pass 
-                break
-                
-            if streak > 3650: # Safety break 10 years
-                break
-        
-        return {"current_streak": streak}
-
-    def generate_sonic_diary(self, user: str):
-        # 1. Get Weekly Top Tracks
-        top_tracks = self.get_top_tracks(user, period="7day", limit=5)
-        # 2. Get Weekly Top Artists
-        try:
-            top_artists = self.get_top_artists(user, period="7day", limit=3)
-        except:
-             top_artists = []
-
-        if not top_tracks:
-            return None
-            
-        # Analysis
-        top_track = top_tracks[0]
-        top_artist = top_artists[0] if top_artists else {"name": top_track['artist']}
-        
-        # Heuristic Templates "AI"
-        import random
-        
-        intros = [
-            f"This week, your world revolved around {top_artist['name']}.",
-            f"You've been obsessing over {top_artist['name']} lately.",
-            f"The soundtrack of your week? Definitely {top_artist['name']}."
-        ]
-        
-        middles = [
-            f"'{top_track['title']}' was on repeat.",
-            f"You couldn't stop listening to '{top_track['title']}'.",
-            f"'{top_track['title']}' by {top_track['artist']} really hit the spot this week."
-        ]
-        
-        outros = [
-            "Keep the vibe going!",
-            "Wonder what next week will sound like?",
-            "A solid week of discovery."
-        ]
-        
-        story = f"{random.choice(intros)} {random.choice(middles)} {random.choice(outros)}"
-        
-        return {
-            "title": "Weekly Sonic Diary",
-            "content": story,
-            "stats": {
-                "top_artist": top_artist,
-                "top_track": top_track
-            }
-        }
