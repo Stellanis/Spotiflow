@@ -42,13 +42,40 @@ async def list_downloads(page: int = 1, limit: int = 50, status: str = None, sea
         "total_pages": total_pages
     }
 
+import time
+
+class SimpleCache:
+    def __init__(self, ttl=60):
+        self.ttl = ttl
+        self._cache = {}
+        self._timestamps = {}
+
+    def get(self, key):
+        if key in self._cache:
+            if time.time() - self._timestamps[key] < self.ttl:
+                return self._cache[key]
+        return None
+
+    def set(self, key, value):
+        self._cache[key] = value
+        self._timestamps[key] = time.time()
+
+filters_cache = SimpleCache(ttl=60)
+
 @router.get("/filters")
-async def get_filters(artist: str = None):
+def get_filters(artist: str = None):
+    cache_key = f"filters_{artist}"
+    cached = filters_cache.get(cache_key)
+    if cached:
+        return cached
+
     from database import get_all_artists, get_all_albums
-    return {
+    data = {
         "artists": get_all_artists(),
         "albums": get_all_albums(artist)
     }
+    filters_cache.set(cache_key, data)
+    return data
 
 @router.post("/download")
 async def download_song(request: DownloadRequest):
