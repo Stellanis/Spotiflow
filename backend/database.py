@@ -272,6 +272,31 @@ def is_downloaded(query):
     conn.close()
     return result is not None
 
+def get_downloads_batch(queries):
+    """
+    Efficiently check status for multiple queries in one go.
+    Returns a dictionary {query: download_info_dict} for found items.
+    """
+    if not queries:
+        return {}
+        
+    conn = sqlite3.connect(DB_NAME)
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    
+    # SQLite has a limit on variables, but 50-100 is fine.
+    # For very large batches, we'd chunk, but page size is small here.
+    placeholders = ','.join(['?'] * len(queries))
+    sql = f"SELECT * FROM downloads WHERE query IN ({placeholders}) AND status = 'completed'"
+    
+    try:
+        c.execute(sql, queries)
+        rows = c.fetchall()
+        return {row['query']: dict(row) for row in rows}
+    finally:
+        conn.close()
+
+
 def get_download_info(query):
     conn = sqlite3.connect(DB_NAME)
     conn.row_factory = sqlite3.Row

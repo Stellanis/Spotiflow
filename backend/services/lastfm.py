@@ -249,16 +249,24 @@ class LastFMService:
         return [{"date": k, "count": v} for k, v in sorted(daily_counts.items())]
 
     def prefetch_track_infos(self, user: str, tracks: list):
+        import concurrent.futures
+        
         print(f"Starting prefetch for {len(tracks)} tracks...")
-        for t in tracks:
+        
+        def fetch_one(t):
             try:
                 artist = t.get('artist')
                 title = t.get('title')
                 if artist and title:
                     self.get_track_info(user, artist, title)
-                    time.sleep(0.2)
             except Exception as e:
-                print(f"Error prefetching: {e}")
+                print(f"Error prefetching {t}: {e}")
+
+        # Use a thread pool to fetch in parallel
+        # Max workers limited to 4 to be polite to Last.fm API
+        with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
+            executor.map(fetch_one, tracks)
+            
         print("Prefetch complete.")
 
     def refresh_stats_cache(self, user: str):
