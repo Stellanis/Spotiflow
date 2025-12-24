@@ -16,6 +16,7 @@ from database import (
     update_playlist_details,
     reorder_playlist_songs,
     get_top_local_artists,
+    get_candidates_for_recommendation,
     find_local_song,
     add_songs_to_playlist_batch
 )
@@ -41,7 +42,8 @@ class PlaylistGenerateTop(BaseModel):
 class PlaylistGenerateGenre(BaseModel):
     name: str
     description: str
-    tag: str
+    tag: Optional[str] = None
+    tags: Optional[List[str]] = None
 
 class Playlist(BaseModel):
     id: int
@@ -112,15 +114,15 @@ async def generate_genre_playlist(req: PlaylistGenerateGenre):
         
     try:
         # 1. Get Top Artists
-        top_local_artists = get_top_local_artists(limit=50)
+        top_local_artists = get_top_local_artists(limit=100)
         
         valid_artists = []
-        target_tag = req.tag.lower()
+        target_tags = [t.lower() for t in req.tags] if req.tags else [req.tag.lower()]
         
         for artist in top_local_artists:
-            # Use public method (renamed in refactor)
-            tags = lastfm_service.get_artist_tags(artist)
-            if any(target_tag in t.lower() for t in tags):
+            tags = [t.lower() for t in lastfm_service.get_artist_tags(artist)]
+            # Check if artist has ANY of the target tags
+            if any(any(tt in t for t in tags) for tt in target_tags):
                 valid_artists.append(artist)
                 
         if not valid_artists:
@@ -318,7 +320,7 @@ async def get_playlist_stats(playlist_id: int):
                 total_listeners += listeners
                 artist_count_for_listeners += 1
                 
-            tags = lastfm_service._get_artist_tags(artist)
+            tags = lastfm_service.get_artist_tags(artist)
             
             for tag in tags[:3]: 
                 genre_counts[tag] += count_in_playlist
@@ -380,7 +382,7 @@ async def get_playlist_recommendations(playlist_id: int, limit: int = 10):
     # We need the list of artists currently in the playlist
     songs = get_playlist_songs(playlist_id, playlist['type'], playlist['rules'])
     artists = list({s['artist'] for s in songs if s.get('artist')})
-    current_queries = {s['song_query'] for s in songs}
+    current_queries = {s['query'] for s in songs}
     
     if not artists: return []
     

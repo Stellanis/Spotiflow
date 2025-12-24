@@ -4,9 +4,7 @@ from core import downloader_service, scheduler, logger
 from database import get_downloads, get_total_downloads_count, get_all_pending_downloads
 
 
-def sanitize_filename(name):
-    if not name: return "Unknown"
-    return "".join([c for c in name if c.isalpha() or c.isdigit() or c in " -_()"]).strip()
+from utils import sanitize_filename
 
 router = APIRouter(tags=["downloads"])
 

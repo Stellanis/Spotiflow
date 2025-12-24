@@ -107,9 +107,27 @@ export default function Home() {
                                                     {/* Overlay for not-downloaded items? Or just keep simple */}
                                                 </div>
                                                 <div className="min-w-0">
-                                                    <h3 className="font-bold truncate text-white text-lg">{track.title}</h3>
-                                                    <p className="text-spotify-grey truncate">{track.artist}</p>
-                                                    <p className="text-xs text-spotify-grey/60 mt-0.5">{track.album}</p>
+                                                    <h3 className="font-bold truncate text-white text-lg leading-tight mb-1">{track.title}</h3>
+                                                    <div className="flex flex-wrap items-center gap-x-1 gap-y-0.5">
+                                                        {track.artist.split(/[\/,]/).map((a, i, arr) => {
+                                                            const name = a.trim();
+                                                            return (
+                                                                <span key={name} className="flex items-center gap-1 group/artist">
+                                                                    <span
+                                                                        className="text-spotify-grey text-sm hover:text-white hover:underline transition-all cursor-pointer truncate max-w-[150px]"
+                                                                        onClick={(e) => {
+                                                                            e.stopPropagation();
+                                                                            window.dispatchEvent(new CustomEvent('open-artist-deep-dive', { detail: name }));
+                                                                        }}
+                                                                    >
+                                                                        {name}
+                                                                    </span>
+                                                                    {i < arr.length - 1 && <span className="text-spotify-grey/40 text-xs text-center font-normal">/</span>}
+                                                                </span>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                    <p className="text-xs text-spotify-grey/60 mt-1">{track.album}</p>
                                                 </div>
                                             </div>
 

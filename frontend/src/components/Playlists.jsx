@@ -92,6 +92,7 @@ export function Playlists({ onPlayPlaylist }) {
     const [selectedPlaylist, setSelectedPlaylist] = useState(null);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+    const [creatorMode, setCreatorMode] = useState('menu');
     const { playTrack } = usePlayer();
 
     const sensors = useSensors(
@@ -103,6 +104,16 @@ export function Playlists({ onPlayPlaylist }) {
 
     useEffect(() => {
         fetchPlaylists();
+
+        const handleOpenVibe = () => {
+            setCreatorMode('vibe');
+            setIsCreateModalOpen(true);
+        };
+
+        window.addEventListener('open-vibe-generator', handleOpenVibe);
+        return () => {
+            window.removeEventListener('open-vibe-generator', handleOpenVibe);
+        };
     }, []);
 
     const fetchPlaylists = async () => {
@@ -446,8 +457,9 @@ export function Playlists({ onPlayPlaylist }) {
         <>
             <PlaylistCreator
                 isOpen={isCreateModalOpen}
-                onClose={() => setIsCreateModalOpen(false)}
+                onClose={() => { setIsCreateModalOpen(false); setCreatorMode('menu'); }}
                 onCreate={(newPlaylist) => setPlaylists([newPlaylist, ...playlists])}
+                initialMode={creatorMode}
             />
 
             <ConfirmationModal

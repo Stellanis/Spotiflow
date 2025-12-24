@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Loader2, Music, Trophy, Calendar, RefreshCw } from 'lucide-react';
+import { Loader2, Music, Trophy, Calendar, RefreshCw, Sparkles } from 'lucide-react';
 import { GlassCard } from './GlassCard';
 import { SkeletonCard } from './SkeletonCard';
 import { cn } from '../utils';
@@ -13,6 +13,7 @@ import { StreakCard } from './StreakCard';
 import { DiversityScore } from './DiversityScore';
 import { MainstreamScore } from './MainstreamScore';
 import { ShareButton } from './ShareButton';
+import { ForgottenGems } from './ForgottenGems';
 
 const API_URL = '/api';
 
@@ -28,6 +29,7 @@ export default function Stats({ username, onTrackClick }) {
     const [diversity, setDiversity] = useState(null);
     const [mainstream, setMainstream] = useState(null);
     const [topArtists, setTopArtists] = useState([]);
+    const gemsRef = useRef(null);
 
     const statsRef = useRef(null);
 
@@ -78,11 +80,22 @@ export default function Stats({ username, onTrackClick }) {
                 params: { period, limit: 50 },
             });
             setTracks(response.data);
+            // Prefetch deep dive for top 3 artists
+            if (response.data && response.data.length > 0) {
+                prefetchArtistDeepDives(response.data.slice(0, 3).map(t => t.artist));
+            }
         } catch (error) {
             console.error('Error fetching top tracks:', error);
         } finally {
             setLoading(false);
         }
+    };
+
+    const prefetchArtistDeepDives = (artists) => {
+        artists.forEach(artist => {
+            axios.get(`${API_URL}/stats/artist-deep-dive/${username}?artist=${encodeURIComponent(artist)}`)
+                .catch(() => { }); // Silent fail for prefetch
+        });
     };
 
     const fetchChartData = async () => {
@@ -127,6 +140,22 @@ export default function Stats({ username, onTrackClick }) {
             console.error('Error fetching stats:', error);
         }
     };
+
+    useEffect(() => {
+        const handleScrollToGems = () => {
+            if (gemsRef.current) {
+                gemsRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                // Add a temporary glow or highlight? 
+                gemsRef.current.classList.add('ring-2', 'ring-spotify-green', 'ring-offset-4', 'ring-offset-black');
+                setTimeout(() => {
+                    gemsRef.current.classList.remove('ring-2', 'ring-spotify-green', 'ring-offset-4', 'ring-offset-black');
+                }, 3000);
+            }
+        };
+
+        window.addEventListener('scroll-to-gems', handleScrollToGems);
+        return () => window.removeEventListener('scroll-to-gems', handleScrollToGems);
+    }, []);
 
     return (
         <div ref={statsRef} className="space-y-6 group/stats group-[.capturing]/stats:pb-6 group-[.capturing]/stats:w-[800px] group-[.capturing]/stats:mx-auto">
@@ -196,6 +225,10 @@ export default function Stats({ username, onTrackClick }) {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <DiversityScore data={diversity} />
                 <MainstreamScore data={mainstream} />
+            </div>
+
+            <div ref={gemsRef} className="transition-all duration-1000 rounded-3xl">
+                <ForgottenGems username={username} onTrackClick={onTrackClick} />
             </div>
 
             <div className="flex flex-col sm:flex-row items-center justify-between gap-4 no-capture group-[.capturing]/stats:hidden">
@@ -278,9 +311,28 @@ export default function Stats({ username, onTrackClick }) {
                                             )}
                                         </div>
 
-                                        <div className="flex-grow min-w-0">
-                                            <h3 className="font-semibold text-base sm:text-lg truncate">{track.title}</h3>
-                                            <p className="text-spotify-grey text-sm truncate">{track.artist}</p>
+                                        <div className="flex-1 min-w-0">
+                                            <div className="text-white font-medium truncate group-hover:text-spotify-green transition-colors">{track.title}</div>
+                                            <div className="flex flex-wrap items-center gap-x-1 gap-y-0.5 mt-0.5">
+                                                {track.artist.split(/[\/,]/).map((a, i, arr) => {
+                                                    const name = a.trim();
+                                                    return (
+                                                        <span key={name} className="flex items-center gap-1 group/artist">
+                                                            <span
+                                                                className="text-xs text-spotify-grey hover:text-white hover:underline transition-all cursor-pointer truncate max-w-[120px]"
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    window.dispatchEvent(new CustomEvent('open-artist-deep-dive', { detail: name }));
+                                                                }}
+                                                            >
+                                                                {name}
+                                                            </span>
+                                                            {i < arr.length - 1 && <span className="text-spotify-grey/40 text-[10px]">/</span>}
+                                                        </span>
+                                                    );
+                                                })}
+                                                <Sparkles className="w-2.5 h-2.5 opacity-0 group-hover:opacity-100 transition-opacity text-spotify-green" />
+                                            </div>
                                         </div>
 
                                         <div className="flex-shrink-0 text-right">

@@ -1,7 +1,8 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
+import axios from 'axios';
 import { useOutletContext } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { CheckCircle, Search, Loader2, Music, Info, Plus, Heart, Play } from 'lucide-react';
+import { CheckCircle, Search, Loader2, Music, Info, Plus, Heart, Play, Sparkles } from 'lucide-react';
 import { useDownloads } from '../hooks/useDownloads';
 import { useLibrary } from '../hooks/useLibrary';
 import { usePlayer } from '../contexts/PlayerContext';
@@ -76,8 +77,18 @@ export default function Library() {
             fetchFilters(artistFilter);
         }
 
+        // Prefetch first 5 artists on page load/change
+        if (downloadedTracks.length > 0) {
+            const uniqueArtists = [...new Set(downloadedTracks.map(t => t.artist))].slice(0, 5);
+            uniqueArtists.forEach(artist => {
+                axios.get(`${API_URL}/stats/artist-deep-dive/${username}?artist=${encodeURIComponent(artist)}`)
+                    .catch(() => { });
+            });
+        }
+
         return () => controller.abort();
     }, [currentPage, debouncedSearchQuery, artistFilter, albumFilter, fetchDownloads]);
+    const API_URL = '/api';
 
     // Infinite Scroll
     const observer = useRef();
@@ -212,7 +223,16 @@ export default function Library() {
                                         <div className="w-full text-left">
                                             <h3 className="font-semibold truncate w-full text-sm text-white">{track.title}</h3>
                                             <div className="flex items-center justify-between w-full">
-                                                <p className="text-spotify-grey truncate text-xs flex-1">{track.artist}</p>
+                                                <div
+                                                    className="text-spotify-grey truncate text-xs flex-1 hover:text-white hover:underline transition-all cursor-pointer flex items-center gap-1 group/artist"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        window.dispatchEvent(new CustomEvent('open-artist-deep-dive', { detail: track.artist }));
+                                                    }}
+                                                >
+                                                    <span className="truncate">{track.artist}</span>
+                                                    <Sparkles className="w-2.5 h-2.5 opacity-0 group-hover/artist:opacity-100 transition-opacity text-spotify-green flex-shrink-0" />
+                                                </div>
                                                 <button
                                                     onClick={(e) => { e.stopPropagation(); toggleFavoriteArtist(track.artist, e); }}
                                                     className="hover:scale-110 transition-transform p-1 -mr-1"

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Outlet, useLocation, useNavigate, useOutletContext } from 'react-router-dom'; // Add useOutletContext export for convenience if needed, but usually we import from rrd
 import { motion, AnimatePresence } from 'framer-motion';
 import { Toaster } from 'react-hot-toast';
@@ -14,6 +14,8 @@ import { SettingsModal } from '../SettingsModal';
 import { TutorialModal } from '../TutorialModal';
 import { PlayerBar } from '../components/PlayerBar';
 import { LyricsModal } from '../components/LyricsModal';
+import { CommandPalette } from '../components/CommandPalette';
+import { ArtistModal } from '../components/ArtistModal';
 import { usePlayer } from '../contexts/PlayerContext';
 import { cn } from '../utils';
 
@@ -44,12 +46,14 @@ export default function Layout() {
 
     // Player Context (for global LyricsModal)
     // Layout is inside PlayerProvider so we can use usePlayer
-    const { showLyrics, setShowLyrics, currentTrack, progress } = usePlayer();
+    const { showLyrics, setShowLyrics, currentTrack, progress, playTrack } = usePlayer();
 
     // UI State
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [isSyncing, setIsSyncing] = useState(false);
+    const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
+    const [selectedArtist, setSelectedArtist] = useState(null);
 
     // Derived view for highlighting
     const currentPath = location.pathname === '/' ? 'scrobbles' : location.pathname.slice(1);
@@ -113,11 +117,27 @@ export default function Layout() {
         { id: 'concerts', icon: Ticket, label: 'Concerts', path: '/concerts' },
     ].filter(item => !hiddenFeatures.has(item.id));
 
-    // Cleanup initial load (fetch settings)
-    // useSettings usually does this? No, App.jsx called fetchSettings in useEffect.
-    useState(() => {
+    useEffect(() => {
         fetchSettings();
-    });
+
+        const handleKeyDown = (e) => {
+            if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+                e.preventDefault();
+                setIsCommandPaletteOpen(prev => !prev);
+            }
+        };
+
+        const handleOpenArtist = (e) => {
+            setSelectedArtist(e.detail);
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        window.addEventListener('open-artist-deep-dive', handleOpenArtist);
+        return () => {
+            window.removeEventListener('keydown', handleKeyDown);
+            window.removeEventListener('open-artist-deep-dive', handleOpenArtist);
+        };
+    }, []);
 
     return (
         <div className="min-h-screen bg-background text-foreground p-8 pb-32 transition-colors duration-300">
@@ -267,6 +287,22 @@ export default function Layout() {
                 onClose={() => setShowLyrics(false)}
                 track={currentTrack}
                 progress={progress}
+            />
+
+            <CommandPalette
+                isOpen={isCommandPaletteOpen}
+                onClose={() => setIsCommandPaletteOpen(false)}
+                username={username}
+                onSync={handleSync}
+                onSettingsOpen={() => setIsSettingsOpen(true)}
+            />
+
+            <ArtistModal
+                isOpen={!!selectedArtist}
+                onClose={() => setSelectedArtist(null)}
+                artist={selectedArtist}
+                username={username}
+                onTrackClick={playTrack}
             />
         </div>
     );

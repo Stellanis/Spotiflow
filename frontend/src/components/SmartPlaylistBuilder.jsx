@@ -15,6 +15,14 @@ export function SmartPlaylistBuilder({ isOpen, onClose, onCreate }) {
         { field: 'artist', operator: 'contains', value: '' }
     ]);
     const [loading, setLoading] = useState(false);
+    const [activeTab, setActiveTab] = useState('manual'); // 'manual', 'smart', 'vibe'
+
+    const vibePresets = [
+        { id: 'midnight', label: 'The Midnight Lounge', icon: '🌙', tags: ['jazz', 'blues', 'ambient', 'chill', 'mellow'], description: 'Late night vibes. Smooth, atmospheric and relaxed.' },
+        { id: 'energy', label: 'High Energy', icon: '⚡', tags: ['rock', 'metal', 'dance', 'electronic', 'upbeat'], description: 'Keep the momentum going. Perfect for workouts or focus.' },
+        { id: 'focus', label: 'Deep Focus', icon: '🧠', tags: ['classical', 'instrumental', 'ambient', 'lo-fi', 'soundtrack'], description: 'Minimal distractions. Atmospheric sounds for deep work.' },
+        { id: 'indie', label: 'Indie Discovery', icon: '🎸', tags: ['indie', 'alternative', 'shoegaze', 'dream pop'], description: 'The best of your indie and alternative collection.' },
+    ];
 
     const handleAddRule = () => {
         setRules([...rules, { field: 'artist', operator: 'contains', value: '' }]);
@@ -55,6 +63,27 @@ export function SmartPlaylistBuilder({ isOpen, onClose, onCreate }) {
         }
     };
 
+    const handleVibeCreate = async (vibe) => {
+        setLoading(true);
+        try {
+            const payload = {
+                name: vibe.label,
+                description: vibe.description,
+                tags: vibe.tags
+            };
+
+            const res = await axios.post('/api/playlists/generate/genre', payload);
+            if (onCreate) onCreate(res.data);
+            toast.success(`${vibe.label} playlist generated!`);
+            onClose();
+        } catch (error) {
+            console.error("Error generating vibe playlist:", error);
+            toast.error("Failed to generate vibe playlist");
+        } finally {
+            setLoading(false);
+        }
+    };
+
     const resetForm = () => {
         setName('');
         setDescription('');
@@ -75,7 +104,7 @@ export function SmartPlaylistBuilder({ isOpen, onClose, onCreate }) {
                         <GlassCard className="p-6">
                             <div className="flex items-center justify-between mb-6">
                                 <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                                    {isSmart ? <Sparkles className="text-purple-400" /> : <Plus />}
+                                    {activeTab === 'smart' ? <Sparkles className="text-purple-400" /> : <Plus />}
                                     Create New Playlist
                                 </h2>
                                 <button onClick={onClose} className="p-1 hover:bg-white/10 rounded-full transition-colors">
@@ -83,128 +112,154 @@ export function SmartPlaylistBuilder({ isOpen, onClose, onCreate }) {
                                 </button>
                             </div>
 
-                            <form onSubmit={handleSubmit} className="space-y-6">
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    <div className="space-y-4">
-                                        <div>
-                                            <label className="block text-sm font-medium text-spotify-grey mb-1">Name</label>
-                                            <input
-                                                type="text"
-                                                value={name}
-                                                onChange={(e) => setName(e.target.value)}
-                                                className="w-full bg-black/20 border border-white/10 rounded px-3 py-2 text-white focus:border-spotify-green focus:outline-none"
-                                                required
-                                                placeholder="My Awesome Playlist"
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="block text-sm font-medium text-spotify-grey mb-1">Description</label>
-                                            <textarea
-                                                value={description}
-                                                onChange={(e) => setDescription(e.target.value)}
-                                                className="w-full bg-black/20 border border-white/10 rounded px-3 py-2 text-white focus:border-spotify-green focus:outline-none min-h-[80px]"
-                                                placeholder="What's this vibe?"
-                                            />
-                                        </div>
+                            <div className="flex gap-2 mb-6 p-1 bg-white/5 rounded-lg border border-white/5">
+                                {['manual', 'smart', 'vibe'].map(tab => (
+                                    <button
+                                        key={tab}
+                                        type="button"
+                                        onClick={() => setActiveTab(tab)}
+                                        className={cn(
+                                            "flex-1 py-2 text-sm font-medium rounded-md transition-all capitalize",
+                                            activeTab === tab ? "bg-white/10 text-white shadow-sm" : "text-spotify-grey hover:text-white"
+                                        )}
+                                    >
+                                        {tab}
+                                    </button>
+                                ))}
+                            </div>
 
-                                        <div className="flex items-center gap-3 p-3 bg-white/5 rounded-lg border border-white/5 cursor-pointer hover:bg-white/10 transition-colors"
-                                            onClick={() => setIsSmart(!isSmart)}>
-                                            <div className={cn("w-5 h-5 rounded border flex items-center justify-center transition-colors",
-                                                isSmart ? "bg-purple-500 border-purple-500" : "border-spotify-grey")}>
-                                                {isSmart && <Sparkles className="w-3 h-3 text-white" />}
+                            {activeTab === 'vibe' ? (
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    {vibePresets.map(vibe => (
+                                        <button
+                                            key={vibe.id}
+                                            type="button"
+                                            onClick={() => handleVibeCreate(vibe)}
+                                            disabled={loading}
+                                            className="p-4 bg-white/5 border border-white/5 rounded-xl text-left hover:bg-white/10 transition-all group disabled:opacity-50"
+                                        >
+                                            <div className="flex items-center gap-3 mb-2">
+                                                <span className="text-2xl">{vibe.icon}</span>
+                                                <div className="font-bold text-white group-hover:text-spotify-green transition-colors">{vibe.label}</div>
+                                            </div>
+                                            <p className="text-xs text-spotify-grey leading-relaxed line-clamp-2">
+                                                {vibe.description}
+                                            </p>
+                                        </button>
+                                    ))}
+                                </div>
+                            ) : (
+                                <form onSubmit={handleSubmit} className="space-y-6">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                        <div className="space-y-4">
+                                            <div>
+                                                <label className="block text-sm font-medium text-spotify-grey mb-1">Name</label>
+                                                <input
+                                                    type="text"
+                                                    value={name}
+                                                    onChange={(e) => setName(e.target.value)}
+                                                    className="w-full bg-black/20 border border-white/10 rounded px-3 py-2 text-white focus:border-spotify-green focus:outline-none"
+                                                    required
+                                                    placeholder="My Awesome Playlist"
+                                                />
                                             </div>
                                             <div>
-                                                <div className="font-medium text-white">Smart Playlist</div>
-                                                <div className="text-xs text-spotify-grey">Automatically updates based on rules</div>
+                                                <label className="block text-sm font-medium text-spotify-grey mb-1">Description</label>
+                                                <textarea
+                                                    value={description}
+                                                    onChange={(e) => setDescription(e.target.value)}
+                                                    className="w-full bg-black/20 border border-white/10 rounded px-3 py-2 text-white focus:border-spotify-green focus:outline-none min-h-[80px]"
+                                                    placeholder="What's this vibe?"
+                                                />
                                             </div>
                                         </div>
+
+                                        <div className={cn("space-y-4 transition-opacity", activeTab !== 'smart' && "opacity-50 pointer-events-none grayscale")}>
+                                            <div className="flex items-center justify-between">
+                                                <label className="text-sm font-medium text-white">Rules</label>
+                                                <select
+                                                    value={matchType}
+                                                    onChange={(e) => setMatchType(e.target.value)}
+                                                    className="bg-black/20 border border-white/10 rounded px-2 py-1 text-xs text-white focus:outline-none"
+                                                >
+                                                    <option value="all">Match ALL rules (AND)</option>
+                                                    <option value="any">Match ANY rule (OR)</option>
+                                                </select>
+                                            </div>
+
+                                            <div className="space-y-2 max-h-[250px] overflow-y-auto pr-2 custom-scrollbar">
+                                                {rules.map((rule, idx) => (
+                                                    <div key={idx} className="flex gap-2">
+                                                        <select
+                                                            value={rule.field}
+                                                            onChange={(e) => handleRuleChange(idx, 'field', e.target.value)}
+                                                            className="bg-black/20 border border-white/10 rounded px-2 py-2 text-sm text-white focus:outline-none w-1/3"
+                                                        >
+                                                            <option value="artist">Artist</option>
+                                                            <option value="title">Title</option>
+                                                            <option value="album">Album</option>
+                                                        </select>
+
+                                                        <select
+                                                            value={rule.operator}
+                                                            onChange={(e) => handleRuleChange(idx, 'operator', e.target.value)}
+                                                            className="bg-black/20 border border-white/10 rounded px-2 py-2 text-sm text-white focus:outline-none w-1/4"
+                                                        >
+                                                            <option value="contains">contains</option>
+                                                            <option value="is">is exactly</option>
+                                                            <option value="is_not">is not</option>
+                                                        </select>
+
+                                                        <input
+                                                            type="text"
+                                                            value={rule.value}
+                                                            onChange={(e) => handleRuleChange(idx, 'value', e.target.value)}
+                                                            className="bg-black/20 border border-white/10 rounded px-3 py-2 text-white focus:border-spotify-green focus:outline-none flex-1 min-w-0"
+                                                            placeholder="Value..."
+                                                        />
+
+                                                        {rules.length > 1 && (
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => handleRemoveRule(idx)}
+                                                                className="p-2 text-spotify-grey hover:text-red-500 transition-colors"
+                                                            >
+                                                                <Trash2 className="w-4 h-4" />
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                ))}
+                                            </div>
+
+                                            <button
+                                                type="button"
+                                                onClick={handleAddRule}
+                                                className="text-xs text-spotify-green hover:underline flex items-center gap-1"
+                                            >
+                                                <Plus className="w-3 h-3" />
+                                                Add Condition
+                                            </button>
+                                        </div>
                                     </div>
 
-                                    <div className={cn("space-y-4 transition-opacity", !isSmart && "opacity-50 pointer-events-none grayscale")}>
-                                        <div className="flex items-center justify-between">
-                                            <label className="text-sm font-medium text-white">Rules</label>
-                                            <select
-                                                value={matchType}
-                                                onChange={(e) => setMatchType(e.target.value)}
-                                                className="bg-black/20 border border-white/10 rounded px-2 py-1 text-xs text-white focus:outline-none"
-                                            >
-                                                <option value="all">Match ALL rules (AND)</option>
-                                                <option value="any">Match ANY rule (OR)</option>
-                                            </select>
-                                        </div>
-
-                                        <div className="space-y-2 max-h-[250px] overflow-y-auto pr-2 custom-scrollbar">
-                                            {rules.map((rule, idx) => (
-                                                <div key={idx} className="flex gap-2">
-                                                    <select
-                                                        value={rule.field}
-                                                        onChange={(e) => handleRuleChange(idx, 'field', e.target.value)}
-                                                        className="bg-black/20 border border-white/10 rounded px-2 py-2 text-sm text-white focus:outline-none w-1/3"
-                                                    >
-                                                        <option value="artist">Artist</option>
-                                                        <option value="title">Title</option>
-                                                        <option value="album">Album</option>
-                                                    </select>
-
-                                                    <select
-                                                        value={rule.operator}
-                                                        onChange={(e) => handleRuleChange(idx, 'operator', e.target.value)}
-                                                        className="bg-black/20 border border-white/10 rounded px-2 py-2 text-sm text-white focus:outline-none w-1/4"
-                                                    >
-                                                        <option value="contains">contains</option>
-                                                        <option value="is">is exactly</option>
-                                                        <option value="is_not">is not</option>
-                                                    </select>
-
-                                                    <input
-                                                        type="text"
-                                                        value={rule.value}
-                                                        onChange={(e) => handleRuleChange(idx, 'value', e.target.value)}
-                                                        className="bg-black/20 border border-white/10 rounded px-3 py-2 text-white focus:border-spotify-green focus:outline-none flex-1 min-w-0"
-                                                        placeholder="Value..."
-                                                    />
-
-                                                    {rules.length > 1 && (
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => handleRemoveRule(idx)}
-                                                            className="p-2 text-spotify-grey hover:text-red-500 transition-colors"
-                                                        >
-                                                            <Trash2 className="w-4 h-4" />
-                                                        </button>
-                                                    )}
-                                                </div>
-                                            ))}
-                                        </div>
-
+                                    <div className="flex justify-end gap-2 pt-4 border-t border-white/10">
                                         <button
                                             type="button"
-                                            onClick={handleAddRule}
-                                            className="text-xs text-spotify-green hover:underline flex items-center gap-1"
+                                            onClick={onClose}
+                                            className="px-4 py-2 text-sm hover:text-white text-spotify-grey transition-colors"
                                         >
-                                            <Plus className="w-3 h-3" />
-                                            Add Condition
+                                            Cancel
+                                        </button>
+                                        <button
+                                            type="submit"
+                                            disabled={loading}
+                                            className="px-6 py-2 bg-spotify-green text-white text-sm font-medium rounded-full hover:bg-spotify-green/80 transition-colors disabled:opacity-50"
+                                        >
+                                            {loading ? 'Creating...' : 'Create Playlist'}
                                         </button>
                                     </div>
-                                </div>
-
-                                <div className="flex justify-end gap-2 pt-4 border-t border-white/10">
-                                    <button
-                                        type="button"
-                                        onClick={onClose}
-                                        className="px-4 py-2 text-sm hover:text-white text-spotify-grey transition-colors"
-                                    >
-                                        Cancel
-                                    </button>
-                                    <button
-                                        type="submit"
-                                        disabled={loading}
-                                        className="px-6 py-2 bg-spotify-green text-white text-sm font-medium rounded-full hover:bg-spotify-green/80 transition-colors disabled:opacity-50"
-                                    >
-                                        {loading ? 'Creating...' : 'Create Playlist'}
-                                    </button>
-                                </div>
-                            </form>
+                                </form>
+                            )}
                         </GlassCard>
                     </motion.div>
                 </div>
