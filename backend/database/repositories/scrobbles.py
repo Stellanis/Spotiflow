@@ -21,6 +21,41 @@ def add_scrobble(user, artist, title, album, image_url, timestamp):
             print(f"Error adding scrobble: {e}")
             return False
 
+def add_scrobbles_batch(scrobbles):
+    """
+    Batch insert scrobbles. 
+    scrobbles is a list of dicts/tuples: (user, artist, title, album, image_url, timestamp)
+    """
+    if not scrobbles:
+        return 0
+        
+    with get_connection() as conn:
+        c = conn.cursor()
+        try:
+            # Prepare data with created_at
+            now = datetime.now()
+            data = []
+            for s in scrobbles:
+                # s is expected to be a tuple/list matching the order
+                # (user, artist, title, album, image_url, timestamp)
+                # We add 'now' to it.
+                data.append(tuple(s) + (now,))
+
+            c.executemany('''
+                INSERT INTO scrobbles (user, artist, title, album, image_url, timestamp, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(user, timestamp) DO UPDATE SET
+                    artist=excluded.artist,
+                    title=excluded.title,
+                    album=excluded.album,
+                    image_url=excluded.image_url
+            ''', data)
+            conn.commit()
+            return c.rowcount
+        except Exception as e:
+            print(f"Error adding scrobbles batch: {e}")
+            return 0
+
 def get_scrobbles_from_db(user, limit=50, offset=0):
     with get_connection() as conn:
         c = conn.cursor()

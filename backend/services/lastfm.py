@@ -417,7 +417,7 @@ class LastFMService:
         return artists
 
     def sync_scrobbles_to_db(self, user: str):
-        from database import add_scrobble, get_latest_scrobble_timestamp
+        from database import add_scrobbles_batch, get_latest_scrobble_timestamp
         
         last_ts = get_latest_scrobble_timestamp(user)
         # Fetch from last_ts + 1
@@ -456,6 +456,7 @@ class LastFMService:
             if not valid_tracks:
                  if page == 1: break # No new tracks at all
             
+            batch_data = []
             for t in valid_tracks:
                 if "date" not in t: continue
                 
@@ -465,8 +466,11 @@ class LastFMService:
                 image_url = t.get("image", [{}])[-1].get("#text")
                 ts = int(t["date"]["uts"])
                 
-                add_scrobble(user, artist, title, album, image_url, ts)
-                new_scrobbles_count += 1
+                batch_data.append((user, artist, title, album, image_url, ts))
+                
+            if batch_data:
+                add_scrobbles_batch(batch_data)
+                new_scrobbles_count += len(batch_data)
             
             attr = data["recenttracks"].get("@attr", {})
             total_pages = int(attr.get("totalPages", 1))

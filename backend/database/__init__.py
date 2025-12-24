@@ -2,6 +2,7 @@ from .core import init_db, DB_NAME, get_connection
 
 from .repositories.scrobbles import (
     add_scrobble,
+    add_scrobbles_batch,
     get_scrobbles_from_db,
     get_latest_scrobble_timestamp,
     get_total_scrobbles_count,
