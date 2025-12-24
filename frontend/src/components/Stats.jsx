@@ -145,7 +145,7 @@ export default function Stats({ username, onTrackClick }) {
         const handleScrollToGems = () => {
             if (gemsRef.current) {
                 gemsRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                // Add a temporary glow or highlight? 
+
                 gemsRef.current.classList.add('ring-2', 'ring-spotify-green', 'ring-offset-4', 'ring-offset-black');
                 setTimeout(() => {
                     gemsRef.current.classList.remove('ring-2', 'ring-spotify-green', 'ring-offset-4', 'ring-offset-black');
