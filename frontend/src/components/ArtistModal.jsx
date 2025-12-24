@@ -137,7 +137,7 @@ export function ArtistModal({ isOpen, onClose, artist, username, onTrackClick })
                 </div>
 
                 {/* Tabs */}
-                <div className="flex px-8 border-b border-white/5 bg-[#121212] overflow-x-auto no-scrollbar">
+                <div className="flex px-4 md:px-8 border-b border-white/5 bg-[#121212] overflow-x-auto no-scrollbar shrink-0">
                     {[
                         { id: 'stats', label: 'Listen Stats', icon: Music },
                         { id: 'discovery', label: 'Discovery', icon: Sparkles },

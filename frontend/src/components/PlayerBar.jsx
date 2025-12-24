@@ -46,7 +46,7 @@ export function PlayerBar() {
             initial={{ y: 100 }}
             animate={{ y: 0 }}
             className={cn(
-                "fixed bottom-0 left-0 right-0 h-24 border-t border-white/10 px-4 md:px-8 flex items-center justify-between z-50 text-white",
+                "fixed bottom-0 left-0 right-0 h-24 border-t border-white/10 px-4 md:px-8 flex items-center justify-between z-[9000] text-white",
                 isFirefox ? "bg-black/95" : "bg-black/40 backdrop-blur-xl"
             )}
         >
@@ -108,7 +108,7 @@ export function PlayerBar() {
             </div>
 
             {/* Volume & Extra */}
-            <div className="flex items-center justify-end gap-3 w-[30%]">
+            <div className="flex items-center justify-end gap-2 md:gap-3 w-auto md:w-[30%]">
                 {/* Global Download Status */}
                 {activeDownloads.length > 0 && (
                     <motion.button
@@ -117,30 +117,33 @@ export function PlayerBar() {
                         className="flex items-center gap-2 px-3 py-1.5 bg-blue-500/20 text-blue-400 rounded-full text-xs font-medium animate-pulse hover:bg-blue-500/30 transition-colors"
                     >
                         <Loader2 className="w-3 h-3 animate-spin" />
-                        <span>{activeDownloads.length} Downloading</span>
+                        <span className="hidden md:inline">{activeDownloads.length} Downloading</span>
+                        <span className="md:hidden">{activeDownloads.length}</span>
                     </motion.button>
                 )}
 
-                <div className="h-8 w-px bg-white/10 mx-2" />
+                <div className="h-8 w-px bg-white/10 mx-1 md:mx-2" />
 
                 <button
                     onClick={toggleLyrics}
-                    className={`text-spotify-grey hover:text-white transition-colors ${showLyrics ? 'text-spotify-green' : ''}`}
+                    className={`text-spotify-grey hover:text-white transition-colors p-2 ${showLyrics ? 'text-spotify-green' : ''}`}
                     title="Lyrics"
                 >
                     <Mic2 className="w-5 h-5" />
                 </button>
 
-                <Volume2 className="w-5 h-5 text-spotify-grey" />
-                <input
-                    type="range"
-                    min="0"
-                    max="1"
-                    step="0.01"
-                    value={volume}
-                    onChange={(e) => updateVolume(Number(e.target.value))}
-                    className="w-24 h-1 bg-white/10 rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white"
-                />
+                <div className="hidden md:flex items-center gap-3">
+                    <Volume2 className="w-5 h-5 text-spotify-grey" />
+                    <input
+                        type="range"
+                        min="0"
+                        max="1"
+                        step="0.01"
+                        value={volume}
+                        onChange={(e) => updateVolume(Number(e.target.value))}
+                        className="w-24 h-1 bg-white/10 rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white"
+                    />
+                </div>
             </div>
         </motion.div>
     );

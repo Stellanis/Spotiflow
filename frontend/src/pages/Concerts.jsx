@@ -204,13 +204,13 @@ export default function Concerts() {
     }
 
     return (
-        <div className="p-8 space-y-6 pb-24 h-full flex flex-col">
+        <div className="p-3 md:p-8 space-y-6 pb-24 h-full flex flex-col">
             <div className="flex flex-col space-y-4">
                 <div className="flex items-center justify-between">
                     <div>
-                        <h1 className="text-3xl font-bold text-white tracking-tight flex items-center gap-3">
+                        <h1 className="text-3xl font-bold text-white tracking-tight flex flex-wrap items-center gap-2 md:gap-3">
                             Concerts Repository
-                            <span className="text-xs font-normal bg-white/10 px-2 py-0.5 rounded-full text-spotify-grey">
+                            <span className="text-xs font-normal bg-white/10 px-2 py-0.5 rounded-full text-spotify-grey whitespace-nowrap">
                                 {filteredConcerts.length} events
                             </span>
                         </h1>

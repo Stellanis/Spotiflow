@@ -37,7 +37,7 @@ export default function Home() {
     }, [isSyncing, username, fetchScrobbles]);
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-6 p-3 md:p-0">
             <TrackStatsModal
                 isOpen={!!selectedTrack}
                 onClose={() => setSelectedTrack(null)}

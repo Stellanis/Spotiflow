@@ -17,6 +17,7 @@ import { LyricsModal } from '../components/LyricsModal';
 import { CommandPalette } from '../components/CommandPalette';
 import { ArtistModal } from '../components/ArtistModal';
 import { usePlayer } from '../contexts/PlayerContext';
+import { MobileMenu } from '../components/MobileMenu';
 import { cn } from '../utils';
 
 // Helper to access common context in pages
@@ -131,11 +132,40 @@ export default function Layout() {
             setSelectedArtist(e.detail);
         };
 
+        // Swipe Gesture for Mobile Menu
+        let touchStartX = 0;
+        let touchStartY = 0;
+
+        const handleTouchStart = (e) => {
+            touchStartX = e.touches[0].clientX;
+            touchStartY = e.touches[0].clientY;
+        };
+
+        const handleTouchEnd = (e) => {
+            const touchEndX = e.changedTouches[0].clientX;
+            const touchEndY = e.changedTouches[0].clientY;
+
+            const diffX = touchEndX - touchStartX;
+            const diffY = touchEndY - touchStartY;
+
+            // Check if it's a swipe from the left edge (first 40px)
+            // And mostly horizontal
+            if (touchStartX < 40 && diffX > 75 && Math.abs(diffY) < 50) {
+                setIsMobileMenuOpen(true);
+            }
+        };
+
         window.addEventListener('keydown', handleKeyDown);
         window.addEventListener('open-artist-deep-dive', handleOpenArtist);
+        // Passive listener for better scrolling performance check
+        window.addEventListener('touchstart', handleTouchStart, { passive: true });
+        window.addEventListener('touchend', handleTouchEnd);
+
         return () => {
             window.removeEventListener('keydown', handleKeyDown);
             window.removeEventListener('open-artist-deep-dive', handleOpenArtist);
+            window.removeEventListener('touchstart', handleTouchStart);
+            window.removeEventListener('touchend', handleTouchEnd);
         };
     }, []);
 
@@ -144,6 +174,21 @@ export default function Layout() {
             <Toaster position="bottom-right" toastOptions={{
                 style: { background: '#333', color: '#fff' },
             }} />
+
+            <MobileMenu
+                isOpen={isMobileMenuOpen}
+                onClose={() => setIsMobileMenuOpen(false)}
+                navItems={navItems}
+                currentPath={currentPath}
+                onNavigate={(path) => {
+                    navigate(path);
+                    setIsMobileMenuOpen(false);
+                }}
+                username={username}
+                onSync={handleSync}
+                isSyncing={isSyncing}
+                onSettingsOpen={() => setIsSettingsOpen(true)}
+            />
 
             <SettingsModal
                 isOpen={isSettingsOpen}
@@ -165,9 +210,9 @@ export default function Layout() {
                 }}
             />
 
-            <div className="w-[95%] mx-auto space-y-8">
+            <div className="w-full px-0 md:w-[95%] md:px-0 mx-auto space-y-4 md:space-y-8">
                 {/* Header */}
-                <GlassCard className="flex flex-col md:flex-row items-center justify-between p-6 gap-4">
+                <GlassCard className="flex flex-col md:flex-row items-center justify-between p-3 md:p-6 gap-4 rounded-none md:rounded-2xl border-x-0 border-t-0 md:border md:border-white/10">
                     <div className="flex items-center gap-4">
                         <div className={cn("p-3 rounded-full transition-colors duration-300", autoDownload ? "bg-spotify-green" : "!bg-red-500")}>
                             <Music className="w-8 h-8 text-white" />
@@ -230,45 +275,12 @@ export default function Layout() {
                         {/* Mobile Menu Toggle */}
                         <motion.button
                             whileTap={{ scale: 0.95 }}
-                            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                            onClick={() => setIsMobileMenuOpen(true)}
                             className="lg:hidden p-2 hover:bg-white/10 rounded-full transition-colors text-white"
                         >
-                            {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+                            <Menu className="w-6 h-6" />
                         </motion.button>
                     </div>
-
-                    {/* Mobile Menu */}
-                    <AnimatePresence>
-                        {isMobileMenuOpen && (
-                            <motion.div
-                                initial={{ opacity: 0, height: 0 }}
-                                animate={{ opacity: 1, height: 'auto' }}
-                                exit={{ opacity: 0, height: 0 }}
-                                className="lg:hidden w-full overflow-hidden"
-                            >
-                                <div className="flex flex-col gap-2 pt-4 border-t border-white/5 mt-2">
-                                    {navItems.map((item) => (
-                                        <button
-                                            key={item.id}
-                                            onClick={() => {
-                                                navigate(item.path);
-                                                setIsMobileMenuOpen(false);
-                                            }}
-                                            className={cn(
-                                                "w-full px-4 py-3 rounded-xl text-left font-medium transition-all flex items-center gap-3",
-                                                currentPath === item.id
-                                                    ? "bg-spotify-green text-white shadow-lg shadow-spotify-green/20"
-                                                    : "hover:bg-white/5 text-gray-400 hover:text-white"
-                                            )}
-                                        >
-                                            <item.icon className="w-5 h-5" />
-                                            <span>{item.label}</span>
-                                        </button>
-                                    ))}
-                                </div>
-                            </motion.div>
-                        )}
-                    </AnimatePresence>
                 </GlassCard>
 
                 {/* Page Content */}

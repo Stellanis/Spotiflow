@@ -49,25 +49,29 @@ function SortableSongRow({ song, index, playTrack, handleRemoveSong, selectedPla
         <div
             ref={setNodeRef}
             style={style}
+            onClick={(e) => {
+                if (e.target.closest('button') || e.target.closest('.cursor-grab')) return;
+                playTrack(song, selectedPlaylist.songs);
+            }}
             className={cn(
-                "group flex items-center gap-4 p-3 rounded-xl hover:bg-white/5 transition-all duration-200 touch-none select-none border border-transparent hover:border-white/5",
+                "group flex items-center gap-3 md:gap-4 p-2 md:p-3 rounded-xl hover:bg-white/5 transition-all duration-200 touch-none select-none border border-transparent hover:border-white/5 cursor-pointer active:scale-[0.99]",
                 isDragging ? "bg-white/10 shadow-xl opacity-90 scale-[1.02]" : "bg-transparent"
             )}
         >
-            <div className="flex items-center gap-3 w-12 text-spotify-grey">
-                <div {...attributes} {...listeners} className="cursor-grab hover:text-white p-1 opacity-0 group-hover:opacity-100 transition-opacity">
+            <div className="flex items-center gap-3 w-8 md:w-12 text-spotify-grey justify-center">
+                <div {...attributes} {...listeners} className="cursor-grab hover:text-white p-2 md:p-1 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
                     <GripVertical className="w-4 h-4" />
                 </div>
-                <span className="text-sm font-mono w-4 text-center tabular-nums group-hover:hidden">{index + 1}</span>
+                <span className="hidden md:block text-sm font-mono w-4 text-center tabular-nums group-hover:hidden">{index + 1}</span>
                 <button
-                    onClick={() => playTrack(song, selectedPlaylist.songs)}
-                    className="hidden group-hover:block text-white hover:text-spotify-green transition-colors -ml-1"
+                    onClick={(e) => { e.stopPropagation(); playTrack(song, selectedPlaylist.songs); }}
+                    className="hidden md:hidden md:group-hover:block text-white hover:text-spotify-green transition-colors -ml-1"
                 >
                     <Play className="w-4 h-4 fill-current" />
                 </button>
             </div>
 
-            <div className="w-12 h-12 bg-white/10 rounded-lg overflow-hidden shrink-0 shadow-sm relative">
+            <div className="w-10 h-10 md:w-12 md:h-12 bg-white/10 rounded-lg overflow-hidden shrink-0 shadow-sm relative">
                 {song.image_url ? (
                     <img src={song.image_url} alt="" className="w-full h-full object-cover pointer-events-none" />
                 ) : (
@@ -78,21 +82,21 @@ function SortableSongRow({ song, index, playTrack, handleRemoveSong, selectedPla
             </div>
 
             <div className="flex-1 min-w-0 flex flex-col justify-center">
-                <div className="font-medium truncate text-white text-base group-hover:text-spotify-green transition-colors">{song.title}</div>
-                <div className="flex items-center gap-2 text-sm text-spotify-grey truncate">
+                <div className="font-medium truncate text-white text-sm md:text-base group-hover:text-spotify-green transition-colors">{song.title}</div>
+                <div className="flex items-center gap-2 text-xs md:text-sm text-spotify-grey truncate">
                     <span>{song.artist}</span>
                     {song.album && (
                         <>
-                            <span className="w-1 h-1 rounded-full bg-spotify-grey/40" />
-                            <span className="truncate opacity-80">{song.album}</span>
+                            <span className="hidden md:inline w-1 h-1 rounded-full bg-spotify-grey/40" />
+                            <span className="hidden md:inline truncate opacity-80">{song.album}</span>
                         </>
                     )}
                 </div>
             </div>
 
             <button
-                onClick={() => handleRemoveSong(song.query)}
-                className="p-2 text-spotify-grey hover:text-red-500 hover:bg-red-500/10 rounded-full transition-all opacity-0 group-hover:opacity-100 transform translate-x-2 group-hover:translate-x-0"
+                onClick={(e) => { e.stopPropagation(); handleRemoveSong(song.query); }}
+                className="p-2 text-spotify-grey hover:text-red-500 hover:bg-red-500/10 rounded-full transition-all opacity-100 md:opacity-0 md:group-hover:opacity-100 transform md:translate-x-2 md:group-hover:translate-x-0"
                 title="Remove from playlist"
             >
                 <Trash2 className="w-4 h-4" />
@@ -394,7 +398,7 @@ export function Playlists({ onPlayPlaylist }) {
                         animate={{ opacity: 1, x: 0 }}
                         exit={{ opacity: 0, x: 20 }}
                         transition={{ duration: 0.3 }}
-                        className="space-y-6 pb-20"
+                        className="space-y-6 pb-20 p-3 md:p-0"
                     >
                         <EditPlaylistModal
                             isOpen={isEditModalOpen}
@@ -422,7 +426,7 @@ export function Playlists({ onPlayPlaylist }) {
                         </div>
 
                         {/* Hero Section */}
-                        <div className="relative rounded-3xl overflow-hidden p-8 md:p-12 shadow-2xl group ring-1 ring-white/5">
+                        <div className="relative rounded-2xl md:rounded-3xl overflow-hidden p-6 md:p-12 shadow-2xl group ring-1 ring-white/5">
                             {/* Background Blur */}
                             <div
                                 className="absolute inset-0 z-0 bg-cover bg-center blur-3xl opacity-40 scale-110 transition-transform duration-1000 group-hover:scale-105"
@@ -619,7 +623,7 @@ export function Playlists({ onPlayPlaylist }) {
                         animate={{ opacity: 1, x: 0 }}
                         exit={{ opacity: 0, x: -20 }}
                         transition={{ duration: 0.3 }}
-                        className="space-y-8"
+                        className="space-y-8 p-3 md:p-0"
                     >
                         <div className="flex items-center justify-between">
                             <div>
@@ -636,7 +640,7 @@ export function Playlists({ onPlayPlaylist }) {
                                 <Loader2 className="w-10 h-10 animate-spin text-spotify-green" />
                             </div>
                         ) : (
-                            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 md:gap-6">
                                 {/* Create New Card */}
                                 <motion.div
                                     whileHover={{ y: -4 }}
