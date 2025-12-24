@@ -2,6 +2,7 @@ import { Play, Pause, SkipBack, SkipForward, Volume2, Loader2, Maximize2, Downlo
 import { motion, AnimatePresence } from 'framer-motion';
 import { usePlayer } from '../contexts/PlayerContext';
 import { cn } from '../utils';
+import { isFirefox } from '../utils/browser';
 import { useNavigate } from 'react-router-dom';
 
 function formatDuration(seconds) {
@@ -25,7 +26,10 @@ export function PlayerBar() {
                 initial={{ y: 100 }}
                 animate={{ y: 0 }}
                 exit={{ y: 100 }}
-                className="fixed bottom-0 left-0 right-0 h-12 bg-black/60 backdrop-blur-xl border-t border-white/10 px-4 md:px-8 flex items-center justify-center z-50 text-white cursor-pointer hover:bg-black/70 transition-colors"
+                className={cn(
+                    "fixed bottom-0 left-0 right-0 h-12 border-t border-white/10 px-4 md:px-8 flex items-center justify-center z-50 text-white cursor-pointer transition-colors",
+                    isFirefox ? "bg-black/95 hover:bg-black" : "bg-black/60 backdrop-blur-xl hover:bg-black/70"
+                )}
                 onClick={() => navigate('/jobs')}
             >
                 <div className="flex items-center gap-3 text-sm font-medium text-spotify-green animate-pulse">
@@ -41,7 +45,10 @@ export function PlayerBar() {
         <motion.div
             initial={{ y: 100 }}
             animate={{ y: 0 }}
-            className="fixed bottom-0 left-0 right-0 h-24 bg-black/40 backdrop-blur-xl border-t border-white/10 px-4 md:px-8 flex items-center justify-between z-50 text-white"
+            className={cn(
+                "fixed bottom-0 left-0 right-0 h-24 border-t border-white/10 px-4 md:px-8 flex items-center justify-between z-50 text-white",
+                isFirefox ? "bg-black/95" : "bg-black/40 backdrop-blur-xl"
+            )}
         >
             {/* Track Info */}
             <div className="flex items-center gap-4 w-[30%]">

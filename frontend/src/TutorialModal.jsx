@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, ChevronRight, Check, Music, Disc, Download, CheckCircle, RefreshCw, Key, Hourglass, Loader2, Ticket } from 'lucide-react';
 import { cn } from './utils';
+import { isFirefox } from './utils/browser';
 import axios from 'axios';
 
 const API_URL = '/api';
@@ -110,7 +111,7 @@ export function TutorialModal({ isOpen, onClose, onTutorialComplete }) {
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
-                        className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[60]"
+                        className={`fixed inset-0 z-[60] ${isFirefox ? "bg-black/95" : "bg-black/80 backdrop-blur-sm"}`}
                     />
 
                     {/* Modal */}

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Save, Loader2 } from 'lucide-react';
 import axios from 'axios';
+import { isFirefox } from './utils/browser';
 import { LastFMConfig } from './components/settings/LastFMConfig';
 import { ConcertsConfig } from './components/settings/ConcertsConfig';
 import { BehaviorConfig } from './components/settings/BehaviorConfig';
@@ -21,6 +22,10 @@ export function SettingsModal({ isOpen, onClose, onSave, onReplayTutorial }) {
     const [saving, setSaving] = useState(false);
     const [tmApiKey, setTmApiKey] = useState('');
     const [bitAppId, setBitAppId] = useState('');
+    const [disableFirefoxOpt, setDisableFirefoxOpt] = useState(false);
+
+    // Check if we are actually on Firefox to decide whether to show the toggle
+    const isActualFirefox = typeof navigator !== 'undefined' && /firefox/i.test(navigator.userAgent);
 
     useEffect(() => {
         if (isOpen) {
@@ -44,6 +49,8 @@ export function SettingsModal({ isOpen, onClose, onSave, onReplayTutorial }) {
 
             setTmApiKey(response.data.tm_api_key || '');
             setBitAppId(response.data.bit_app_id || '');
+
+            setDisableFirefoxOpt(localStorage.getItem('spotify_scrobbler_disable_optimization') === 'true');
 
         } catch (error) {
             console.error("Error fetching settings:", error);
@@ -77,6 +84,15 @@ export function SettingsModal({ isOpen, onClose, onSave, onReplayTutorial }) {
             }
 
             await axios.post(`${API_URL}/settings`, payload);
+
+            // Handle Firefox Optimization Setting
+            const currentOpt = localStorage.getItem('spotify_scrobbler_disable_optimization') === 'true';
+            if (currentOpt !== disableFirefoxOpt) {
+                localStorage.setItem('spotify_scrobbler_disable_optimization', disableFirefoxOpt);
+                window.location.reload(); // Reload to apply changes immediately
+                return;
+            }
+
             onSave(username, autoDownload, Array.from(hiddenFeatures));
             onClose();
         } catch (error) {
@@ -116,7 +132,7 @@ export function SettingsModal({ isOpen, onClose, onSave, onReplayTutorial }) {
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
                         onClick={onClose}
-                        className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50"
+                        className={`fixed inset-0 z-50 ${isFirefox ? "bg-black/95" : "bg-black/60 backdrop-blur-sm"}`}
                     />
 
                     <motion.div
@@ -164,6 +180,9 @@ export function SettingsModal({ isOpen, onClose, onSave, onReplayTutorial }) {
                                             hiddenFeatures={hiddenFeatures}
                                             toggleFeature={toggleFeature}
                                             features={features}
+                                            isFirefox={isActualFirefox}
+                                            disableFirefoxOpt={disableFirefoxOpt}
+                                            setDisableFirefoxOpt={setDisableFirefoxOpt}
                                         />
                                     </div>
                                 )}
