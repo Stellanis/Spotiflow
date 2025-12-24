@@ -166,6 +166,7 @@ export default function Undownloaded() {
                                                 if (track.status === 'completed') playTrack(track);
                                                 else setSelectedTrack(track);
                                             }}
+                                            image={track.image_url}
                                         >
                                             <div className="w-full aspect-square rounded-md overflow-hidden bg-spotify-dark relative shadow-lg group-hover:shadow-xl transition-all">
                                                 {track.image_url ? (

@@ -93,6 +93,7 @@ export default function Home() {
                                                     setSelectedTrack(track);
                                                 }
                                             }}
+                                            image={track.image}
                                         >
                                             <div className="flex items-center gap-4">
                                                 <div className="w-16 h-16 rounded-md overflow-hidden bg-spotify-dark shrink-0 relative">
