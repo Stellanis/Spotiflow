@@ -104,7 +104,7 @@ export default function Library() {
     }, [loadingDownloads, totalPages, currentPage, setCurrentPage]);
 
     return (
-        <div className="space-y-4">
+        <div className="space-y-4 p-3 md:p-0">
             <TrackStatsModal
                 isOpen={!!selectedTrack}
                 onClose={() => setSelectedTrack(null)}
@@ -205,7 +205,7 @@ export default function Library() {
                                             </div>
 
                                             {/* Actions */}
-                                            <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-2">
+                                            <div className="absolute top-2 right-2 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity flex gap-2">
                                                 <button
                                                     onClick={(e) => { e.stopPropagation(); setSelectedTrack(track); }}
                                                     className="p-2 bg-black/50 hover:bg-white/20 rounded-full text-white backdrop-blur-sm"
