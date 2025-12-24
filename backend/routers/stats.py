@@ -129,3 +129,49 @@ def get_sonic_diary(user: str):
     except Exception as e:
         logger.error(f"Error generating sonic diary: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/forgotten-gems/{user}")
+def get_forgotten_gems(user: str, threshold_months: int = 3, min_plays: int = 5):
+    try:
+        data = analytics_service.get_forgotten_gems(user, threshold_months, min_plays)
+        return data
+    except Exception as e:
+        logger.error(f"Error fetching forgotten gems: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/artist-deep-dive/{user}")
+def get_artist_deep_dive(user: str, artist: str):
+    try:
+        from database.repositories.scrobbles import get_artist_top_tracks_from_db
+        
+        # 1. Get local top tracks for artist
+        local_top = get_artist_top_tracks_from_db(user, artist, limit=5)
+        
+        # 2. Get global info from Last.fm
+        artist_info = lastfm_service.get_artist_info(artist, username=user)
+        bio = artist_info.get("bio", {}).get("summary") if artist_info else ""
+        
+        # Get high quality artist image via ImageProvider
+        artist_image = lastfm_service.get_artist_image(artist)
+
+        # 3. Get global top tracks and albums
+        global_artist_tracks = lastfm_service.get_artist_top_tracks(artist, limit=10)
+        albums = lastfm_service.get_artist_top_albums(artist, limit=5)
+        similar = lastfm_service.get_similar_artists(artist, limit=5)
+        
+        return {
+            "artist": artist,
+            "image": artist_image,
+            "bio": bio,
+            "local_stats": {
+                "top_tracks": local_top
+            },
+            "global_stats": {
+                "top_tracks": global_artist_tracks,
+                "top_albums": albums,
+                "similar_artists": similar
+            }
+        }
+    except Exception as e:
+        logger.error(f"Error artist deep dive: {e}")
+        raise HTTPException(status_code=500, detail=str(e))

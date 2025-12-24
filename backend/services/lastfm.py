@@ -479,3 +479,124 @@ class LastFMService:
             
         print(f"Sync complete. Added {new_scrobbles_count} new scrobbles.")
         return new_scrobbles_count
+
+    def get_artist_top_albums(self, artist: str, limit: int = 5):
+        cache_key = f"artist_albums_{artist}_{limit}"
+        cached = self.cache.get(cache_key)
+        if cached:
+            return cached
+
+        params = {
+            "method": "artist.gettopalbums",
+            "artist": artist,
+            "limit": limit
+        }
+        
+        data = self.client.request("GET", params)
+        albums = []
+        if data and "topalbums" in data and "album" in data["topalbums"]:
+            raw = data["topalbums"]["album"]
+            if isinstance(raw, dict): raw = [raw]
+            for a in raw:
+                # Use ImageProvider for album art
+                lastfm_imgs = a.get("image", [])
+                album_name = a.get("name")
+                # Treat album name as track name for search purposes (it works for iTunes album search logic too if adapted, 
+                # but currently get_image uses it for track/album search depending on context. 
+                # Actually, get_image with 2 args (artist, title) searches for track.
+                # But here we want ALBUM art.
+                # ImageProvider.get_image logic: if title is present, looks for track.
+                # If we pass album name as title, it might search for a TRACK named like the album.
+                # However, many albums have a title track, so this often works.
+                # A better approach would be to update ImageProvider to handle 'album' type explicitly, 
+                # but stick to the current pattern for minimal risk.
+                # Or better: Last.fm usually has good album art, so just filtering the placeholder is key.
+                final_image = self.image_provider.get_image(lastfm_imgs, artist, album_name)
+                
+                albums.append({
+                    "name": album_name,
+                    "playcount": a.get("playcount"),
+                    "image": final_image
+                })
+        
+        self.cache.set(cache_key, albums)
+        return albums
+
+    def get_similar_artists(self, artist: str, limit: int = 5):
+        cache_key = f"similar_artists_{artist}_{limit}"
+        cached = self.cache.get(cache_key)
+        if cached:
+            return cached
+
+        params = {
+            "method": "artist.getsimilar",
+            "artist": artist,
+            "limit": limit
+        }
+        
+        data = self.client.request("GET", params)
+        artists = []
+        if data and "similarartists" in data and "artist" in data["similarartists"]:
+            raw = data["similarartists"]["artist"]
+            if isinstance(raw, dict): raw = [raw]
+            for a in raw:
+                # Use ImageProvider to get best image (handling placeholders)
+                lastfm_imgs = a.get("image", [])
+                artist_name = a.get("name")
+                # Passing None for track title implies artist image search
+                final_image = self.image_provider.get_image(lastfm_imgs, artist_name, None)
+                
+                artists.append({
+                    "name": artist_name,
+                    "match": a.get("match"),
+                    "image": final_image
+                })
+        
+        self.cache.set(cache_key, artists)
+        return artists
+
+    def get_artist_info(self, artist: str, username: str = None):
+        cache_key = f"artist_info_{artist}_{username}"
+        cached = self.cache.get(cache_key)
+        if cached:
+            return cached
+
+        params = {
+            "method": "artist.getinfo",
+            "artist": artist
+        }
+        if username:
+            params["user"] = username
+            
+        data = self.client.request("GET", params)
+        if data and "artist" in data:
+            self.cache.set(cache_key, data["artist"])
+            return data["artist"]
+        return None
+
+    def get_artist_top_tracks(self, artist: str, limit: int = 10):
+        cache_key = f"artist_top_tracks_{artist}_{limit}"
+        cached = self.cache.get(cache_key)
+        if cached:
+            return cached
+
+        params = {
+            "method": "artist.gettoptracks",
+            "artist": artist,
+            "limit": limit
+        }
+        
+        data = self.client.request("GET", params)
+        tracks = []
+        if data and "toptracks" in data and "track" in data["toptracks"]:
+            raw = data["toptracks"]["track"]
+            if isinstance(raw, dict): raw = [raw]
+            for t in raw:
+                tracks.append({
+                    "title": t.get("name"),
+                    "playcount": t.get("playcount"),
+                    "listeners": t.get("listeners")
+                })
+        
+        self.cache.set(cache_key, tracks)
+        return tracks
