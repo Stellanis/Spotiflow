@@ -185,6 +185,7 @@ export default function Library() {
                                         className="p-4 flex flex-col gap-3 aspect-square justify-between hover:bg-white/10 relative group overflow-hidden cursor-pointer"
                                         ref={index === downloadedTracks.length - 1 ? lastTrackElementRef : null}
                                         onClick={() => playTrack(track, downloadedTracks)} // Pass context for queue?
+                                        image={track.image_url}
                                     >
                                         <div className="w-full aspect-square rounded-md overflow-hidden bg-spotify-dark relative shadow-lg group-hover:shadow-xl transition-all">
                                             {track.image_url ? (
