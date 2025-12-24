@@ -311,3 +311,81 @@ class AnalyticsService:
                 "top_track": top_track
             }
         }
+
+    def get_forgotten_gems(self, user: str, threshold_months: int = 3, min_plays: int = 5):
+        from database.repositories.scrobbles import get_top_tracks_from_db, get_scrobbles_in_range
+        from database.repositories.playlists import find_local_song
+        from database import get_download_info
+        
+        # 1. Get overall top tracks from DB (no time limit)
+        # Increase limit to 200 to have a larger pool of candidates to filter from
+        top_tracks = get_top_tracks_from_db(user, limit=200, start_ts=0)
+        
+        # 2. Get scrobbles from the last threshold_months
+        now = int(time.time())
+        threshold_ts = now - (threshold_months * 30 * 86400)
+        recent_scrobbles = get_scrobbles_in_range(user, threshold_ts, now)
+        
+        # Create a set of (artist, title) for fast lookup of recently played tracks
+        # Use lower() to ensure case-insensitive matching
+        recently_played = set()
+        for s in recent_scrobbles:
+            recently_played.add((s['artist'].lower(), s['title'].lower()))
+            
+        forgotten_gems = []
+        for t in top_tracks:
+            # Check if this top track has enough plays and wasn't played recently
+            if t['playcount'] >= min_plays:
+                artist_key = t['artist'].lower()
+                title_key = t['title'].lower()
+                
+                if (artist_key, title_key) not in recently_played:
+                    # Enriched with local download info if available
+                    gem = dict(t)
+                    local_query = find_local_song(t['artist'], t['title'])
+                    if local_query:
+                        d_info = get_download_info(local_query)
+                        if d_info:
+                            gem['downloaded'] = (d_info['status'] == 'completed')
+                            if d_info.get('image_url'):
+                                gem['image'] = d_info['image_url']
+                            
+                            # Audio URL (consistent with other components)
+                            from utils import sanitize_filename
+                            s_artist = sanitize_filename(d_info['artist'])
+                            s_album = sanitize_filename(d_info['album'] or "Unknown")
+                            s_title = sanitize_filename(d_info['title'])
+                            gem['audio_url'] = f"/api/audio/{s_artist}/{s_album}/{s_title}.mp3"
+                    else:
+                        gem['downloaded'] = False
+                    
+                    # If image is still missing, try to use the one from DB or fetch it
+                    # But verify it's not a placeholder
+                    placeholder_hash = "2a96cbd8b46e442fc41c2b86b821562f"
+                    
+                    # Check if the existing image is a placeholder
+                    is_placeholder = False
+                    if gem.get('image') and placeholder_hash in gem['image']:
+                        is_placeholder = True
+                        gem['image'] = None # Clear it so we fetch
+                    
+                    if 'image' not in gem or not gem['image']:
+                        # Fetch from Last.fm as a fallback (which uses our improved ImageProvider)
+                        try:
+                            from core import lastfm_service
+                            info = lastfm_service.get_track_info(user, t['artist'], t['title'])
+                            if info and info.get('image'):
+                               gem_image = info['image']
+                               # Double check the fetched image isn't also a placeholder (though ImageProvider should prevent this)
+                               if placeholder_hash not in gem_image:
+                                   gem['image'] = gem_image
+                        except Exception:
+                            pass # Fail silently if we can't get the image
+                    
+                    forgotten_gems.append(gem)
+    
+        # Dynamic threshold: if we found nothing, try to be even more lenient
+        if not forgotten_gems and min_plays > 1:
+            return self.get_forgotten_gems(user, threshold_months, min_plays - 1)
+
+        return forgotten_gems[:10]  # Return top 10 forgotten gems

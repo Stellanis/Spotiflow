@@ -63,13 +63,42 @@ class ImageProvider:
         if cache_key in self._image_cache:
             return self._image_cache[cache_key]
 
-        img_url = None
+        img_url = self._perform_itunes_search(artist, title)
+        
+        # If no result, try aggressive cleaning strategies
+        if not img_url:
+            import re
+            
+            # Strategy 1: Clean Artist (Primary only)
+            primary_artist = re.split(r'/|;| feat\. | ft\. | & ', artist)[0].strip()
+            
+            # Strategy 2: Clean Title (Remove (...) and [...] content)
+            clean_title = re.sub(r'\s*[\(\[].*?[\)\]]', '', title).strip()
+            
+            strategies = []
+            if primary_artist != artist:
+                strategies.append((primary_artist, title)) # Clean Artist
+            if clean_title != title:
+                strategies.append((artist, clean_title)) # Clean Title
+            if primary_artist != artist and clean_title != title:
+                strategies.append((primary_artist, clean_title)) # Both Clean
+                
+            for s_artist, s_title in strategies:
+                # print(f"DEBUG: Retrying iTunes with: {s_artist} - {s_title}")
+                img_url = self._perform_itunes_search(s_artist, s_title)
+                if img_url:
+                    break
+
+        if img_url:
+            self._image_cache[cache_key] = img_url
+            
+        return img_url
+
+    def _perform_itunes_search(self, artist, title):
         try:
             term = urllib.parse.quote(f"{artist} {title}")
             url = f"https://itunes.apple.com/search?term={term}&entity=song&limit=1"
             
-            # Use curl to bypass potential UA blocking if simple requests fail, 
-            # mirroring original implementation's robustness
             curl_cmd = 'curl.exe' if os.name == 'nt' else 'curl'
             cmd = [
                 curl_cmd, '-s',
@@ -85,17 +114,32 @@ class ImageProvider:
                     result_item = data["results"][0]
                     raw_url = result_item.get("artworkUrl100")
                     if raw_url:
-                        img_url = raw_url.replace("100x100bb", "600x600bb")
-        except Exception as e:
-            print(f"Error fetching from iTunes via curl: {e}")
-
-        if img_url:
-            self._image_cache[cache_key] = img_url
-            
-        return img_url
+                        return raw_url.replace("100x100bb", "600x600bb")
+        except Exception:
+            pass
+        return None
 
     def _fetch_deezer_image(self, artist, title):
         """Fallback to Deezer API for album art."""
+        img_url = self._perform_deezer_search(artist, title)
+        
+        if not img_url:
+            import re
+            primary_artist = re.split(r'/|;| feat\. | ft\. | & ', artist)[0].strip()
+            clean_title = re.sub(r'\s*[\(\[].*?[\)\]]', '', title).strip()
+            
+            strategies = []
+            if primary_artist != artist: strategies.append((primary_artist, title))
+            if clean_title != title: strategies.append((artist, clean_title))
+            if primary_artist != artist and clean_title != title: strategies.append((primary_artist, clean_title))
+            
+            for s_artist, s_title in strategies:
+                img_url = self._perform_deezer_search(s_artist, s_title)
+                if img_url: break
+        
+        return img_url
+
+    def _perform_deezer_search(self, artist, title):
         try:
             query = f'artist:"{artist}" track:"{title}"'
             params = {
@@ -111,8 +155,8 @@ class ImageProvider:
                     track = data["data"][0]
                     album = track.get("album", {})
                     return album.get("cover_xl") or album.get("cover_big") or album.get("cover_medium")
-        except Exception as e:
-            print(f"Error fetching from Deezer: {e}")
+        except Exception:
+            pass
         return None
 
     def _fetch_itunes_artist_image(self, artist):
@@ -121,25 +165,25 @@ class ImageProvider:
         if cache_key in self._image_cache:
             return self._image_cache[cache_key]
 
-        img_url = None
+        img_url = self._perform_itunes_artist_search(artist)
+        
+        if not img_url:
+            import re
+            # Clean Artist (Primary only)
+            primary_artist = re.split(r'/|;| feat\. | ft\. | & ', artist)[0].strip()
+            
+            if primary_artist != artist:
+                img_url = self._perform_itunes_artist_search(primary_artist)
+
+        if img_url:
+            self._image_cache[cache_key] = img_url
+            
+        return img_url
+
+    def _perform_itunes_artist_search(self, artist):
         try:
             term = urllib.parse.quote(artist)
-            url = f"https://itunes.apple.com/search?term={term}&entity=musicArtist&limit=1"
-            
-            # Reuse curl logic if regular request might fail, but requests is usually fine for iTunes
-            # Using requests for simplicity unless blocked
-            response = requests.get(url, timeout=5)
-            if response.status_code == 200:
-                data = response.json()
-                if data["resultCount"] > 0:
-                    # Apple Music doesn't always return generic artist images in 'musicArtist' search without extra work,
-                    # but sometimes it does via `artistLinkUrl`? No, usually `amgArtistId` etc.
-                    # Actually, `musicArtist` entity searches return `artistName`, `primaryGenreName`, etc. but often NO `artworkUrl`.
-                    # Alternate strategy: Search for an album by the artist and take the artwork?
-                    # "entity=album"
-                    pass
-
-            # Method 2: Search for top album
+            # Method 1: Search for top album (often better art than artist search)
             url = f"https://itunes.apple.com/search?term={term}&entity=album&limit=1"
             response = requests.get(url, timeout=5)
             if response.status_code == 200:
@@ -147,21 +191,25 @@ class ImageProvider:
                 if data["resultCount"] > 0:
                      img_url = data["results"][0].get("artworkUrl100")
                      if img_url:
-                        img_url = img_url.replace("100x100bb", "600x600bb")
-
-        except Exception as e:
-            print(f"Error fetching artist from iTunes: {e}")
-
-        if img_url:
-            self._image_cache[cache_key] = img_url
-            
-        return img_url
+                        return img_url.replace("100x100bb", "600x600bb")
+        except Exception:
+            pass
+        return None
 
     def _fetch_deezer_artist_image(self, artist):
         """Fallback to Deezer API for artist image."""
+        img_url = self._perform_deezer_artist_search(artist)
+        
+        if not img_url:
+            import re
+            primary_artist = re.split(r'/|;| feat\. | ft\. | & ', artist)[0].strip()
+            if primary_artist != artist:
+                img_url = self._perform_deezer_artist_search(primary_artist)
+        
+        return img_url
+
+    def _perform_deezer_artist_search(self, artist):
         try:
-            # Query artist directly
-            # "https://api.deezer.com/search/artist?q={artist}"
             query = f'"{artist}"'
             params = {
                 "q": query,
@@ -175,6 +223,6 @@ class ImageProvider:
                 if "data" in data and len(data["data"]) > 0:
                     a = data["data"][0]
                     return a.get("picture_xl") or a.get("picture_big") or a.get("picture_medium")
-        except Exception as e:
-            print(f"Error fetching artist from Deezer: {e}")
+        except Exception:
+            pass
         return None
