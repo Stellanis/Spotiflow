@@ -126,13 +126,10 @@ class DownloaderService:
                 clean_title = title if title else info.get('title', 'Unknown Title')
                 clean_album = album if album else info.get('album', 'Unknown Album')
                 
-                # Sanitize filename
-                def sanitize(name):
-                    return "".join([c for c in name if c.isalpha() or c.isdigit() or c in " -_()"]).strip()
-                
-                sanitized_artist = sanitize(clean_artist)
-                sanitized_album = sanitize(clean_album)
-                sanitized_title = sanitize(clean_title)
+                from utils import sanitize_filename
+                sanitized_artist = sanitize_filename(clean_artist)
+                sanitized_album = sanitize_filename(clean_album)
+                sanitized_title = sanitize_filename(clean_title)
 
                 # Create Artist/Album directory structure
                 target_dir = os.path.join(self.download_path, sanitized_artist, sanitized_album)

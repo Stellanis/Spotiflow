@@ -4,10 +4,7 @@ from tasks import check_new_scrobbles
 from database import is_downloaded, get_download_info
 import urllib.parse
 
-def sanitize_filename(name):
-    # Determine the clean name exactly as DownloaderService does
-    if not name: return "Unknown"
-    return "".join([c for c in name if c.isalpha() or c.isdigit() or c in " -_()"]).strip()
+from utils import sanitize_filename
 
 router = APIRouter(tags=["scrobbles"])
 

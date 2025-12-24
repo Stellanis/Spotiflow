@@ -6,9 +6,9 @@ import { GlassCard } from './GlassCard';
 import { toast } from 'react-hot-toast';
 import { cn } from '../utils';
 
-export function PlaylistCreator({ isOpen, onClose, onCreate }) {
-    // Mode: 'menu', 'manual', 'smart', 'top', 'genre'
-    const [mode, setMode] = useState('menu');
+export function PlaylistCreator({ isOpen, onClose, onCreate, initialMode = 'menu' }) {
+    // Mode: 'menu', 'manual', 'smart', 'top', 'genre', 'vibe'
+    const [mode, setMode] = useState(initialMode);
 
     // Common State
     const [name, setName] = useState('');
@@ -25,6 +25,19 @@ export function PlaylistCreator({ isOpen, onClose, onCreate }) {
     // Genre State
     const [genreTag, setGenreTag] = useState('');
     const [availableTags, setAvailableTags] = useState([]);
+
+    const vibePresets = [
+        { id: 'midnight', label: 'The Midnight Lounge', icon: '🌙', tags: ['jazz', 'blues', 'ambient', 'chill', 'mellow'], description: 'Late night vibes. Smooth, atmospheric and relaxed.' },
+        { id: 'energy', label: 'High Energy', icon: '⚡', tags: ['rock', 'metal', 'dance', 'electronic', 'upbeat'], description: 'Keep the momentum going. Perfect for workouts or focus.' },
+        { id: 'focus', label: 'Deep Focus', icon: '🧠', tags: ['classical', 'instrumental', 'ambient', 'lo-fi', 'soundtrack'], description: 'Minimal distractions. Atmospheric sounds for deep work.' },
+        { id: 'indie', label: 'Indie Discovery', icon: '🎸', tags: ['indie', 'alternative', 'shoegaze', 'dream pop'], description: 'The best of your indie and alternative collection.' },
+    ];
+
+    useEffect(() => {
+        if (isOpen) {
+            setMode(initialMode);
+        }
+    }, [isOpen, initialMode]);
 
     useEffect(() => {
         if (mode === 'genre') {
@@ -89,6 +102,28 @@ export function PlaylistCreator({ isOpen, onClose, onCreate }) {
             description: description || `A mix of ${genreTag} tracks`,
             tag: genreTag
         });
+    };
+
+    const handleVibeCreate = async (vibe) => {
+        setLoading(true);
+        try {
+            const payload = {
+                name: vibe.label,
+                description: vibe.description,
+                tags: vibe.tags
+            };
+
+            const res = await axios.post('/api/playlists/generate/genre', payload);
+            if (onCreate) onCreate(res.data);
+            toast.success(`${vibe.label} playlist generated!`);
+            onClose();
+            resetForm();
+        } catch (error) {
+            console.error("Error generating vibe playlist:", error);
+            toast.error("Failed to generate vibe playlist");
+        } finally {
+            setLoading(false);
+        }
     };
 
     const handleSubmit = async (e) => {
@@ -178,6 +213,17 @@ export function PlaylistCreator({ isOpen, onClose, onCreate }) {
                                             <p className="text-sm text-spotify-grey">Dynamic rules (e.g. Artist is...)</p>
                                         </div>
                                     </div>
+
+                                    {/* Vibe */}
+                                    <div onClick={() => setMode('vibe')} className="group p-6 bg-white/5 hover:bg-white/10 rounded-xl cursor-pointer transition-colors border border-white/5 hover:border-amber-500/50 flex flex-col items-center text-center gap-4">
+                                        <div className="w-12 h-12 rounded-full bg-amber-500/20 flex items-center justify-center group-hover:scale-110 transition-transform">
+                                            <Zap className="w-6 h-6 text-amber-400" />
+                                        </div>
+                                        <div>
+                                            <h3 className="font-bold text-lg mb-1">Vibe Match</h3>
+                                            <p className="text-sm text-spotify-grey">Mood-based AI generation</p>
+                                        </div>
+                                    </div>
                                 </div>
                             </GlassCard>
                         </motion.div>
@@ -209,9 +255,11 @@ export function PlaylistCreator({ isOpen, onClose, onCreate }) {
                                         {mode === 'smart' && <Sparkles className="text-purple-400" />}
                                         {mode === 'top' && <BarChart3 className="text-blue-400" />}
                                         {mode === 'genre' && <Tag className="text-pink-400" />}
+                                        {mode === 'vibe' && <Zap className="text-amber-400" />}
                                         {mode === 'manual' ? 'Standard Playlist' :
                                             mode === 'smart' ? 'Smart Playlist' :
-                                                mode === 'top' ? 'Top Songs Generator' : 'Genre Mix Generator'}
+                                                mode === 'top' ? 'Top Songs Generator' :
+                                                    mode === 'vibe' ? 'Vibe Generator' : 'Genre Mix Generator'}
                                     </h2>
                                 </div>
                                 <button onClick={onClose} className="p-1 hover:bg-white/10 rounded-full transition-colors">
@@ -219,166 +267,188 @@ export function PlaylistCreator({ isOpen, onClose, onCreate }) {
                                 </button>
                             </div>
 
-                            <form onSubmit={handleSubmit} className="space-y-6">
-                                <div className="space-y-4">
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        <div>
-                                            <label className="block text-sm font-medium text-spotify-grey mb-1">Name</label>
-                                            <input
-                                                type="text"
-                                                value={name}
-                                                onChange={(e) => setName(e.target.value)}
-                                                className="w-full bg-black/20 border border-white/10 rounded px-3 py-2 text-white focus:border-spotify-green focus:outline-none"
-                                                required
-                                                placeholder="Playlist Name"
-                                            />
-                                        </div>
-                                        {/* Specific Fields */}
-                                        {mode === 'top' && (
-                                            <div>
-                                                <label className="block text-sm font-medium text-spotify-grey mb-1">Time Period</label>
-                                                <select
-                                                    value={timeRange}
-                                                    onChange={(e) => setTimeRange(e.target.value)}
-                                                    className="w-full bg-black/20 border border-white/10 rounded px-3 py-2 text-white focus:outline-none"
-                                                >
-                                                    <option value="7day">Last 7 Days (Week)</option>
-                                                    <option value="1month">Last Month</option>
-                                                    <option value="12month">Last Year</option>
-                                                    <option value="overall">All Time</option>
-                                                </select>
+                            {mode === 'vibe' ? (
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    {vibePresets.map(vibe => (
+                                        <button
+                                            key={vibe.id}
+                                            type="button"
+                                            onClick={() => handleVibeCreate(vibe)}
+                                            disabled={loading}
+                                            className="p-4 bg-white/5 border border-white/5 rounded-xl text-left hover:bg-white/10 transition-all group disabled:opacity-50"
+                                        >
+                                            <div className="flex items-center gap-3 mb-2">
+                                                <span className="text-2xl">{vibe.icon}</span>
+                                                <div className="font-bold text-white group-hover:text-spotify-green transition-colors">{vibe.label}</div>
                                             </div>
-                                        )}
-                                        {mode === 'genre' && (
+                                            <p className="text-xs text-spotify-grey leading-relaxed line-clamp-2">
+                                                {vibe.description}
+                                            </p>
+                                        </button>
+                                    ))}
+                                </div>
+                            ) : (
+                                <form onSubmit={handleSubmit} className="space-y-6">
+                                    <div className="space-y-4">
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                             <div>
-                                                <label className="block text-sm font-medium text-spotify-grey mb-1">Genre Tag</label>
+                                                <label className="block text-sm font-medium text-spotify-grey mb-1">Name</label>
                                                 <input
                                                     type="text"
-                                                    value={genreTag}
-                                                    onChange={(e) => setGenreTag(e.target.value)}
-                                                    className="w-full bg-black/20 border border-white/10 rounded px-3 py-2 text-white focus:border-pink-500 focus:outline-none mb-2"
+                                                    value={name}
+                                                    onChange={(e) => setName(e.target.value)}
+                                                    className="w-full bg-black/20 border border-white/10 rounded px-3 py-2 text-white focus:border-spotify-green focus:outline-none"
                                                     required
-                                                    placeholder="e.g. Rock, Indie, 90s..."
+                                                    placeholder="Playlist Name"
                                                 />
-                                                <div className="flex flex-wrap gap-2 max-h-[100px] overflow-y-auto custom-scrollbar p-1">
-                                                    {availableTags.map(tag => (
-                                                        <button
-                                                            key={tag}
-                                                            type="button"
-                                                            onClick={() => setGenreTag(tag)}
-                                                            className={cn(
-                                                                "px-2 py-1 text-xs rounded-full border transition-colors",
-                                                                genreTag.toLowerCase() === tag.toLowerCase()
-                                                                    ? "bg-pink-500 text-white border-pink-500"
-                                                                    : "bg-white/5 text-spotify-grey border-white/10 hover:border-pink-500/50 hover:text-white"
-                                                            )}
-                                                        >
-                                                            {tag}
-                                                        </button>
-                                                    ))}
-                                                </div>
                                             </div>
-                                        )}
-                                    </div>
-
-                                    <div>
-                                        <label className="block text-sm font-medium text-spotify-grey mb-1">Description</label>
-                                        <textarea
-                                            value={description}
-                                            onChange={(e) => setDescription(e.target.value)}
-                                            className="w-full bg-black/20 border border-white/10 rounded px-3 py-2 text-white focus:border-spotify-green focus:outline-none min-h-[60px]"
-                                            placeholder="Optional description..."
-                                        />
-                                    </div>
-                                </div>
-
-                                {/* Rule Builder for Smart Mode */}
-                                {mode === 'smart' && (
-                                    <div className="space-y-4 pt-4 border-t border-white/10">
-                                        <div className="flex items-center justify-between">
-                                            <label className="text-sm font-medium text-white">Rules</label>
-                                            <select
-                                                value={matchType}
-                                                onChange={(e) => setMatchType(e.target.value)}
-                                                className="bg-black/20 border border-white/10 rounded px-2 py-1 text-xs text-white focus:outline-none"
-                                            >
-                                                <option value="all">Match ALL rules (AND)</option>
-                                                <option value="any">Match ANY rule (OR)</option>
-                                            </select>
-                                        </div>
-
-                                        <div className="space-y-2 max-h-[200px] overflow-y-auto pr-2 custom-scrollbar">
-                                            {rules.map((rule, idx) => (
-                                                <div key={idx} className="flex gap-2">
+                                            {/* Specific Fields */}
+                                            {mode === 'top' && (
+                                                <div>
+                                                    <label className="block text-sm font-medium text-spotify-grey mb-1">Time Period</label>
                                                     <select
-                                                        value={rule.field}
-                                                        onChange={(e) => handleRuleChange(idx, 'field', e.target.value)}
-                                                        className="bg-black/20 border border-white/10 rounded px-2 py-2 text-sm text-white focus:outline-none w-1/3"
+                                                        value={timeRange}
+                                                        onChange={(e) => setTimeRange(e.target.value)}
+                                                        className="w-full bg-black/20 border border-white/10 rounded px-3 py-2 text-white focus:outline-none"
                                                     >
-                                                        <option value="artist">Artist</option>
-                                                        <option value="title">Title</option>
-                                                        <option value="album">Album</option>
+                                                        <option value="7day">Last 7 Days (Week)</option>
+                                                        <option value="1month">Last Month</option>
+                                                        <option value="12month">Last Year</option>
+                                                        <option value="overall">All Time</option>
                                                     </select>
-
-                                                    <select
-                                                        value={rule.operator}
-                                                        onChange={(e) => handleRuleChange(idx, 'operator', e.target.value)}
-                                                        className="bg-black/20 border border-white/10 rounded px-2 py-2 text-sm text-white focus:outline-none w-1/4"
-                                                    >
-                                                        <option value="contains">contains</option>
-                                                        <option value="is">is exactly</option>
-                                                        <option value="is_not">is not</option>
-                                                    </select>
-
+                                                </div>
+                                            )}
+                                            {mode === 'genre' && (
+                                                <div>
+                                                    <label className="block text-sm font-medium text-spotify-grey mb-1">Genre Tag</label>
                                                     <input
                                                         type="text"
-                                                        value={rule.value}
-                                                        onChange={(e) => handleRuleChange(idx, 'value', e.target.value)}
-                                                        className="bg-black/20 border border-white/10 rounded px-3 py-2 text-white focus:border-purple-500 focus:outline-none flex-1 min-w-0"
-                                                        placeholder="Value..."
+                                                        value={genreTag}
+                                                        onChange={(e) => setGenreTag(e.target.value)}
+                                                        className="w-full bg-black/20 border border-white/10 rounded px-3 py-2 text-white focus:border-pink-500 focus:outline-none mb-2"
+                                                        required
+                                                        placeholder="e.g. Rock, Indie, 90s..."
                                                     />
-
-                                                    {rules.length > 1 && (
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => handleRemoveRule(idx)}
-                                                            className="p-2 text-spotify-grey hover:text-red-500 transition-colors"
-                                                        >
-                                                            <Trash2 className="w-4 h-4" />
-                                                        </button>
-                                                    )}
+                                                    <div className="flex flex-wrap gap-2 max-h-[100px] overflow-y-auto custom-scrollbar p-1">
+                                                        {availableTags.map(tag => (
+                                                            <button
+                                                                key={tag}
+                                                                type="button"
+                                                                onClick={() => setGenreTag(tag)}
+                                                                className={cn(
+                                                                    "px-2 py-1 text-xs rounded-full border transition-colors",
+                                                                    genreTag.toLowerCase() === tag.toLowerCase()
+                                                                        ? "bg-pink-500 text-white border-pink-500"
+                                                                        : "bg-white/5 text-spotify-grey border-white/10 hover:border-pink-500/50 hover:text-white"
+                                                                )}
+                                                            >
+                                                                {tag}
+                                                            </button>
+                                                        ))}
+                                                    </div>
                                                 </div>
-                                            ))}
+                                            )}
                                         </div>
 
+                                        <div>
+                                            <label className="block text-sm font-medium text-spotify-grey mb-1">Description</label>
+                                            <textarea
+                                                value={description}
+                                                onChange={(e) => setDescription(e.target.value)}
+                                                className="w-full bg-black/20 border border-white/10 rounded px-3 py-2 text-white focus:border-spotify-green focus:outline-none min-h-[60px]"
+                                                placeholder="Optional description..."
+                                            />
+                                        </div>
+                                    </div>
+
+                                    {/* Rule Builder for Smart Mode */}
+                                    {mode === 'smart' && (
+                                        <div className="space-y-4 pt-4 border-t border-white/10">
+                                            <div className="flex items-center justify-between">
+                                                <label className="text-sm font-medium text-white">Rules</label>
+                                                <select
+                                                    value={matchType}
+                                                    onChange={(e) => setMatchType(e.target.value)}
+                                                    className="bg-black/20 border border-white/10 rounded px-2 py-1 text-xs text-white focus:outline-none"
+                                                >
+                                                    <option value="all">Match ALL rules (AND)</option>
+                                                    <option value="any">Match ANY rule (OR)</option>
+                                                </select>
+                                            </div>
+
+                                            <div className="space-y-2 max-h-[200px] overflow-y-auto pr-2 custom-scrollbar">
+                                                {rules.map((rule, idx) => (
+                                                    <div key={idx} className="flex gap-2">
+                                                        <select
+                                                            value={rule.field}
+                                                            onChange={(e) => handleRuleChange(idx, 'field', e.target.value)}
+                                                            className="bg-black/20 border border-white/10 rounded px-2 py-2 text-sm text-white focus:outline-none w-1/3"
+                                                        >
+                                                            <option value="artist">Artist</option>
+                                                            <option value="title">Title</option>
+                                                            <option value="album">Album</option>
+                                                        </select>
+
+                                                        <select
+                                                            value={rule.operator}
+                                                            onChange={(e) => handleRuleChange(idx, 'operator', e.target.value)}
+                                                            className="bg-black/20 border border-white/10 rounded px-2 py-2 text-sm text-white focus:outline-none w-1/4"
+                                                        >
+                                                            <option value="contains">contains</option>
+                                                            <option value="is">is exactly</option>
+                                                            <option value="is_not">is not</option>
+                                                        </select>
+
+                                                        <input
+                                                            type="text"
+                                                            value={rule.value}
+                                                            onChange={(e) => handleRuleChange(idx, 'value', e.target.value)}
+                                                            className="bg-black/20 border border-white/10 rounded px-3 py-2 text-white focus:border-purple-500 focus:outline-none flex-1 min-w-0"
+                                                            placeholder="Value..."
+                                                        />
+
+                                                        {rules.length > 1 && (
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => handleRemoveRule(idx)}
+                                                                className="p-2 text-spotify-grey hover:text-red-500 transition-colors"
+                                                            >
+                                                                <Trash2 className="w-4 h-4" />
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                ))}
+                                            </div>
+
+                                            <button
+                                                type="button"
+                                                onClick={handleAddRule}
+                                                className="text-xs text-spotify-green hover:underline flex items-center gap-1"
+                                            >
+                                                <Plus className="w-3 h-3" />
+                                                Add Condition
+                                            </button>
+                                        </div>
+                                    )}
+
+                                    <div className="flex justify-end gap-2 pt-4 border-t border-white/10">
                                         <button
                                             type="button"
-                                            onClick={handleAddRule}
-                                            className="text-xs text-spotify-green hover:underline flex items-center gap-1"
+                                            onClick={onClose}
+                                            className="px-4 py-2 text-sm hover:text-white text-spotify-grey transition-colors"
                                         >
-                                            <Plus className="w-3 h-3" />
-                                            Add Condition
+                                            Cancel
+                                        </button>
+                                        <button
+                                            type="submit"
+                                            disabled={loading}
+                                            className="px-6 py-2 bg-spotify-green text-white text-sm font-medium rounded-full hover:bg-spotify-green/80 transition-colors disabled:opacity-50"
+                                        >
+                                            {loading ? 'Creating...' : `Create ${mode === 'smart' ? 'Smart Playlist' : mode === 'manual' ? 'Playlist' : 'Generator'}`}
                                         </button>
                                     </div>
-                                )}
-
-                                <div className="flex justify-end gap-2 pt-4 border-t border-white/10">
-                                    <button
-                                        type="button"
-                                        onClick={onClose}
-                                        className="px-4 py-2 text-sm hover:text-white text-spotify-grey transition-colors"
-                                    >
-                                        Cancel
-                                    </button>
-                                    <button
-                                        type="submit"
-                                        disabled={loading}
-                                        className="px-6 py-2 bg-spotify-green text-white text-sm font-medium rounded-full hover:bg-spotify-green/80 transition-colors disabled:opacity-50"
-                                    >
-                                        {loading ? 'Creating...' : `Create ${mode === 'smart' ? 'Smart Playlist' : mode === 'manual' ? 'Playlist' : 'Generator'}`}
-                                    </button>
-                                </div>
-                            </form>
+                                </form>
+                            )}
                         </GlassCard>
                     </motion.div>
                 </div>

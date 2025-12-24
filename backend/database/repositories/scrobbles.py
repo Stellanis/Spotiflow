@@ -95,3 +95,17 @@ def get_top_tracks_from_db(user, limit=50, start_ts=0):
         ''', (user, start_ts, limit))
         rows = c.fetchall()
         return [{"artist": row[0], "title": row[1], "image": row[2], "playcount": row[3]} for row in rows]
+
+def get_artist_top_tracks_from_db(user, artist, limit=10):
+    with get_connection() as conn:
+        c = conn.cursor()
+        c.execute('''
+            SELECT title, image_url, COUNT(*) as playcount 
+            FROM scrobbles 
+            WHERE user = ? AND artist LIKE ?
+            GROUP BY title
+            ORDER BY playcount DESC 
+            LIMIT ?
+        ''', (user, artist, limit))
+        rows = c.fetchall()
+        return [{"title": row[0], "image": row[1], "playcount": row[2]} for row in rows]
