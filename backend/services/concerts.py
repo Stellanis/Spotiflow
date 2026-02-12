@@ -9,8 +9,15 @@ from core import lastfm_service
 
 class ConcertService:
     def __init__(self):
-        self.tm_api_key = get_setting('tm_api_key')
-        self.bit_app_id = get_setting('bit_app_id', 'demo') # Use 'demo' as default
+        pass
+
+    @property
+    def tm_api_key(self):
+        return get_setting('tm_api_key')
+
+    @property
+    def bit_app_id(self):
+        return get_setting('bit_app_id', 'demo')
         
     def get_all_concerts(self, city=None):
         """

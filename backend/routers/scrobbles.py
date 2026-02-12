@@ -18,8 +18,6 @@ def get_scrobbles(user: str, limit: int = 10):
         for track in tracks:
             query = f"{track['artist']} - {track['title']}"
             track_queries.append(query)
-            # Store temporarily to avoid re-formatting
-            track['__query_key'] = query
 
         # 2. Batch fetch status
         from database import get_downloads_batch
@@ -27,7 +25,7 @@ def get_scrobbles(user: str, limit: int = 10):
         
         # 3. Map back to tracks
         for track in tracks:
-            query = track.pop('__query_key') # Clean up
+            query = f"{track['artist']} - {track['title']}"
             download_info = downloads_map.get(query)
             
             if download_info:
@@ -43,8 +41,7 @@ def get_scrobbles(user: str, limit: int = 10):
                 track['audio_url'] = None
                 
         return tracks
-                
-        return tracks
+
     except Exception as e:
         import traceback
         logger.error(f"Error fetching scrobbles: {e}\n{traceback.format_exc()}")
