@@ -16,7 +16,7 @@ class DownloadRequest(BaseModel):
     image: str = None
 
 @router.get("/downloads")
-async def list_downloads(page: int = 1, limit: int = 50, status: str = None, search: str = None, artist: str = None, album: str = None):
+def list_downloads(page: int = 1, limit: int = 50, status: str = None, search: str = None, artist: str = None, album: str = None):
     items = get_downloads(page, limit, status, search, artist, album)
     
     # Inject audio_url
@@ -76,13 +76,13 @@ def get_filters(artist: str = None):
     return data
 
 @router.post("/download")
-async def download_song(request: DownloadRequest):
+def download_song(request: DownloadRequest):
     # Queue the download
     downloader_service.queue_download(request.query, request.artist, request.title, request.album, request.image)
     return {"status": "queued", "query": request.query}
 
 @router.post("/download/all")
-async def download_all_pending():
+def download_all_pending():
     pending_tracks = get_all_pending_downloads()
     count = 0
     for track in pending_tracks:
@@ -97,7 +97,7 @@ async def download_all_pending():
     return {"status": "queued", "count": count}
 
 @router.get("/jobs")
-async def get_jobs():
+def get_jobs():
     active_downloads = downloader_service.get_active_downloads()
     
     # Get next run time for scrobble check

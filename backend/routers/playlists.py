@@ -60,11 +60,11 @@ class PlaylistDetail(Playlist):
     songs: List[dict] = []
 
 @router.get("/playlists", response_model=List[Playlist])
-async def get_playlists():
+def get_playlists():
     return get_playlists_with_stats()
 
 @router.post("/playlists/generate/top")
-async def generate_top_playlist(req: PlaylistGenerateTop):
+def generate_top_playlist(req: PlaylistGenerateTop):
     user = get_setting("LASTFM_USER")
     if not user:
         raise HTTPException(status_code=400, detail="LastFM user not configured")
@@ -80,7 +80,7 @@ async def generate_top_playlist(req: PlaylistGenerateTop):
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/playlists/generate/genre")
-async def generate_genre_playlist(req: PlaylistGenerateGenre):
+def generate_genre_playlist(req: PlaylistGenerateGenre):
     user = get_setting("LASTFM_USER")
     if not user:
         raise HTTPException(status_code=400, detail="LastFM user not configured")
@@ -101,15 +101,15 @@ async def generate_genre_playlist(req: PlaylistGenerateGenre):
         logger.error(f"Error generating genre playlist: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.post("/playlists", response_model=Playlist)
-async def create_playlist(playlist: PlaylistCreate):
+@router.post("/playlists", response_model=PlaylistDetail)
+def create_playlist(playlist: PlaylistCreate):
     res = repo_create_playlist(playlist.name, playlist.description, playlist.type, playlist.rules, playlist.color)
     if not res:
         raise HTTPException(status_code=400, detail="Playlist with this name already exists")
     return res
 
 @router.get("/playlists/tags")
-async def get_available_tags():
+def get_available_tags():
     try:
         artists = get_top_local_artists(limit=50)
         tag_counts = Counter()
@@ -126,7 +126,7 @@ async def get_available_tags():
         return []
 
 @router.get("/playlists/{playlist_id}", response_model=PlaylistDetail)
-async def get_playlist_detail(playlist_id: int):
+def get_playlist_detail(playlist_id: int):
     playlist = get_playlist_by_id(playlist_id)
     if not playlist:
         raise HTTPException(status_code=404, detail="Playlist not found")
@@ -161,7 +161,7 @@ async def get_playlist_detail(playlist_id: int):
     return result
 
 @router.post("/playlists/{playlist_id}/add")
-async def add_song_to_playlist(playlist_id: int, song: PlaylistAddSong):
+def add_song_to_playlist(playlist_id: int, song: PlaylistAddSong):
     playlist = get_playlist_by_id(playlist_id)
     if not playlist:
         raise HTTPException(status_code=404, detail="Playlist not found")
@@ -173,7 +173,7 @@ async def add_song_to_playlist(playlist_id: int, song: PlaylistAddSong):
     return {"status": "added", "position": pos}
 
 @router.put("/playlists/{playlist_id}")
-async def update_playlist(playlist_id: int, playlist: PlaylistCreate):
+def update_playlist(playlist_id: int, playlist: PlaylistCreate):
     success = update_playlist_details(playlist_id, playlist.name, playlist.description)
     if not success:
          # Could be not found OR duplicate name. Repo returns False for both mostly, or Exception.
@@ -186,7 +186,7 @@ class ReorderItem(BaseModel):
     new_position: int
 
 @router.put("/playlists/{playlist_id}/reorder")
-async def reorder_playlist(playlist_id: int, items: List[ReorderItem]):
+def reorder_playlist(playlist_id: int, items: List[ReorderItem]):
     # Allow items to be passed as list of objects
     # Repo expects objects or dicts, our Pydantic models work fine if we pass them directly? 
     # Repo expects 'song_query' and 'new_position' attributes or keys. Pydantic models have attributes.
@@ -196,17 +196,17 @@ async def reorder_playlist(playlist_id: int, items: List[ReorderItem]):
     return {"status": "reordered"}
 
 @router.delete("/playlists/{playlist_id}/songs/{song_query}")
-async def remove_song_from_playlist(playlist_id: int, song_query: str):
+def remove_song_from_playlist(playlist_id: int, song_query: str):
     repo_remove_song(playlist_id, song_query)
     return {"status": "removed"}
 
 @router.delete("/playlists/{playlist_id}")
-async def delete_playlist(playlist_id: int):
+def delete_playlist(playlist_id: int):
     repo_delete_playlist(playlist_id)
     return {"status": "deleted"}
 
 @router.get("/playlists/{playlist_id}/stats")
-async def get_playlist_stats(playlist_id: int):
+def get_playlist_stats(playlist_id: int):
     try:
         from services.playlist_service import playlist_service
         return playlist_service.get_playlist_stats(playlist_id)
@@ -218,7 +218,7 @@ async def get_playlist_stats(playlist_id: int):
         }
 
 @router.get("/playlists/{playlist_id}/recommendations")
-async def get_playlist_recommendations(playlist_id: int, limit: int = 10):
+def get_playlist_recommendations(playlist_id: int, limit: int = 10):
     playlist = get_playlist_by_id(playlist_id)
     if not playlist: return [] # Or 404
     
