@@ -22,7 +22,7 @@ class SettingsRequest(BaseModel):
     concerts_country: str = None
 
 @router.get("/settings")
-async def get_settings():
+def get_settings():
     settings = get_all_settings()
     
     env_user = os.getenv("LASTFM_USER")
@@ -55,7 +55,7 @@ async def get_settings():
     return settings
 
 @router.post("/settings")
-async def update_settings(settings: SettingsRequest):
+def update_settings(settings: SettingsRequest):
     if settings.lastfm_api_key is not None:
         set_setting("LASTFM_API_KEY", settings.lastfm_api_key)
     if settings.lastfm_api_secret is not None:
