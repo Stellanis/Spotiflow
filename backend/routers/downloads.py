@@ -1,7 +1,7 @@
 from fastapi import APIRouter
 from pydantic import BaseModel
 from core import downloader_service, scheduler, logger
-from database import get_downloads, get_total_downloads_count, get_all_pending_downloads
+from database import get_downloads, get_total_downloads_count, get_all_pending_downloads, get_all_failed_downloads
 
 
 from utils import sanitize_filename
@@ -86,6 +86,21 @@ def download_all_pending():
     pending_tracks = get_all_pending_downloads()
     count = 0
     for track in pending_tracks:
+        downloader_service.queue_download(
+            track['query'], 
+            track['artist'], 
+            track['title'], 
+            track['album'], 
+            track['image_url']
+        )
+        count += 1
+    return {"status": "queued", "count": count}
+
+@router.post("/download/retry-failed")
+def retry_failed_downloads():
+    failed_tracks = get_all_failed_downloads()
+    count = 0
+    for track in failed_tracks:
         downloader_service.queue_download(
             track['query'], 
             track['artist'], 

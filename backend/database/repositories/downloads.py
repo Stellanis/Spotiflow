@@ -111,6 +111,13 @@ def get_all_pending_downloads():
         rows = c.fetchall()
         return [dict(row) for row in rows]
 
+def get_all_failed_downloads():
+    with get_connection() as conn:
+        c = conn.cursor()
+        c.execute('SELECT * FROM downloads WHERE status = "failed"')
+        rows = c.fetchall()
+        return [dict(row) for row in rows]
+
 def get_total_downloads_count(status=None, search_query=None, artist=None, album=None):
     with get_connection() as conn:
         c = conn.cursor()
