@@ -20,6 +20,7 @@ from .repositories.downloads import (
     get_download_status,
     get_downloads,
     get_all_pending_downloads,
+    get_all_failed_downloads,
     get_total_downloads_count,
     get_all_artists,
     get_all_artists_with_counts,

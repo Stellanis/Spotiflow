@@ -1,18 +1,28 @@
 import React, { useState, useEffect } from 'react';
-import { RefreshCw, Clock, Download, CheckCircle, Hourglass } from 'lucide-react';
+import { RefreshCw, Clock, Download, CheckCircle, Hourglass, XCircle, RotateCcw } from 'lucide-react';
 import { cn } from './utils';
 
 function Jobs() {
     const [jobs, setJobs] = useState({ active_downloads: [], next_scrobble_check: null });
+    const [failedJobs, setFailedJobs] = useState([]);
     const [loading, setLoading] = useState(true);
     const [syncing, setSyncing] = useState(false);
+    const [retrying, setRetrying] = useState(false);
 
     const fetchJobs = async () => {
         try {
-            const response = await fetch('/api/jobs');
-            if (response.ok) {
-                const data = await response.json();
+            const [jobsRes, failedRes] = await Promise.all([
+                fetch('/api/jobs'),
+                fetch('/api/downloads?status=failed&limit=50')
+            ]);
+
+            if (jobsRes.ok) {
+                const data = await jobsRes.json();
                 setJobs(data);
+            }
+            if (failedRes.ok) {
+                const data = await failedRes.json();
+                setFailedJobs(data.items || []);
             }
         } catch (error) {
             console.error('Error fetching jobs:', error);
@@ -26,6 +36,18 @@ function Jobs() {
         const interval = setInterval(fetchJobs, 2000); // Poll every 2 seconds
         return () => clearInterval(interval);
     }, []);
+
+    const retryAllFailed = async () => {
+        setRetrying(true);
+        try {
+            await fetch('/api/download/retry-failed', { method: 'POST' });
+            fetchJobs();
+        } catch (error) {
+            console.error('Error retrying failed jobs:', error);
+        } finally {
+            setRetrying(false);
+        }
+    };
 
     const triggerSync = async () => {
         setSyncing(true);
@@ -141,6 +163,41 @@ function Jobs() {
                     </div>
                 )}
             </div>
+
+            {/* Failed Downloads List */}
+            {failedJobs.length > 0 && (
+                <div className="glass-panel overflow-hidden mt-8 border-red-500/30">
+                    <div className="p-4 border-b border-white/10 bg-red-500/10 flex justify-between items-center">
+                        <h2 className="text-lg font-semibold text-red-400 flex items-center gap-2">
+                            <XCircle className="w-5 h-5" /> Failed Tasks
+                        </h2>
+                        <button
+                            onClick={retryAllFailed}
+                            disabled={retrying}
+                            className="bg-red-500/20 hover:bg-red-500/40 text-red-300 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
+                        >
+                            <RotateCcw className={cn("w-4 h-4", retrying && "animate-spin")} />
+                            {retrying ? "Retrying..." : "Retry All"}
+                        </button>
+                    </div>
+
+                    <div className="divide-y divide-white/10 max-h-96 overflow-y-auto custom-scrollbar">
+                        {failedJobs.map((job, index) => (
+                            <div key={index} className="p-4 flex items-center justify-between hover:bg-white/5 transition-colors">
+                                <div className="flex-1 min-w-0 mr-4">
+                                    <p className="font-medium truncate text-white">{job.title || job.query}</p>
+                                    <p className="text-sm text-spotify-grey truncate">{job.artist || 'Unknown Artist'}</p>
+                                </div>
+                                <div className="flex items-center gap-3">
+                                    <span className="px-3 py-1 rounded-full text-xs font-medium uppercase tracking-wide border bg-red-500/20 text-red-400 border-red-500/30">
+                                        Failed
+                                    </span>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

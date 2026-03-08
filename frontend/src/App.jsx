@@ -9,6 +9,7 @@ import Undownloaded from './pages/Undownloaded';
 import JobsPage from './pages/JobsPage';
 import StatsPage from './pages/StatsPage';
 import ConcertsPage from './pages/ConcertsPage';
+import DiscoverPage from './pages/DiscoverPage';
 
 function App() {
   return (
@@ -18,6 +19,7 @@ function App() {
           <Route path="/" element={<Home />} />
           <Route path="/library" element={<Library />} />
           <Route path="/playlists" element={<PlaylistsPage />} />
+          <Route path="/discover" element={<DiscoverPage />} />
           <Route path="/undownloaded" element={<Undownloaded />} />
           <Route path="/jobs" element={<JobsPage />} />
           <Route path="/stats" element={<StatsPage />} />

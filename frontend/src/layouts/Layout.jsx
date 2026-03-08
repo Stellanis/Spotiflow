@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Toaster } from 'react-hot-toast';
 import {
     Disc, CheckCircle, Music, Download, Hourglass, Trophy, Ticket,
-    Settings, RefreshCw, Menu, X, Calendar
+    Settings, RefreshCw, Menu, X, Calendar, Compass
 } from 'lucide-react';
 import axios from 'axios';
 
@@ -110,6 +110,7 @@ export default function Layout() {
 
     const navItems = [
         { id: 'scrobbles', icon: Disc, label: 'Scrobbles', path: '/' },
+        { id: 'discover', icon: Compass, label: 'Discover', path: '/discover' },
         { id: 'library', icon: CheckCircle, label: 'Library', path: '/library' },
         { id: 'playlists', icon: Music, label: 'Playlists', path: '/playlists' },
         { id: 'undownloaded', icon: Download, label: 'Undownloaded', path: '/undownloaded' },
