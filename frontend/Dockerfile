@@ -1,10 +1,10 @@
 # Build Stage
-FROM node:25-alpine as build
+FROM node:22-alpine as build
 
 WORKDIR /app
 
 COPY package*.json ./
-RUN npm install
+RUN apk add --no-cache python3 make g++ && npm install
 
 COPY . .
 RUN npm run build
