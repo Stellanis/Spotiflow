@@ -62,3 +62,8 @@ from .repositories.playlists import (
     find_local_song,
     add_songs_to_playlist_batch
 )
+
+from .repositories.discover import (
+    dismiss_track,
+    get_dismissed_tracks
+)

@@ -163,4 +163,17 @@ def init_db():
         # Performance: Add index on user and timestamp
         c.execute('CREATE INDEX IF NOT EXISTS idx_scrobbles_user_ts ON scrobbles(user, timestamp DESC)')
 
+        # 8. Dismissed Recommendations Table
+        c.execute('''
+            CREATE TABLE IF NOT EXISTS dismissed_recommendations (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                username TEXT NOT NULL,
+                artist TEXT NOT NULL,
+                title TEXT NOT NULL,
+                dismissed_at INTEGER NOT NULL,
+                UNIQUE(username, artist, title)
+            )
+        ''')
+        c.execute('CREATE INDEX IF NOT EXISTS idx_dismissed_username ON dismissed_recommendations(username)')
+
         conn.commit()
