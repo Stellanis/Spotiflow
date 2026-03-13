@@ -1,11 +1,11 @@
-import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     Compass, RefreshCw, Sparkles, Radio, Smile, History, Loader2, AlertCircle,
 } from 'lucide-react';
 import axios from 'axios';
-import { toast } from 'react-hot-toast';
+import { toast } from 'react-hot-toast'
 import { usePlayer } from '../contexts/PlayerContext';
 import { SkeletonCard } from '../components/SkeletonCard';
 import { DiscoverTrackCard } from '../components/discover/DiscoverTrackCard';
@@ -15,17 +15,60 @@ import { HistoryWeekCard } from '../components/discover/HistoryWeekCard';
 import { cn } from '../utils';
 
 // ─────────────────────────────────────────────
-// Tab config
+// Tab config (module-level constant, never recreated)
 // ─────────────────────────────────────────────
 const TABS = [
-    { id: 'foryou',  label: 'For You',              Icon: Sparkles },
-    { id: 'radar',   label: 'Artist Radar',          Icon: Radio    },
-    { id: 'moods',   label: 'Mood Stations',         Icon: Smile    },
-    { id: 'history', label: 'This Week in History',  Icon: History  },
+    { id: 'foryou',  label: 'For You',             Icon: Sparkles },
+    { id: 'radar',   label: 'Artist Radar',         Icon: Radio    },
+    { id: 'moods',   label: 'Mood Stations',        Icon: Smile    },
+    { id: 'history', label: 'This Week in History', Icon: History  },
 ];
 
 // ─────────────────────────────────────────────
-// Shared empty state
+// SkeletonGrid – defined OUTSIDE the page component so React never
+// sees a "new" component type between renders (prevents remount churn)
+// ─────────────────────────────────────────────
+function SkeletonGrid({ count = 12 }) {
+    return (
+        <div className="grid gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
+            {Array.from({ length: count }).map((_, i) => (
+                <SkeletonCard key={i} type="vertical" />
+            ))}
+        </div>
+    );
+}
+
+// ─────────────────────────────────────────────
+// TrackGrid – also defined OUTSIDE. Props must carry all dependencies.
+// ─────────────────────────────────────────────
+function TrackGrid({ tracks, downloading, currentTrack, onDownload, onPlay, onDismiss }) {
+    return (
+        <div className="grid gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
+            <AnimatePresence mode="popLayout">
+                {tracks.map((track, i) => {
+                    const query = `${track.artist} - ${track.title}`;
+                    return (
+                        <DiscoverTrackCard
+                            key={`${track.artist}-${track.title}-${i}`}
+                            track={track}
+                            status={downloading[query] || 'idle'}
+                            onDownload={onDownload}
+                            onPlay={track.audio_url ? onPlay : undefined}
+                            onDismiss={onDismiss}
+                            isCurrentlyPlaying={
+                                currentTrack?.title === track.title &&
+                                currentTrack?.artist === track.artist
+                            }
+                        />
+                    );
+                })}
+            </AnimatePresence>
+        </div>
+    );
+}
+
+// ─────────────────────────────────────────────
+// EmptyState
 // ─────────────────────────────────────────────
 function EmptyState({ icon: Icon, message }) {
     return (
@@ -49,8 +92,8 @@ export default function DiscoverPage() {
     const [recommendations, setRecommendations] = useState([]);
     const [recLoading, setRecLoading] = useState(true);
     const [recError, setRecError] = useState(false);
-    const [downloading, setDownloading] = useState({});   // query → 'loading' | 'success' | 'error'
-    const [dismissed, setDismissed] = useState(new Set()); // "artist|title" keys
+    const [downloading, setDownloading] = useState({});
+    const [dismissed, setDismissed] = useState(new Set());
 
     // ── Artist Radar ──────────────────────────
     const [radar, setRadar] = useState([]);
@@ -84,24 +127,32 @@ export default function DiscoverPage() {
         } finally {
             setRecLoading(false);
         }
-    }, [username]);
+    }, [username]); // only re-create when username changes
+
+    // Use refs to avoid stale closures for "already fetched" guards
+    const radarFetchedRef = useRef(false);
+    const moodsFetchedRef = useRef(false);
+    const historyFetchedRef = useRef(false);
 
     const fetchRadar = useCallback(async () => {
-        if (!username || radarFetched) return;
+        if (!username || radarFetchedRef.current) return;
+        radarFetchedRef.current = true;
         setRadarLoading(true);
         try {
             const res = await axios.get('/api/recommendations/radar');
             setRadar(res.data.items || []);
             setRadarFetched(true);
         } catch {
+            radarFetchedRef.current = false; // allow retry
             toast.error('Failed to load Artist Radar.');
         } finally {
             setRadarLoading(false);
         }
-    }, [username, radarFetched]);
+    }, [username]); // stable – no fetched-state dep
 
     const fetchMoods = useCallback(async () => {
-        if (!username || moodsFetched) return;
+        if (!username || moodsFetchedRef.current) return;
+        moodsFetchedRef.current = true;
         setMoodsLoading(true);
         try {
             const res = await axios.get('/api/recommendations/moods');
@@ -110,30 +161,31 @@ export default function DiscoverPage() {
             if (s.length > 0) setSelectedMood(s[0].mood);
             setMoodsFetched(true);
         } catch {
+            moodsFetchedRef.current = false; // allow retry
             toast.error('Failed to load Mood Stations.');
         } finally {
             setMoodsLoading(false);
         }
-    }, [username, moodsFetched]);
+    }, [username]); // stable
 
     const fetchHistory = useCallback(async () => {
-        if (!username || historyFetched) return;
+        if (!username || historyFetchedRef.current) return;
+        historyFetchedRef.current = true;
         setHistoryLoading(true);
         try {
             const res = await axios.get('/api/recommendations/history');
             setHistory(res.data.years || []);
             setHistoryFetched(true);
         } catch {
+            historyFetchedRef.current = false;
             toast.error('Failed to load history.');
         } finally {
             setHistoryLoading(false);
         }
-    }, [username, historyFetched]);
+    }, [username]); // stable
 
-    // Initial load for "For You"
     useEffect(() => { fetchRecommendations(); }, [fetchRecommendations]);
 
-    // Lazy-load other tabs when first visited
     useEffect(() => {
         if (activeTab === 'radar')   fetchRadar();
         if (activeTab === 'moods')   fetchMoods();
@@ -142,12 +194,15 @@ export default function DiscoverPage() {
 
     // ─────────────────────────────────────────
     // Actions
+    // Use a ref to guard double-clicks without adding `downloading`
+    // to the useCallback dep array (which would cause thundering re-renders)
     // ─────────────────────────────────────────
-    const dismissKey = (track) => `${track.artist.toLowerCase()}|${track.title.toLowerCase()}`;
+    const inProgressRef = useRef({});
 
     const handleDownload = useCallback(async (track) => {
         const query = `${track.artist} - ${track.title}`;
-        if (downloading[query]) return;
+        if (inProgressRef.current[query]) return;
+        inProgressRef.current[query] = true;
         setDownloading(prev => ({ ...prev, [query]: 'loading' }));
         try {
             await axios.post('/api/download', {
@@ -162,15 +217,17 @@ export default function DiscoverPage() {
         } catch {
             setDownloading(prev => ({ ...prev, [query]: 'error' }));
             toast.error(`Failed to download "${track.title}"`);
+        } finally {
+            inProgressRef.current[query] = false;
         }
-    }, [downloading]);
+    }, []); // no deps – uses ref + functional state updates
 
     const handleDownloadByParts = useCallback((artist, title) => {
         handleDownload({ artist, title });
     }, [handleDownload]);
 
     const handleDismiss = useCallback(async (track) => {
-        const key = dismissKey(track);
+        const key = `${track.artist.toLowerCase()}|${track.title.toLowerCase()}`;
         setDismissed(prev => new Set([...prev, key]));
         try {
             await axios.post('/api/recommendations/dismiss', {
@@ -178,20 +235,21 @@ export default function DiscoverPage() {
                 title: track.title,
             });
         } catch {
-            // Non-critical – dismissal already reflected locally
+            // Non-critical – already dismissed locally
         }
     }, []);
 
     const handlePlay = useCallback((track) => {
-        if (!track.audio_url) return;
-        playTrack(track);
+        if (track.audio_url) playTrack(track);
     }, [playTrack]);
 
     // ─────────────────────────────────────────
-    // Derived data
+    // Derived data (memoized)
     // ─────────────────────────────────────────
     const visibleRecs = useMemo(
-        () => recommendations.filter(t => !dismissed.has(dismissKey(t))),
+        () => recommendations.filter(t => !dismissed.has(
+            `${t.artist.toLowerCase()}|${t.title.toLowerCase()}`
+        )),
         [recommendations, dismissed]
     );
 
@@ -199,146 +257,6 @@ export default function DiscoverPage() {
         () => stations.find(s => s.mood === selectedMood)?.tracks ?? [],
         [stations, selectedMood]
     );
-
-    // ─────────────────────────────────────────
-    // Render helpers
-    // ─────────────────────────────────────────
-    const SkeletonGrid = ({ count = 12 }) => (
-        <div className="grid gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
-            {Array.from({ length: count }).map((_, i) => (
-                <SkeletonCard key={i} type="vertical" />
-            ))}
-        </div>
-    );
-
-    const TrackGrid = ({ tracks, showDismiss = false }) => (
-        <div className="grid gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
-            <AnimatePresence mode="popLayout">
-                {tracks.map((track, i) => {
-                    const query = `${track.artist} - ${track.title}`;
-                    return (
-                        <DiscoverTrackCard
-                            key={`${track.artist}-${track.title}-${i}`}
-                            track={track}
-                            status={downloading[query] || 'idle'}
-                            onDownload={handleDownload}
-                            onPlay={track.audio_url ? handlePlay : undefined}
-                            onDismiss={showDismiss ? handleDismiss : undefined}
-                            isCurrentlyPlaying={
-                                currentTrack?.title === track.title &&
-                                currentTrack?.artist === track.artist
-                            }
-                        />
-                    );
-                })}
-            </AnimatePresence>
-        </div>
-    );
-
-    // ─────────────────────────────────────────
-    // Tab content
-    // ─────────────────────────────────────────
-    const tabContent = {
-        foryou: (
-            <div className="space-y-4">
-                {recLoading ? (
-                    <SkeletonGrid count={12} />
-                ) : recError ? (
-                    <EmptyState icon={AlertCircle} message="Could not load recommendations. Check your Last.fm settings." />
-                ) : visibleRecs.length === 0 ? (
-                    <EmptyState icon={Compass} message="No recommendations yet. Listen to more tracks to build your profile." />
-                ) : (
-                    <TrackGrid tracks={visibleRecs} showDismiss />
-                )}
-            </div>
-        ),
-
-        radar: (
-            <div className="space-y-3">
-                {radarLoading ? (
-                    <div className="flex justify-center py-20">
-                        <Loader2 className="w-8 h-8 animate-spin text-spotify-green" />
-                    </div>
-                ) : radar.length === 0 ? (
-                    <EmptyState icon={Radio} message="No artist radar data yet. Check back after building more listening history." />
-                ) : (
-                    <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3">
-                        <AnimatePresence>
-                            {radar.map((artist) => (
-                                <ArtistRadarCard
-                                    key={artist.name}
-                                    artist={artist}
-                                    onDownload={handleDownloadByParts}
-                                />
-                            ))}
-                        </AnimatePresence>
-                    </div>
-                )}
-            </div>
-        ),
-
-        moods: (
-            <div className="space-y-6">
-                {moodsLoading ? (
-                    <div className="flex justify-center py-20">
-                        <Loader2 className="w-8 h-8 animate-spin text-spotify-green" />
-                    </div>
-                ) : stations.length === 0 ? (
-                    <EmptyState icon={Smile} message="Mood stations will appear here once we know your genre preferences." />
-                ) : (
-                    <>
-                        {/* Mood pills */}
-                        <div className="flex flex-wrap gap-2">
-                            {stations.map((s) => (
-                                <MoodPill
-                                    key={s.mood}
-                                    mood={s.mood}
-                                    count={s.tracks.length}
-                                    selected={selectedMood === s.mood}
-                                    onClick={() => setSelectedMood(s.mood)}
-                                />
-                            ))}
-                        </div>
-
-                        {/* Track grid for selected mood */}
-                        <AnimatePresence mode="wait">
-                            <motion.div
-                                key={selectedMood}
-                                initial={{ opacity: 0, y: 8 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                exit={{ opacity: 0, y: -8 }}
-                                transition={{ duration: 0.2 }}
-                            >
-                                {currentMoodTracks.length === 0 ? (
-                                    <EmptyState icon={Smile} message="No tracks found for this mood." />
-                                ) : (
-                                    <TrackGrid tracks={currentMoodTracks} />
-                                )}
-                            </motion.div>
-                        </AnimatePresence>
-                    </>
-                )}
-            </div>
-        ),
-
-        history: (
-            <div className="space-y-4">
-                {historyLoading ? (
-                    <div className="flex justify-center py-20">
-                        <Loader2 className="w-8 h-8 animate-spin text-spotify-green" />
-                    </div>
-                ) : history.length === 0 ? (
-                    <EmptyState icon={History} message="No historical data found. Start scrobbling to see this!" />
-                ) : (
-                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                        {history.map((entry, i) => (
-                            <HistoryWeekCard key={entry.year} entry={entry} index={i} />
-                        ))}
-                    </div>
-                )}
-            </div>
-        ),
-    };
 
     // ─────────────────────────────────────────
     // Layout
@@ -394,7 +312,116 @@ export default function DiscoverPage() {
                     exit={{ opacity: 0, y: -12 }}
                     transition={{ duration: 0.2 }}
                 >
-                    {tabContent[activeTab]}
+
+                    {/* ── FOR YOU ─────────────────────────── */}
+                    {activeTab === 'foryou' && (
+                        recLoading ? (
+                            <SkeletonGrid count={12} />
+                        ) : recError ? (
+                            <EmptyState icon={AlertCircle} message="Could not load recommendations. Check your Last.fm settings." />
+                        ) : visibleRecs.length === 0 ? (
+                            <EmptyState icon={Compass} message="No recommendations yet. Listen to more tracks to build your profile." />
+                        ) : (
+                            <TrackGrid
+                                tracks={visibleRecs}
+                                downloading={downloading}
+                                currentTrack={currentTrack}
+                                onDownload={handleDownload}
+                                onPlay={handlePlay}
+                                onDismiss={handleDismiss}
+                            />
+                        )
+                    )}
+
+                    {/* ── ARTIST RADAR ─────────────────────── */}
+                    {activeTab === 'radar' && (
+                        radarLoading ? (
+                            <div className="flex justify-center py-20">
+                                <Loader2 className="w-8 h-8 animate-spin text-spotify-green" />
+                            </div>
+                        ) : radar.length === 0 ? (
+                            <EmptyState icon={Radio} message="No artist radar data yet. Check back after building more listening history." />
+                        ) : (
+                            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                                <AnimatePresence>
+                                    {radar.map((artist) => (
+                                        <ArtistRadarCard
+                                            key={artist.name}
+                                            artist={artist}
+                                            onDownload={handleDownloadByParts}
+                                        />
+                                    ))}
+                                </AnimatePresence>
+                            </div>
+                        )
+                    )}
+
+                    {/* ── MOOD STATIONS ─────────────────────── */}
+                    {activeTab === 'moods' && (
+                        moodsLoading ? (
+                            <div className="flex justify-center py-20">
+                                <Loader2 className="w-8 h-8 animate-spin text-spotify-green" />
+                            </div>
+                        ) : stations.length === 0 ? (
+                            <EmptyState icon={Smile} message="Mood stations will appear here once we know your genre preferences." />
+                        ) : (
+                            <div className="space-y-6">
+                                {/* Mood pills */}
+                                <div className="flex flex-wrap gap-2">
+                                    {stations.map((s) => (
+                                        <MoodPill
+                                            key={s.mood}
+                                            mood={s.mood}
+                                            count={s.tracks.length}
+                                            selected={selectedMood === s.mood}
+                                            onClick={() => setSelectedMood(s.mood)}
+                                        />
+                                    ))}
+                                </div>
+
+                                {/* Track grid for selected mood */}
+                                <AnimatePresence mode="wait">
+                                    <motion.div
+                                        key={selectedMood}
+                                        initial={{ opacity: 0, y: 8 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        exit={{ opacity: 0, y: -8 }}
+                                        transition={{ duration: 0.2 }}
+                                    >
+                                        {currentMoodTracks.length === 0 ? (
+                                            <EmptyState icon={Smile} message="No tracks found for this mood." />
+                                        ) : (
+                                            <TrackGrid
+                                                tracks={currentMoodTracks}
+                                                downloading={downloading}
+                                                currentTrack={currentTrack}
+                                                onDownload={handleDownload}
+                                                onPlay={handlePlay}
+                                            />
+                                        )}
+                                    </motion.div>
+                                </AnimatePresence>
+                            </div>
+                        )
+                    )}
+
+                    {/* ── HISTORY ───────────────────────────── */}
+                    {activeTab === 'history' && (
+                        historyLoading ? (
+                            <div className="flex justify-center py-20">
+                                <Loader2 className="w-8 h-8 animate-spin text-spotify-green" />
+                            </div>
+                        ) : history.length === 0 ? (
+                            <EmptyState icon={History} message="No historical data found. Start scrobbling to see this!" />
+                        ) : (
+                            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                                {history.map((entry, i) => (
+                                    <HistoryWeekCard key={entry.year} entry={entry} index={i} />
+                                ))}
+                            </div>
+                        )
+                    )}
+
                 </motion.div>
             </AnimatePresence>
         </div>
