@@ -21,7 +21,7 @@
     "framer-motion": "^12.37.0",
     "html-to-image": "^1.11.13",
     "leaflet": "^1.9.4",
-    "lucide-react": "^0.577.0",
+    "lucide-react": "^1.0.1",
     "react": "^19.2.1",
     "react-dom": "^19.2.4",
     "react-hot-toast": "^2.6.0",
