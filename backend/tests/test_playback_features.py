@@ -1,5 +1,6 @@
 import os
 import sys
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import pytest
@@ -14,12 +15,14 @@ from database import (
     add_playback_event,
     create_radio_session,
     get_radio_session,
+    get_stream_source,
     get_stream_source_by_cache_key,
     init_db,
     set_setting,
     update_radio_session,
     upsert_stream_source,
 )
+from database.core import get_connection
 from main import app
 from services.radio_service import radio_service
 from services.playable_source_service import playable_source_service
@@ -183,6 +186,41 @@ def test_radio_service_record_event_filters_non_persisted_fields(temp_db):
     )
     assert event["event_type"] == "error"
     assert promotion is None
+
+
+def test_verify_stream_sources_releases_elapsed_cooldown_without_reentering_it(temp_db):
+    source = upsert_stream_source(
+        artist="Cooldown Artist",
+        title="Cooldown Track",
+        source_name="resolver",
+        source_url="https://example.com/source",
+        playable_url=None,
+        playback_type="remote_stream",
+        health_status="cooldown",
+        failure_count=stream_resolver.failure_threshold,
+        cache_key="cooldown|track|",
+    )
+    expired_cooldown_updated_at = (
+        datetime.now(timezone.utc) - timedelta(hours=stream_resolver.failed_source_cooldown_hours, minutes=5)
+    ).isoformat()
+    with get_connection() as conn:
+        c = conn.cursor()
+        c.execute(
+            "UPDATE stream_sources SET updated_at = ? WHERE id = ?",
+            (expired_cooldown_updated_at, source["id"]),
+        )
+        conn.commit()
+
+    result = radio_service.verify_stream_sources()
+    updated_source = get_stream_source(source["id"])
+    health = stream_resolver.describe_source_health(updated_source)
+
+    assert result["updated"] == 1
+    assert updated_source["health_status"] == "degraded"
+    assert updated_source["failure_count"] == stream_resolver.failure_threshold
+    assert health["status"] == "degraded"
+    assert health["is_in_cooldown"] is False
+    assert health["should_attempt_resolution"] is True
 
 
 def test_radio_service_next_playable_track_skips_unresolvable(temp_db, monkeypatch):

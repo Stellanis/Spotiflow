@@ -199,6 +199,7 @@ export function PlayerProvider({ children }) {
 
     useEffect(() => {
         if (typeof window === 'undefined') return;
+        if (!hasRestoredSessionRef.current) return;
         const payload = {
             sessionId,
             queueMode,
@@ -248,6 +249,7 @@ export function PlayerProvider({ children }) {
                     queueMode: 'radio',
                     autoplay: false,
                     sendStartEvent: false,
+                    streamHealth: session.stream_health || null,
                 });
                 setStreamStatus('restored');
             } catch (error) {
