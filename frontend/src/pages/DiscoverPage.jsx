@@ -119,7 +119,33 @@ export default function DiscoverPage() {
         setRecError(false);
         try {
             const res = await axios.get('/api/recommendations', { params: { limit: 24 } });
-            setRecommendations(res.data.items || []);
+            const items = res.data.items || [];
+            setRecommendations(items);
+
+            if (items.length > 0) {
+                try {
+                    const prefetch = await axios.post(
+                        '/api/recommendations/prefetch-playable',
+                        items.slice(0, 10).map((item) => ({
+                            artist: item.artist,
+                            title: item.title,
+                            album: item.album || null,
+                            preview_url: item.preview_url || null,
+                        }))
+                    );
+                    const warmedByKey = new Map(
+                        (prefetch.data.items || []).map((item) => [item.track_key, item])
+                    );
+                    setRecommendations((current) =>
+                        current.map((item) => ({
+                            ...item,
+                            ...(warmedByKey.get(item.track_key) || {}),
+                        }))
+                    );
+                } catch {
+                    // Lightweight warm-up only; don't fail recommendation rendering.
+                }
+            }
         } catch {
             setRecError(true);
             toast.error('Failed to load recommendations.');

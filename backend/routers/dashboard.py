@@ -9,6 +9,7 @@ from database import (
     get_total_downloads_count,
     get_total_scrobbles_count,
     get_favorite_artists,
+    get_streaming_dashboard_stats,
 )
 from services.recommendations import recommendations_service
 from services.concerts import ConcertService
@@ -62,6 +63,7 @@ def get_dashboard_summary():
     concert_service = ConcertService()
     concerts = concert_service.get_all_concerts()
     upcoming_concerts = [concert for concert in concerts if concert.get("date") and concert["date"] >= datetime.now().strftime("%Y-%m-%d")]
+    streaming = get_streaming_dashboard_stats()
 
     return {
         "user": user,
@@ -84,6 +86,7 @@ def get_dashboard_summary():
             "total_downloaded": get_total_downloads_count(status="completed"),
             "recent_scrobbles": recent_scrobbles,
         },
+        "streaming": streaming,
         "highlights": {
             "recommendation_count": len(recommendations_service.get_recommendations(limit=6)) if user else 0,
             "upcoming_concert_count": len(upcoming_concerts),
