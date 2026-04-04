@@ -44,25 +44,23 @@ function SkeletonGrid({ count = 12 }) {
 function TrackGrid({ tracks, downloading, currentTrack, onDownload, onPlay, onDismiss }) {
     return (
         <div className="grid gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
-            <AnimatePresence mode="popLayout">
-                {tracks.map((track, i) => {
-                    const query = `${track.artist} - ${track.title}`;
-                    return (
-                        <DiscoverTrackCard
-                            key={`${track.artist}-${track.title}-${i}`}
-                            track={track}
-                            status={downloading[query] || 'idle'}
-                            onDownload={onDownload}
-                            onPlay={track.audio_url ? onPlay : undefined}
-                            onDismiss={onDismiss}
-                            isCurrentlyPlaying={
-                                currentTrack?.title === track.title &&
-                                currentTrack?.artist === track.artist
-                            }
-                        />
-                    );
-                })}
-            </AnimatePresence>
+            {tracks.map((track, i) => {
+                const query = `${track.artist} - ${track.title}`;
+                return (
+                    <DiscoverTrackCard
+                        key={`${track.artist}-${track.title}-${i}`}
+                        track={track}
+                        status={downloading[query] || 'idle'}
+                        onDownload={onDownload}
+                        onPlay={track.audio_url ? onPlay : undefined}
+                        onDismiss={onDismiss}
+                        isCurrentlyPlaying={
+                            currentTrack?.title === track.title &&
+                            currentTrack?.artist === track.artist
+                        }
+                    />
+                );
+            })}
         </div>
     );
 }
@@ -71,11 +69,9 @@ function TrackGrid({ tracks, downloading, currentTrack, onDownload, onPlay, onDi
 // EmptyState
 // ─────────────────────────────────────────────
 function EmptyState({ icon: Icon, message }) {
-    const ResolvedIcon = typeof Icon === 'function' ? Icon : null;
-
     return (
         <div className="flex flex-col items-center justify-center py-24 text-center">
-            {ResolvedIcon ? <ResolvedIcon className="w-14 h-14 text-white/10 mb-4" /> : null}
+            {Icon ? <Icon className="w-14 h-14 text-white/10 mb-4" /> : null}
             <p className="text-spotify-grey text-sm max-w-xs">{message}</p>
         </div>
     );
@@ -299,7 +295,7 @@ export default function DiscoverPage() {
                                 : 'text-spotify-grey hover:text-white hover:bg-white/10'
                         )}
                     >
-                        {typeof Icon === 'function' ? <Icon className="w-3.5 h-3.5" /> : null}
+                        {Icon ? <Icon className="w-3.5 h-3.5" /> : null}
                         {label}
                     </motion.button>
                 ))}
@@ -345,15 +341,13 @@ export default function DiscoverPage() {
                             <EmptyState icon={Radio} message="No artist radar data yet. Check back after building more listening history." />
                         ) : (
                             <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-                                <AnimatePresence>
-                                    {radar.map((artist) => (
-                                        <ArtistRadarCard
-                                            key={artist.name}
-                                            artist={artist}
-                                            onDownload={handleDownloadByParts}
-                                        />
-                                    ))}
-                                </AnimatePresence>
+                                {radar.map((artist) => (
+                                    <ArtistRadarCard
+                                        key={artist.name}
+                                        artist={artist}
+                                        onDownload={handleDownloadByParts}
+                                    />
+                                ))}
                             </div>
                         )
                     )}
