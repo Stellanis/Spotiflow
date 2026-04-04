@@ -1,7 +1,9 @@
-import { NavLink, Outlet } from 'react-router-dom';
+import { NavLink, Outlet, useOutletContext } from 'react-router-dom';
 import { PageHeader } from '../components/ui/PageHeader';
 
 export default function ExploreShell() {
+    const outletContext = useOutletContext();
+
     return (
         <div className="space-y-8">
             <PageHeader
@@ -31,7 +33,7 @@ export default function ExploreShell() {
                 </div>
             </div>
 
-            <Outlet />
+            <Outlet context={outletContext} />
         </div>
     );
 }
