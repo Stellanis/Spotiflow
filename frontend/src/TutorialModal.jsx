@@ -1,269 +1,220 @@
-import { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { X, ChevronRight, Check, Music, Disc, Download, CheckCircle, RefreshCw, Key, Hourglass, Loader2, Ticket } from 'lucide-react';
-import { cn } from './utils';
-import { isFirefox } from './utils/browser';
+import { useMemo, useState } from 'react';
 import axios from 'axios';
-
-const API_URL = '/api';
+import { Check, ChevronRight, KeyRound, MapPin, Music4, RefreshCw, Settings2, X } from 'lucide-react';
+import { isFirefox } from './utils/browser';
+import { cn } from './utils';
 
 const steps = [
-    {
-        title: "Welcome to Spotiflow",
-        description: "Your personal Spotify downloader and library manager. Let's take a quick tour of the features.",
-        icon: <Music className="w-16 h-16 text-spotify-green" />,
-        color: "bg-spotify-green"
-    },
-    {
-        title: "Recent Scrobbles",
-        description: "View your recently played tracks from Last.fm. This is the main source for your downloads.",
-        icon: <Disc className="w-16 h-16 text-blue-500" />,
-        color: "bg-blue-500"
-    },
-    {
-        title: "Your Library",
-        description: "All your downloaded tracks live here. You can play them or see their status at a glance.",
-        icon: <CheckCircle className="w-16 h-16 text-purple-500" />,
-        color: "bg-purple-500"
-    },
-    {
-        title: "Undownloaded Tracks",
-        description: "Tracks that haven't been downloaded yet appear here. You can manually download them or enable auto-download.",
-        icon: <Download className="w-16 h-16 text-orange-500" />,
-        color: "bg-orange-500"
-    },
-    {
-        title: "Auto-Download Mode",
-        description: "Enable 'Auto Download' in settings to automatically download new scrobbles as they come in.",
-        icon: <RefreshCw className="w-16 h-16 text-pink-500" />,
-        color: "bg-pink-500"
-    },
-    {
-        title: "Background Jobs",
-        description: "Monitor active downloads and check the status of your Last.fm sync in the Jobs tab.",
-        icon: <Hourglass className="w-16 h-16 text-cyan-500" />,
-        color: "bg-cyan-500"
-    },
-    {
-        title: "Connect Last.fm",
-        description: "Enter your Last.fm credentials to start fetching your scrobbles.",
-        icon: <Key className="w-16 h-16 text-yellow-500" />,
-        color: "bg-yellow-500",
-        id: 'lastfm',
-        isInputStep: true
-    },
-    {
-        title: "Concerts Setup",
-        description: "Configure Ticketmaster to find concerts near you.",
-        icon: <Ticket className="w-16 h-16 text-red-500" />,
-        color: "bg-red-500",
-        id: 'concerts',
-        isInputStep: true
-    }
+    { id: 'account', title: 'Connect Last.fm', description: 'Add the account details Spotiflow needs to fetch your listening history.', icon: KeyRound },
+    { id: 'downloads', title: 'Choose download behavior', description: 'Decide whether new scrobbles should download automatically and how often Spotiflow checks for updates.', icon: Music4 },
+    { id: 'concerts', title: 'Optional concert data', description: 'Ticketmaster and Bandsintown let Spotiflow surface relevant events and reminders.', icon: MapPin },
+    { id: 'finish', title: 'Run your first sync', description: 'Confirm the setup and let Spotiflow start building your listening hub.', icon: RefreshCw },
 ];
 
 export function TutorialModal({ isOpen, onClose, onTutorialComplete }) {
     const [currentStep, setCurrentStep] = useState(0);
-    const [apiKey, setApiKey] = useState('');
-    const [apiSecret, setApiSecret] = useState('');
-    const [username, setUsername] = useState('');
-    const [tmApiKey, setTmApiKey] = useState('');
     const [saving, setSaving] = useState(false);
-    const [prefetching, setPrefetching] = useState(false);
+    const [form, setForm] = useState({
+        username: '',
+        apiKey: '',
+        apiSecret: '',
+        autoDownload: true,
+        updateInterval: '30',
+        limitCount: '20',
+        tmApiKey: '',
+        bitAppId: 'demo',
+    });
+
+    const step = steps[currentStep];
+    const progress = useMemo(() => ((currentStep + 1) / steps.length) * 100, [currentStep]);
+
+    if (!isOpen) return null;
 
     const handleNext = async () => {
         if (currentStep < steps.length - 1) {
-            setCurrentStep(currentStep + 1);
-        } else {
-            // Save settings if on the last step
-            if (steps[currentStep].isInputStep) {
-                setSaving(true);
-                try {
-                    await axios.post(`${API_URL}/settings`, {
-                        lastfm_api_key: apiKey,
-                        lastfm_api_secret: apiSecret,
-                        lastfm_user: username,
-                        tm_api_key: tmApiKey
-                    });
+            setCurrentStep((value) => value + 1);
+            return;
+        }
 
-                    // Trigger prefetching if callback provided
-                    if (onTutorialComplete) {
-                        setPrefetching(true);
-                        await onTutorialComplete(username);
-                    }
-                } catch (error) {
-                    console.error("Failed to save settings:", error);
-                } finally {
-                    setSaving(false);
-                    setPrefetching(false);
-                }
-            }
+        setSaving(true);
+        try {
+            await axios.post('/api/settings', {
+                lastfm_user: form.username,
+                lastfm_api_key: form.apiKey,
+                lastfm_api_secret: form.apiSecret,
+                auto_download: form.autoDownload,
+                scrobble_update_interval: Number(form.updateInterval || 30),
+                scrobble_limit_count: Number(form.limitCount || 20),
+                tm_api_key: form.tmApiKey,
+                bit_app_id: form.bitAppId,
+                tutorial_seen: true,
+            });
+            await axios.post('/api/scrobbles/sync');
+            if (onTutorialComplete) onTutorialComplete(form.username);
             onClose();
+        } catch (error) {
+            console.error('Failed to save onboarding', error);
+        } finally {
+            setSaving(false);
         }
     };
 
     return (
-        <AnimatePresence>
-            {isOpen && (
-                <>
-                    {/* Backdrop */}
-                    <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        className={`fixed inset-0 z-[60] ${isFirefox ? "bg-black/95" : "bg-black/80 backdrop-blur-sm"}`}
-                    />
+        <>
+            <div className={`fixed inset-0 z-[60] ${isFirefox ? 'bg-black/95' : 'bg-black/80 backdrop-blur-sm'}`} />
+            <div className="fixed inset-0 z-[61] flex items-center justify-center p-4">
+                <div className="w-full max-w-3xl overflow-hidden rounded-[2rem] border border-white/10 bg-[#111] shadow-2xl">
+                    <div className="flex items-start justify-between border-b border-white/10 px-6 py-5">
+                        <div>
+                            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-spotify-green/80">Setup Wizard</p>
+                            <h2 className="mt-2 text-2xl font-semibold text-white">{step.title}</h2>
+                            <p className="mt-1 text-sm text-spotify-grey">{step.description}</p>
+                        </div>
+                        <button type="button" onClick={onClose} className="rounded-full p-2 text-spotify-grey transition-colors hover:bg-white/5 hover:text-white">
+                            <X className="h-5 w-5" />
+                        </button>
+                    </div>
 
-                    {/* Modal */}
-                    <motion.div
-                        initial={{ opacity: 0, scale: 0.9, y: 20 }}
-                        animate={{ opacity: 1, scale: 1, y: 0 }}
-                        exit={{ opacity: 0, scale: 0.9, y: 20 }}
-                        className="fixed inset-0 flex items-center justify-center z-[60] pointer-events-none"
-                    >
-                        <div className="bg-spotify-dark border border-white/10 rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden pointer-events-auto m-4 flex flex-col">
+                    <div className="h-1 w-full bg-white/5">
+                        <div className="h-full bg-spotify-green transition-all" style={{ width: `${progress}%` }} />
+                    </div>
 
-                            {/* Step Content */}
-                            <div className="p-8 flex flex-col items-center text-center space-y-6 relative min-h-[400px]">
-                                <button
-                                    onClick={onClose}
-                                    className="absolute top-4 right-4 p-2 text-spotify-grey hover:text-white transition-colors"
-                                >
-                                    <X className="w-5 h-5" />
-                                </button>
-
-                                <AnimatePresence mode="wait">
-                                    <motion.div
-                                        key={currentStep}
-                                        initial={{ opacity: 0, x: 20 }}
-                                        animate={{ opacity: 1, x: 0 }}
-                                        exit={{ opacity: 0, x: -20 }}
-                                        transition={{ duration: 0.2 }}
-                                        className="flex flex-col items-center space-y-6 w-full"
+                    <div className="grid gap-8 p-6 md:grid-cols-[220px_1fr]">
+                        <div className="space-y-3">
+                            {steps.map((item, index) => {
+                                const Icon = item.icon;
+                                const isActive = index === currentStep;
+                                const isDone = index < currentStep;
+                                return (
+                                    <div
+                                        key={item.id}
+                                        className={cn(
+                                            'flex items-center gap-3 rounded-2xl border px-4 py-3',
+                                            isActive ? 'border-white/20 bg-white/5' : 'border-white/5 bg-black/10'
+                                        )}
                                     >
-                                        <div className={cn(
-                                            "w-32 h-32 rounded-full flex items-center justify-center bg-white/5 mb-4",
-                                            `text-${steps[currentStep].color.replace('bg-', '')}`
-                                        )}>
-                                            {steps[currentStep].icon}
+                                        <div className={cn('rounded-2xl p-2', isDone ? 'bg-spotify-green text-black' : isActive ? 'bg-white text-black' : 'bg-white/10 text-white/70')}>
+                                            <Icon className="h-4 w-4" />
                                         </div>
+                                        <div>
+                                            <div className="text-sm font-medium text-white">{item.title}</div>
+                                            <div className="text-xs text-spotify-grey">{isDone ? 'Complete' : isActive ? 'In progress' : 'Upcoming'}</div>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
 
-                                        <div className="space-y-2">
-                                            <h2 className="text-2xl font-bold text-white">
-                                                {steps[currentStep].title}
-                                            </h2>
-                                            <p className="text-spotify-grey text-lg leading-relaxed">
-                                                {steps[currentStep].description}
+                        <div className="space-y-5">
+                            {step.id === 'account' ? (
+                                <>
+                                    <Field label="Last.fm username" value={form.username} onChange={(value) => setForm((current) => ({ ...current, username: value }))} placeholder="Your Last.fm username" />
+                                    <Field label="Last.fm API key" value={form.apiKey} onChange={(value) => setForm((current) => ({ ...current, apiKey: value }))} placeholder="Required for public reads" />
+                                    <Field label="Last.fm shared secret" value={form.apiSecret} onChange={(value) => setForm((current) => ({ ...current, apiSecret: value }))} placeholder="Stored securely in Spotiflow" type="password" />
+                                </>
+                            ) : null}
+
+                            {step.id === 'downloads' ? (
+                                <>
+                                    <div className="rounded-3xl border border-white/10 bg-black/20 p-4">
+                                        <div className="flex items-center justify-between gap-3">
+                                            <div>
+                                                <div className="font-medium text-white">Auto-download new scrobbles</div>
+                                                <div className="mt-1 text-sm text-spotify-grey">Turn listening history into local library updates automatically.</div>
+                                            </div>
+                                            <button
+                                                type="button"
+                                                onClick={() => setForm((current) => ({ ...current, autoDownload: !current.autoDownload }))}
+                                                className={cn('rounded-full px-4 py-2 text-sm font-medium', form.autoDownload ? 'bg-spotify-green text-black' : 'bg-white/10 text-white')}
+                                            >
+                                                {form.autoDownload ? 'Enabled' : 'Disabled'}
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div className="grid gap-4 md:grid-cols-2">
+                                        <Field label="Sync interval (minutes)" value={form.updateInterval} onChange={(value) => setForm((current) => ({ ...current, updateInterval: value }))} />
+                                        <Field label="Scrobble check limit" value={form.limitCount} onChange={(value) => setForm((current) => ({ ...current, limitCount: value }))} />
+                                    </div>
+                                </>
+                            ) : null}
+
+                            {step.id === 'concerts' ? (
+                                <>
+                                    <Field label="Ticketmaster API key" value={form.tmApiKey} onChange={(value) => setForm((current) => ({ ...current, tmApiKey: value }))} placeholder="Optional, but recommended for concert discovery" />
+                                    <Field label="Bandsintown app ID" value={form.bitAppId} onChange={(value) => setForm((current) => ({ ...current, bitAppId: value }))} placeholder="Defaults to demo" />
+                                    <div className="rounded-3xl border border-white/10 bg-black/20 p-4 text-sm text-spotify-grey">
+                                        Concert integrations are optional. You can skip them now and finish setup, then add them later in Settings.
+                                    </div>
+                                </>
+                            ) : null}
+
+                            {step.id === 'finish' ? (
+                                <div className="space-y-4 rounded-[1.75rem] border border-white/10 bg-black/20 p-5">
+                                    <div className="flex items-start gap-3">
+                                        <Settings2 className="mt-1 h-5 w-5 text-spotify-green" />
+                                        <div>
+                                            <div className="font-medium text-white">Ready to build your listening hub</div>
+                                            <p className="mt-1 text-sm text-spotify-grey">
+                                                Spotiflow will save these settings, mark onboarding complete, and start the first scrobble sync immediately.
                                             </p>
                                         </div>
-
-                                        {steps[currentStep].isInputStep && steps[currentStep].id === 'lastfm' && (
-                                            <div className="w-full space-y-4 mt-4 text-left">
-                                                <div className="space-y-2">
-                                                    <label className="text-sm font-medium text-spotify-grey">Last.fm Username</label>
-                                                    <input
-                                                        type="text"
-                                                        value={username}
-                                                        onChange={(e) => setUsername(e.target.value)}
-                                                        className="w-full bg-black/20 border border-white/10 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-spotify-green transition-colors"
-                                                        placeholder="Enter Username"
-                                                    />
-                                                </div>
-                                                <div className="space-y-2">
-                                                    <label className="text-sm font-medium text-spotify-grey">API Key</label>
-                                                    <input
-                                                        type="text"
-                                                        value={apiKey}
-                                                        onChange={(e) => setApiKey(e.target.value)}
-                                                        className="w-full bg-black/20 border border-white/10 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-spotify-green transition-colors"
-                                                        placeholder="Enter API Key"
-                                                    />
-                                                </div>
-                                                <div className="space-y-2">
-                                                    <label className="text-sm font-medium text-spotify-grey">Shared Secret</label>
-                                                    <input
-                                                        type="password"
-                                                        value={apiSecret}
-                                                        onChange={(e) => setApiSecret(e.target.value)}
-                                                        className="w-full bg-black/20 border border-white/10 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-spotify-green transition-colors"
-                                                        placeholder="Enter Shared Secret"
-                                                    />
-                                                </div>
-                                                <div className="text-center pt-2">
-                                                    <a
-                                                        href="https://www.last.fm/api/account/create"
-                                                        target="_blank"
-                                                        rel="noopener noreferrer"
-                                                        className="text-sm text-spotify-green hover:underline"
-                                                    >
-                                                        Get an API account here
-                                                    </a>
-                                                </div>
-                                            </div>
-                                        )}
-
-                                        {steps[currentStep].isInputStep && steps[currentStep].id === 'concerts' && (
-                                            <div className="w-full space-y-4 mt-4 text-left">
-                                                <div className="space-y-2">
-                                                    <label className="text-sm font-medium text-spotify-grey">Ticketmaster API Key</label>
-                                                    <input
-                                                        type="text"
-                                                        value={tmApiKey}
-                                                        onChange={(e) => setTmApiKey(e.target.value)}
-                                                        className="w-full bg-black/20 border border-white/10 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-spotify-green transition-colors"
-                                                        placeholder="Enter Ticketmaster API Key"
-                                                    />
-                                                </div>
-                                                <div className="text-center pt-2">
-                                                    <a
-                                                        href="https://developer.ticketmaster.com/products-and-docs/apis/getting-started/"
-                                                        target="_blank"
-                                                        rel="noopener noreferrer"
-                                                        className="text-sm text-spotify-green hover:underline"
-                                                    >
-                                                        Get a Ticketmaster Key here
-                                                    </a>
-                                                </div>
-                                            </div>
-                                        )}
-                                    </motion.div>
-                                </AnimatePresence>
-                            </div>
-
-                            {/* Footer / Controls */}
-                            <div className="p-6 bg-black/20 border-t border-white/5 flex items-center justify-between">
-                                <div className="flex gap-1">
-                                    {steps.map((_, index) => (
-                                        <div
-                                            key={index}
-                                            className={cn(
-                                                "w-2 h-2 rounded-full transition-all duration-300",
-                                                index === currentStep ? "bg-white w-6" : "bg-white/20"
-                                            )}
-                                        />
-                                    ))}
+                                    </div>
+                                    <ul className="space-y-2 text-sm text-spotify-grey">
+                                        <li>Username: <span className="text-white">{form.username || 'Not set'}</span></li>
+                                        <li>Auto-download: <span className="text-white">{form.autoDownload ? 'Enabled' : 'Disabled'}</span></li>
+                                        <li>Sync interval: <span className="text-white">{form.updateInterval || '30'} minutes</span></li>
+                                        <li>Concert integrations: <span className="text-white">{form.tmApiKey || form.bitAppId ? 'Configured' : 'Skipped for now'}</span></li>
+                                    </ul>
                                 </div>
-
-                                <button
-                                    onClick={handleNext}
-                                    disabled={saving}
-                                    className="px-6 py-2.5 bg-white text-black font-bold rounded-full hover:scale-105 transition-transform flex items-center gap-2 disabled:opacity-50"
-                                >
-                                    {currentStep === steps.length - 1 ? (
-                                        prefetching ? (
-                                            <>Prefetching... <Loader2 className="w-4 h-4 animate-spin" /></>
-                                        ) : (
-                                            <>Get Started <Check className="w-4 h-4" /></>
-                                        )
-                                    ) : (
-                                        <>Next <ChevronRight className="w-4 h-4" /></>
-                                    )}
-                                </button>
-                            </div>
+                            ) : null}
                         </div>
-                    </motion.div>
-                </>
-            )}
-        </AnimatePresence>
+                    </div>
+
+                    <div className="flex items-center justify-between border-t border-white/10 px-6 py-4">
+                        <button
+                            type="button"
+                            onClick={() => setCurrentStep((value) => Math.max(0, value - 1))}
+                            disabled={currentStep === 0}
+                            className="rounded-full border border-white/10 px-4 py-2 text-sm font-medium text-white disabled:opacity-40"
+                        >
+                            Back
+                        </button>
+                        <button
+                            type="button"
+                            onClick={handleNext}
+                            disabled={saving}
+                            className="inline-flex items-center gap-2 rounded-full bg-white px-5 py-2.5 text-sm font-semibold text-black disabled:opacity-60"
+                        >
+                            {currentStep === steps.length - 1 ? (
+                                <>
+                                    {saving ? 'Saving setup' : 'Save and sync'}
+                                    {saving ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+                                </>
+                            ) : (
+                                <>
+                                    Continue
+                                    <ChevronRight className="h-4 w-4" />
+                                </>
+                            )}
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </>
+    );
+}
+
+function Field({ label, value, onChange, placeholder, type = 'text' }) {
+    return (
+        <label className="block space-y-2">
+            <span className="text-sm font-medium text-white">{label}</span>
+            <input
+                type={type}
+                value={value}
+                onChange={(event) => onChange(event.target.value)}
+                placeholder={placeholder}
+                className="w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-white outline-none transition-colors placeholder:text-spotify-grey focus:border-white/20"
+            />
+        </label>
     );
 }

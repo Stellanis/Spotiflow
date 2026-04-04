@@ -42,9 +42,11 @@
 
 body {
   background-color: var(--color-background);
-  background-image: radial-gradient(circle at 50% 0%, oklch(0.25 0.1 260 / 0.2), transparent 70%);
+  background-image:
+    radial-gradient(circle at top, oklch(0.42 0.12 155 / 0.18), transparent 40%),
+    linear-gradient(180deg, rgba(255,255,255,0.02), transparent 22%);
   color: var(--color-foreground);
-  font-family: 'Inter', sans-serif;
+  font-family: "Space Grotesk", "Avenir Next", "Segoe UI", sans-serif;
   min-height: 100vh;
 }
 

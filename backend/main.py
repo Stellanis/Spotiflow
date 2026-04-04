@@ -5,7 +5,7 @@ from contextlib import asynccontextmanager
 from database import init_db, DB_NAME, get_setting
 from core import scheduler, logger, downloader_service
 from tasks import check_new_scrobbles, refresh_daily_stats
-from routers import scrobbles, stats, downloads, settings, websockets, concerts, recommendations
+from routers import scrobbles, stats, downloads, settings, websockets, concerts, recommendations, dashboard
 from services.concerts import ConcertService
 from services.websocket_manager import manager
 from datetime import datetime
@@ -94,6 +94,7 @@ app.include_router(settings.router)
 app.include_router(websockets.router)
 app.include_router(concerts.router)
 app.include_router(recommendations.router)
+app.include_router(dashboard.router)
 from routers import playlists
 app.include_router(playlists.router)
 

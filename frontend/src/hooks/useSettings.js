@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useMemo, useState, useCallback } from 'react';
 import axios from 'axios';
 
 const API_URL = '/api';
@@ -48,6 +48,32 @@ export function useSettings() {
         }
     }, []);
 
+    const appSettings = useMemo(() => ({
+        account: {
+            lastfmUser: username,
+            hasLastfmApiKey: false,
+            hasLastfmApiSecret: false,
+        },
+        downloads: {
+            autoDownload,
+            updateIntervalMinutes: 30,
+            scrobbleLimitCount: 20,
+        },
+        concerts: {
+            hasTicketmasterKey: false,
+            bandsintownAppId: null,
+            city: null,
+            country: null,
+        },
+        interface: {
+            hiddenFeatures: Array.from(hiddenFeatures),
+            disableFirefoxOptimization: false,
+        },
+        onboarding: {
+            tutorialSeen: !showTutorial,
+        },
+    }), [autoDownload, hiddenFeatures, showTutorial, username]);
+
     return {
         username,
         setUsername,
@@ -60,6 +86,7 @@ export function useSettings() {
         loadingSettings,
         fetchSettings,
         updateSettings,
-        closeTutorial
+        closeTutorial,
+        appSettings,
     };
 }

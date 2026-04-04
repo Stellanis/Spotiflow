@@ -6,16 +6,16 @@ import { isFirefox } from '../utils/browser';
 
 export function GlassCard({ children, className, image, ...props }) {
     const gradient = useMemo(() => {
-        const angle = Math.floor(Math.random() * 360);
-        const hue1 = Math.floor(Math.random() * 360);
+        const seed = String(image || className || children?.type?.name || 'spotiflow');
+        const total = Array.from(seed).reduce((acc, char) => acc + char.charCodeAt(0), 0);
+        const angle = total % 360;
+        const hue1 = (total * 7) % 360;
         const hue2 = (hue1 + 60) % 360;
-
-        // Muted colors for dark mode (Low saturation/lightness)
         const saturation = '30%';
         const lightness = '30%';
 
         return `linear-gradient(${angle}deg, hsl(${hue1}, ${saturation}, ${lightness}), hsl(${hue2}, ${saturation}, ${lightness}))`;
-    }, []);
+    }, [children, className, image]);
 
     return (
         <motion.div
