@@ -93,6 +93,11 @@ def start_playback(req: PlaybackTrackRequest):
         "session_id": session["id"],
         "track": queue[0] if queue else req.model_dump(exclude_none=True),
         "playable": playable,
+        "stream_health": playable_source_service.get_stream_health(
+            req.artist,
+            req.title,
+            album=req.album,
+        ),
         "queue": queue,
         "queue_mode": "radio",
     }
@@ -107,6 +112,11 @@ def next_playback(req: PlaybackNextRequest):
         "session_id": session["id"],
         "track": track,
         "playable": playable,
+        "stream_health": playable_source_service.get_stream_health(
+            track["artist"],
+            track["title"],
+            album=track.get("album"),
+        ),
         "queue": session.get("queue_payload") or [],
         "queue_mode": "radio",
         "skipped_tracks": skipped_tracks,
@@ -125,7 +135,17 @@ def get_playback_session(session_id: int):
     session = radio_service.get_session(session_id)
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
-    return session
+    queue = session.get("queue_payload") or []
+    current_index = session.get("current_index", 0)
+    current_track = queue[current_index] if current_index < len(queue) else None
+    return {
+        **session,
+        "stream_health": playable_source_service.get_stream_health(
+            current_track["artist"],
+            current_track["title"],
+            album=current_track.get("album"),
+        ) if current_track else None,
+    }
 
 
 @router.get("/playback/stream/{stream_source_id}")

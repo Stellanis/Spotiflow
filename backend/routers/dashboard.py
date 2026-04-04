@@ -13,6 +13,7 @@ from database import (
 )
 from services.recommendations import recommendations_service
 from services.concerts import ConcertService
+from services.stream_resolver import stream_resolver
 
 router = APIRouter(tags=["dashboard"])
 

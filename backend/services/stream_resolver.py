@@ -10,6 +10,7 @@ except ModuleNotFoundError:
 from database import (
     find_download_by_track,
     find_recent_stream_source,
+    get_setting,
     upsert_stream_source,
 )
 from utils import sanitize_filename
@@ -36,9 +37,33 @@ def build_local_audio_url(download_row):
 
 class StreamResolver:
     def __init__(self):
-        self.failed_source_cooldown_hours = 6
-        self.metadata_ttl_hours = 24
-        self.default_playable_ttl_minutes = 30
+        self.default_failed_source_cooldown_hours = 6
+        self.default_metadata_ttl_hours = 24
+        self.default_playable_ttl_minutes_value = 30
+        self.default_failure_threshold = 2
+
+    def _get_int_setting(self, key, default):
+        try:
+            value = get_setting(key, str(default))
+            return int(value) if value is not None else default
+        except (TypeError, ValueError):
+            return default
+
+    @property
+    def failed_source_cooldown_hours(self):
+        return max(1, self._get_int_setting("STREAM_SOURCE_FAILURE_COOLDOWN_HOURS", self.default_failed_source_cooldown_hours))
+
+    @property
+    def metadata_ttl_hours(self):
+        return max(1, self._get_int_setting("STREAM_SOURCE_METADATA_TTL_HOURS", self.default_metadata_ttl_hours))
+
+    @property
+    def default_playable_ttl_minutes(self):
+        return max(1, self._get_int_setting("STREAM_SOURCE_PLAYABLE_TTL_MINUTES", self.default_playable_ttl_minutes_value))
+
+    @property
+    def failure_threshold(self):
+        return max(1, self._get_int_setting("STREAM_SOURCE_FAILURE_THRESHOLD", self.default_failure_threshold))
 
     def find_local_source(self, artist, title, album=None):
         download = find_download_by_track(artist, title, album=album)
@@ -62,12 +87,56 @@ class StreamResolver:
         cached = find_recent_stream_source(artist, title, album=album)
         if not cached:
             return None
-        if cached.get("health_status") == "degraded":
-            return None
-        expires_at = self._parse_iso(cached.get("expires_at"))
-        if expires_at and expires_at <= datetime.now(timezone.utc):
+        health = self.describe_source_health(cached)
+        if not health["can_use_cached"]:
             return None
         return cached
+
+    def get_stream_source_health(self, artist, title, album=None):
+        source = find_recent_stream_source(artist, title, album=album)
+        if not source:
+            return None
+        return self.describe_source_health(source)
+
+    def describe_source_health(self, source):
+        if not source:
+            return None
+        now = datetime.now(timezone.utc)
+        expires_at = self._parse_iso(source.get("expires_at"))
+        updated_at = self._parse_iso(source.get("updated_at"))
+        last_verified_at = self._parse_iso(source.get("last_verified_at"))
+        failure_count = int(source.get("failure_count") or 0)
+        cooldown_until = None
+        if updated_at and failure_count >= self.failure_threshold:
+            cooldown_until = updated_at + timedelta(hours=self.failed_source_cooldown_hours)
+
+        is_expired = bool(expires_at and expires_at <= now)
+        is_stale = bool(last_verified_at and last_verified_at <= now - timedelta(hours=self.metadata_ttl_hours))
+        is_in_cooldown = bool(cooldown_until and cooldown_until > now)
+
+        if is_expired:
+            status = "expired"
+        elif is_in_cooldown:
+            status = "cooldown"
+        elif failure_count > 0 or source.get("health_status") == "degraded":
+            status = "degraded"
+        else:
+            status = source.get("health_status") or "healthy"
+
+        return {
+            "stream_source_id": source.get("id"),
+            "status": status,
+            "failure_count": failure_count,
+            "last_error": source.get("last_error"),
+            "expires_at": source.get("expires_at"),
+            "last_verified_at": source.get("last_verified_at"),
+            "cooldown_until": cooldown_until.isoformat() if cooldown_until else None,
+            "is_expired": is_expired,
+            "is_stale": is_stale,
+            "is_in_cooldown": is_in_cooldown,
+            "can_use_cached": bool(source.get("playable_url")) and not is_expired and not is_in_cooldown and status == "healthy",
+            "should_attempt_resolution": not is_in_cooldown,
+        }
 
     def resolve_remote_stream(self, artist, title, album=None, preview_url=None):
         cache_key = build_track_key(artist, title, album)
@@ -190,7 +259,10 @@ class StreamResolver:
         if not value:
             return None
         try:
-            return datetime.fromisoformat(value)
+            parsed = datetime.fromisoformat(value)
+            if parsed.tzinfo is None:
+                return parsed.replace(tzinfo=timezone.utc)
+            return parsed
         except Exception:
             return None
 

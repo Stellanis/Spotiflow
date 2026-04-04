@@ -141,10 +141,11 @@ def mark_stream_source_failure(stream_source_id, error_message, health_status="d
                 failure_count = failure_count + 1,
                 health_status = ?,
                 last_error = ?,
+                playable_url = CASE WHEN ? = 'cooldown' THEN NULL ELSE playable_url END,
                 updated_at = ?
             WHERE id = ?
             """,
-            (health_status, error_message, _now(), stream_source_id),
+            (health_status, error_message, health_status, _now(), stream_source_id),
         )
         conn.commit()
 
@@ -160,6 +161,7 @@ def mark_stream_source_verified(stream_source_id, playable_url=None, expires_at=
                 expires_at = COALESCE(?, expires_at),
                 last_verified_at = ?,
                 health_status = ?,
+                failure_count = 0,
                 last_error = NULL,
                 updated_at = ?
             WHERE id = ?

@@ -23,6 +23,7 @@ from database import (
 from main import app
 from services.radio_service import radio_service
 from services.playable_source_service import playable_source_service
+from services.stream_resolver import stream_resolver
 
 
 @pytest.fixture

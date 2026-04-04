@@ -30,6 +30,7 @@ export function PlayerBar() {
         toggleLyrics,
         playbackType,
         sourceName,
+        streamStatus,
         queueMode,
         buffering,
         isPromoted,
@@ -107,6 +108,21 @@ export function PlayerBar() {
                         {buffering && (
                             <span className="rounded-full bg-amber-500/20 px-2 py-0.5 text-[10px] font-medium text-amber-300">
                                 Buffering
+                            </span>
+                        )}
+                        {streamStatus === 'cooldown' && (
+                            <span className="rounded-full bg-red-500/20 px-2 py-0.5 text-[10px] font-medium text-red-300">
+                                Cooling down
+                            </span>
+                        )}
+                        {streamStatus === 'degraded' && (
+                            <span className="rounded-full bg-amber-500/20 px-2 py-0.5 text-[10px] font-medium text-amber-200">
+                                Stream degraded
+                            </span>
+                        )}
+                        {streamStatus === 'restored' && (
+                            <span className="rounded-full bg-sky-500/20 px-2 py-0.5 text-[10px] font-medium text-sky-300">
+                                Session restored
                             </span>
                         )}
                         {isPromoted && (
