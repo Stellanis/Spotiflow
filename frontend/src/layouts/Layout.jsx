@@ -97,7 +97,7 @@ export default function Layout() {
         <div className="min-h-screen bg-background text-foreground">
             <Toaster position="bottom-right" toastOptions={{ style: { background: '#111', color: '#fff', border: '1px solid rgba(255,255,255,0.08)' } }} />
 
-            <div className="relative z-10 mx-auto flex min-h-screen w-full max-w-[1880px] gap-6 px-3 pb-32 pt-4 md:px-5 lg:px-6">
+            <div className="relative z-10 mx-auto flex min-h-screen w-full max-w-[1880px] gap-6 px-3 pt-4 md:px-5 lg:px-6">
                 <aside className="sticky top-4 hidden h-[calc(100vh-2rem)] w-72 shrink-0 flex-col rounded-[2rem] border border-white/10 bg-white/[0.04] p-5 backdrop-blur-xl lg:flex">
                     <div className="mb-8 flex items-center gap-3">
                         <div className={cn('flex h-12 w-12 items-center justify-center rounded-2xl text-xl font-semibold', autoDownload ? 'bg-spotify-green text-black' : 'bg-red-500 text-white')}>
@@ -176,7 +176,7 @@ export default function Layout() {
                     </div>
                 </aside>
 
-                <main className="min-w-0 flex-1">
+                <main className="min-w-0 flex-1 pb-32">
                     <div className="mb-6 flex items-center justify-between rounded-[1.75rem] border border-white/10 bg-white/[0.04] px-4 py-3 backdrop-blur-xl lg:hidden">
                         <div>
                             <p className="text-xs uppercase tracking-[0.22em] text-spotify-grey">Spotiflow</p>

@@ -156,7 +156,7 @@ export default function Library() {
                         <select
                             value={sort}
                             onChange={(event) => setSort(event.target.value)}
-                            className="rounded-full border border-white/10 bg-black/20 px-4 py-3 text-sm text-white outline-none"
+                            className="rounded-full border border-white/10 bg-black/20 px-4 py-3 text-sm text-white outline-none transition-colors hover:bg-white/[0.06] focus:border-white/25"
                         >
                             {SORTS.map((item) => (
                                 <option key={item.value} value={item.value}>
@@ -168,7 +168,7 @@ export default function Library() {
                             <button
                                 type="button"
                                 onClick={handleBatchAction}
-                                className="rounded-full bg-spotify-green px-4 py-3 text-sm font-medium text-black"
+                                className="rounded-full bg-spotify-green px-4 py-3 text-sm font-medium text-black transition-transform hover:scale-[1.01]"
                             >
                                 {activeTab === 'pending' ? 'Queue all pending' : 'Retry failed'}
                             </button>
@@ -218,7 +218,11 @@ export default function Library() {
                             }
                             action={
                                 activeTab === 'pending' ? (
-                                    <button type="button" onClick={handleBatchAction} className="rounded-full bg-spotify-green px-4 py-2 text-sm font-medium text-black">
+                                    <button
+                                        type="button"
+                                        onClick={handleBatchAction}
+                                        className="rounded-full bg-spotify-green px-4 py-2 text-sm font-medium text-black transition-transform hover:scale-[1.01]"
+                                    >
                                         Queue pending tracks
                                     </button>
                                 ) : null
@@ -258,7 +262,7 @@ export default function Library() {
                                             <button
                                                 type="button"
                                                 onClick={() => playTrack(track, sortedTracks)}
-                                                className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-sm text-white"
+                                                className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-sm text-white transition-colors hover:bg-white/[0.08]"
                                             >
                                                 <Play className="h-4 w-4" />
                                                 Play
@@ -269,14 +273,14 @@ export default function Library() {
                                                 <button
                                                     type="button"
                                                     onClick={() => setSelectedTrack(track)}
-                                                    className="rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-sm text-white"
+                                                    className="rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-sm text-white transition-colors hover:bg-white/[0.08]"
                                                 >
                                                     Inspect
                                                 </button>
                                                 <button
                                                     type="button"
                                                     onClick={() => setPlaylistTrackToAdd(track)}
-                                                    className="rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-sm text-white"
+                                                    className="rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-sm text-white transition-colors hover:bg-white/[0.08]"
                                                 >
                                                     Add to playlist
                                                 </button>
@@ -292,7 +296,7 @@ export default function Library() {
                                                     album: track.album,
                                                     image: track.image_url,
                                                 })}
-                                                className="inline-flex items-center gap-2 rounded-full bg-spotify-green px-4 py-2 text-sm font-medium text-black"
+                                                className="inline-flex items-center gap-2 rounded-full bg-spotify-green px-4 py-2 text-sm font-medium text-black transition-transform hover:scale-[1.01]"
                                             >
                                                 <Download className="h-4 w-4" />
                                                 Queue
@@ -302,7 +306,7 @@ export default function Library() {
                                             <button
                                                 type="button"
                                                 onClick={handleBatchAction}
-                                                className="inline-flex items-center gap-2 rounded-full border border-red-400/30 bg-red-500/10 px-4 py-2 text-sm text-red-200"
+                                                className="inline-flex items-center gap-2 rounded-full border border-red-400/30 bg-red-500/10 px-4 py-2 text-sm text-red-200 transition-colors hover:bg-red-500/20"
                                             >
                                                 <RefreshCw className="h-4 w-4" />
                                                 Retry
