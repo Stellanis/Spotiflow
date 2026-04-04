@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import axios from 'axios';
 import { Loader2, RefreshCw } from 'lucide-react';
+import { toast } from 'react-hot-toast';
 
 import { EmptyState } from '../components/ui/EmptyState';
 import { PageHeader } from '../components/ui/PageHeader';
@@ -11,6 +12,7 @@ export default function ReleasesPage() {
     const [items, setItems] = useState([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
+    const [updating, setUpdating] = useState({});
 
     const load = async () => {
         setLoading(true);
@@ -39,6 +41,23 @@ export default function ReleasesPage() {
     useEffect(() => {
         load();
     }, []);
+
+    const updateReleaseState = async (item, field, value) => {
+        const key = `${item.id}-${field}`;
+        setUpdating((previous) => ({ ...previous, [key]: true }));
+        try {
+            await axios.patch(`/api/releases/${item.id}`, { field, value });
+            setItems((previous) =>
+                previous.map((entry) => (entry.id === item.id ? { ...entry, [field]: value ? 1 : 0 } : entry))
+            );
+            toast.success(`${field === 'listened' ? 'Updated listening state' : 'Updated release state'} for ${item.title}`);
+        } catch (error) {
+            console.error('Failed to update release state', error);
+            toast.error(`Failed to update ${item.title}`);
+        } finally {
+            setUpdating((previous) => ({ ...previous, [key]: false }));
+        }
+    };
 
     return (
         <div className="space-y-8">
@@ -84,6 +103,34 @@ export default function ReleasesPage() {
                                     <StatusBadge status={item.listened ? 'complete' : item.downloaded ? 'active' : 'queued'}>
                                         {item.listened ? 'Listened' : item.downloaded ? 'Downloaded' : 'New'}
                                     </StatusBadge>
+                                </div>
+                                <div className="mt-4 flex flex-wrap gap-2">
+                                    <button
+                                        type="button"
+                                        onClick={() => updateReleaseState(item, 'listened', !item.listened)}
+                                        disabled={updating[`${item.id}-listened`]}
+                                        className="rounded-full bg-spotify-green px-3 py-1.5 text-xs font-medium text-black disabled:opacity-50"
+                                    >
+                                        {item.listened ? 'Unmark listened' : 'Mark listened'}
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => updateReleaseState(item, 'ignored', !item.ignored)}
+                                        disabled={updating[`${item.id}-ignored`]}
+                                        className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs text-white/75 disabled:opacity-50"
+                                    >
+                                        {item.ignored ? 'Unignore' : 'Ignore'}
+                                    </button>
+                                    {item.url ? (
+                                        <a
+                                            href={item.url}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs text-white/75"
+                                        >
+                                            Open source
+                                        </a>
+                                    ) : null}
                                 </div>
                             </div>
                         ))}

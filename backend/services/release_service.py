@@ -4,6 +4,7 @@ from core import lastfm_service
 from database import (
     create_job,
     get_favorite_artists,
+    get_downloads,
     get_setting,
     get_top_artists_from_db,
     list_release_watch_artists,
@@ -56,7 +57,19 @@ class ReleaseService:
             return {"status": "failed", "job_id": job_id, "error": str(exc)}
 
     def get_releases(self, limit=60):
-        return list_releases(limit=limit)
+        releases = list_releases(limit=limit)
+        downloads = get_downloads(page=1, limit=100000, status="completed")
+        downloaded_artists = {str(item.get("artist") or "").lower() for item in downloads}
+        for item in releases:
+            if item.get("artist", "").lower() in downloaded_artists:
+                item["downloaded"] = 1
+        return releases
+
+    def update_release_state(self, release_id, field, value):
+        from database import mark_release_state
+
+        mark_release_state(release_id, field, value)
+        return {"status": "updated", "release_id": release_id, "field": field, "value": value}
 
     def _build_watchlist(self, user):
         seen = set()
