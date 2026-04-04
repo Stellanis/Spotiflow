@@ -106,8 +106,9 @@ class StreamResolver:
         updated_at = self._parse_iso(source.get("updated_at"))
         last_verified_at = self._parse_iso(source.get("last_verified_at"))
         failure_count = int(source.get("failure_count") or 0)
+        stored_status = source.get("health_status") or "healthy"
         cooldown_until = None
-        if updated_at and failure_count >= self.failure_threshold:
+        if stored_status == "cooldown" and updated_at:
             cooldown_until = updated_at + timedelta(hours=self.failed_source_cooldown_hours)
 
         is_expired = bool(expires_at and expires_at <= now)
@@ -116,12 +117,12 @@ class StreamResolver:
 
         if is_expired:
             status = "expired"
-        elif is_in_cooldown:
+        elif stored_status == "cooldown" and is_in_cooldown:
             status = "cooldown"
-        elif failure_count > 0 or source.get("health_status") == "degraded":
+        elif stored_status in {"degraded", "cooldown"} or failure_count > 0:
             status = "degraded"
         else:
-            status = source.get("health_status") or "healthy"
+            status = stored_status
 
         return {
             "stream_source_id": source.get("id"),
