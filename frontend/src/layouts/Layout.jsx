@@ -97,9 +97,7 @@ export default function Layout() {
         <div className="min-h-screen bg-background text-foreground">
             <Toaster position="bottom-right" toastOptions={{ style: { background: '#111', color: '#fff', border: '1px solid rgba(255,255,255,0.08)' } }} />
 
-            <div className="pointer-events-none fixed inset-x-0 top-0 z-0 h-80 bg-[radial-gradient(circle_at_top,_rgba(29,185,84,0.18),_transparent_60%)]" />
-
-            <div className="relative z-10 mx-auto flex min-h-screen w-full max-w-[1600px] gap-6 px-4 pb-32 pt-4 md:px-6 lg:px-8">
+            <div className="relative z-10 mx-auto flex min-h-screen w-full max-w-[1880px] gap-6 px-3 pb-32 pt-4 md:px-5 lg:px-6">
                 <aside className="sticky top-4 hidden h-[calc(100vh-2rem)] w-72 shrink-0 flex-col rounded-[2rem] border border-white/10 bg-white/[0.04] p-5 backdrop-blur-xl lg:flex">
                     <div className="mb-8 flex items-center gap-3">
                         <div className={cn('flex h-12 w-12 items-center justify-center rounded-2xl text-xl font-semibold', autoDownload ? 'bg-spotify-green text-black' : 'bg-red-500 text-white')}>

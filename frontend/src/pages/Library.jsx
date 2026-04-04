@@ -5,6 +5,7 @@ import { AlertCircle, Download, Filter, Loader2, Music2, Play, RefreshCw, Search
 
 import { usePlayer } from '../contexts/PlayerContext';
 import { AddToPlaylistModal } from '../components/AddToPlaylistModal';
+import { GlassCard } from '../components/GlassCard';
 import { TrackStatsModal } from '../components/TrackStatsModal';
 import { EmptyState } from '../components/ui/EmptyState';
 import { PageHeader } from '../components/ui/PageHeader';
@@ -183,7 +184,8 @@ export default function Library() {
                 </div>
             </div>
 
-            <div className="rounded-[2rem] border border-white/10 bg-white/[0.04] p-6">
+            <div className="relative overflow-hidden rounded-[2rem] border border-white/10 bg-white/[0.04] p-6">
+                <div className="pointer-events-none absolute inset-x-8 top-0 h-32 rounded-full bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.08),_transparent_72%)] blur-3xl" />
                 <SectionHeader
                     title={activeTab === 'downloaded' ? 'Downloaded library' : activeTab === 'pending' ? 'Pending downloads' : 'Failed downloads'}
                     description={
@@ -224,15 +226,16 @@ export default function Library() {
                         />
                     </div>
                 ) : (
-                    <div className="mt-6 space-y-3">
+                    <div className="relative z-10 mt-6 space-y-3">
                         {sortedTracks.map((track, index) => {
                             const canPlay = activeTab === 'downloaded' && Boolean(track.audio_url);
                             return (
-                                <div
+                                <GlassCard
                                     key={`${track.query || `${track.artist}-${track.title}`}-${index}`}
-                                    className="flex flex-col gap-4 rounded-3xl border border-white/10 bg-black/20 px-4 py-4 md:flex-row md:items-center md:justify-between"
+                                    image={track.image_url}
+                                    className="flex flex-col gap-4 rounded-3xl border border-white/10 bg-black/30 px-4 py-4 md:flex-row md:items-center md:justify-between"
                                 >
-                                    <div className="flex min-w-0 items-center gap-4">
+                                    <div className="relative z-10 flex min-w-0 items-center gap-4">
                                         <div className="h-16 w-16 overflow-hidden rounded-2xl bg-white/5">
                                             {track.image_url ? (
                                                 <img src={track.image_url} alt={track.title} className="h-full w-full object-cover" />
@@ -249,7 +252,7 @@ export default function Library() {
                                         </div>
                                     </div>
 
-                                    <div className="flex flex-wrap items-center gap-2 md:justify-end">
+                                    <div className="relative z-10 flex flex-wrap items-center gap-2 md:justify-end">
                                         <StatusBadge status={track.status || normalizeStatus(activeTab)} />
                                         {canPlay ? (
                                             <button
@@ -306,7 +309,7 @@ export default function Library() {
                                             </button>
                                         ) : null}
                                     </div>
-                                </div>
+                                </GlassCard>
                             );
                         })}
                     </div>
