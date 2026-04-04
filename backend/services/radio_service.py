@@ -26,6 +26,17 @@ class RadioService:
     def __init__(self):
         self.batch_size = 15
         self.refill_threshold = 2
+        self._playback_event_fields = {
+            "session_id",
+            "artist",
+            "title",
+            "album",
+            "playback_type",
+            "event_type",
+            "position_seconds",
+            "source_name",
+            "source_url",
+        }
 
     def start_session(self, username, seed_track, seed_type="recommendation", seed_context=None):
         queue = [self._normalize_track(seed_track)]
@@ -70,7 +81,12 @@ class RadioService:
         return session
 
     def record_event(self, username, payload):
-        event = add_playback_event(username=username, **payload)
+        event_payload = {
+            key: value
+            for key, value in payload.items()
+            if key in self._playback_event_fields
+        }
+        event = add_playback_event(username=username, **event_payload)
         if payload.get("event_type") == "error" and payload.get("source_url"):
             self._mark_source_failure(payload)
         promotion = self._maybe_promote(username, payload)

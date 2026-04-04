@@ -15,6 +15,12 @@ from database import (
 
 
 class InsightService:
+    def get_persisted_sessions(self, user, limit=50, rebuild_if_empty=True):
+        sessions = get_sessions(user, limit=limit)
+        if sessions or not rebuild_if_empty:
+            return sessions
+        return self.rebuild_sessions(user)
+
     def rebuild_sessions(self, user, gap_minutes=30):
         gap_minutes = int(get_setting("SESSION_GAP_MINUTES") or gap_minutes)
         scrobbles = get_all_scrobbles(user)
@@ -39,7 +45,7 @@ class InsightService:
         return sessions
 
     def get_overview(self, user):
-        sessions = get_sessions(user, limit=30) or self.rebuild_sessions(user)
+        sessions = self.get_persisted_sessions(user, limit=30, rebuild_if_empty=True)
         releases = []
         top_tracks = get_top_tracks_from_db(user, limit=10)
         active_session = sessions[0] if sessions else None
