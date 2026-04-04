@@ -3,7 +3,7 @@
 :root {
   --color-background: #000000;
   --color-foreground: oklch(0.98 0 0);
-  --color-primary: oklch(0.62 0.23 145);
+  --color-primary: oklch(0.63 0.24 24);
   --color-primary-foreground: oklch(1 0 0);
   --color-secondary: oklch(0.20 0 0);
   --color-secondary-foreground: oklch(0.98 0 0);
@@ -13,7 +13,7 @@
   --color-card-foreground: oklch(0.98 0 0);
   --color-border: oklch(0.25 0 0);
 
-  --color-spotify-green: oklch(0.62 0.23 145);
+  --color-spotify-green: oklch(0.63 0.24 24);
   --color-spotify-black: oklch(0.15 0 0);
   --color-spotify-white: oklch(1 0 0);
   --color-spotify-grey: oklch(0.45 0 0);
@@ -42,7 +42,9 @@
 
 body {
   background-color: var(--color-background);
-  background-image: linear-gradient(180deg, rgba(255,255,255,0.02), transparent 22%);
+  background-image:
+    radial-gradient(circle at top center, color-mix(in oklab, var(--color-primary) 18%, transparent), transparent 34%),
+    linear-gradient(180deg, rgba(255,255,255,0.02), transparent 22%);
   color: var(--color-foreground);
   font-family: "Space Grotesk", "Avenir Next", "Segoe UI", sans-serif;
   min-height: 100vh;

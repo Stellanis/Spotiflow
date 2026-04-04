@@ -17,7 +17,7 @@ export default function ExploreShell() {
                     <NavLink
                         to="/explore/discover"
                         className={({ isActive }) =>
-                            `rounded-full px-4 py-2 text-sm font-medium transition-colors ${isActive ? 'bg-white text-black' : 'border border-white/10 bg-black/20 text-spotify-grey hover:text-white'}`
+                            `rounded-full px-4 py-2 text-sm font-medium transition-colors ${isActive ? 'bg-spotify-green text-white shadow-lg shadow-spotify-green/20' : 'border border-white/10 bg-black/20 text-spotify-grey hover:text-white'}`
                         }
                     >
                         Discover
@@ -25,7 +25,7 @@ export default function ExploreShell() {
                     <NavLink
                         to="/explore/stats"
                         className={({ isActive }) =>
-                            `rounded-full px-4 py-2 text-sm font-medium transition-colors ${isActive ? 'bg-white text-black' : 'border border-white/10 bg-black/20 text-spotify-grey hover:text-white'}`
+                            `rounded-full px-4 py-2 text-sm font-medium transition-colors ${isActive ? 'bg-spotify-green text-white shadow-lg shadow-spotify-green/20' : 'border border-white/10 bg-black/20 text-spotify-grey hover:text-white'}`
                         }
                     >
                         Stats
