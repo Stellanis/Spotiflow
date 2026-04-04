@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
-from database import init_db, DB_NAME, get_setting
+from database import DB_NAME, get_job_summary, init_db, get_setting
 from core import scheduler, logger, downloader_service
 from tasks import check_new_scrobbles, refresh_daily_stats
 from routers import scrobbles, stats, downloads, settings, websockets, concerts, recommendations, dashboard
@@ -17,10 +17,12 @@ async def broadcast_status():
     while True:
         try:
             active_downloads = downloader_service.get_active_downloads()
-            # Always broadcast current state, let frontend decide if it needs to re-render
-            # Efficient enough for local tool
             if active_downloads or manager.active_connections:
-                 await manager.broadcast({"active_downloads": active_downloads})
+                 await manager.broadcast({
+                     "type": "job.summary",
+                     "summary": get_job_summary(),
+                     "active_downloads": active_downloads,
+                 })
         except Exception as e:
             logger.error(f"Error in broadcast loop: {e}")
         
@@ -97,6 +99,10 @@ app.include_router(recommendations.router)
 app.include_router(dashboard.router)
 from routers import playlists
 app.include_router(playlists.router)
+from routers import insights, releases, gaps
+app.include_router(insights.router)
+app.include_router(releases.router)
+app.include_router(gaps.router)
 
 # Mount downloads directory to serve audio files
 # Ensure directory exists first

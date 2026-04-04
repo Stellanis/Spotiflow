@@ -20,6 +20,10 @@ class SettingsRequest(BaseModel):
     bit_app_id: str = None
     concerts_city: str = None
     concerts_country: str = None
+    session_gap_minutes: int = None
+    recommendation_aggressiveness: str = None
+    enrichment_enabled: bool = None
+    releases_enabled: bool = None
 
 @router.get("/settings")
 def get_settings():
@@ -86,6 +90,18 @@ def update_settings(settings: SettingsRequest):
 
     if settings.concerts_country is not None:
         set_setting("concerts_country", settings.concerts_country)
+
+    if settings.session_gap_minutes is not None:
+        set_setting("SESSION_GAP_MINUTES", str(settings.session_gap_minutes))
+
+    if settings.recommendation_aggressiveness is not None:
+        set_setting("RECOMMENDATION_AGGRESSIVENESS", settings.recommendation_aggressiveness)
+
+    if settings.enrichment_enabled is not None:
+        set_setting("ENRICHMENT_ENABLED", str(settings.enrichment_enabled).lower())
+
+    if settings.releases_enabled is not None:
+        set_setting("RELEASES_ENABLED", str(settings.releases_enabled).lower())
 
     if settings.scrobble_update_interval is not None:
         old_interval = int(get_setting("SCROBBLE_UPDATE_INTERVAL") or 30)

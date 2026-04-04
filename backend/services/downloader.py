@@ -8,6 +8,9 @@ try:
 except ModuleNotFoundError:
     yt_dlp = None
 from database import is_downloaded, add_download
+from database import get_job_summary
+from services.download_service import download_coordinator
+from services.websocket_manager import manager
 
 logger = logging.getLogger(__name__)
 
@@ -29,39 +32,29 @@ class DownloaderService:
             t.start()
             self.workers.append(t)
 
+    def enqueue_job(self, job_info):
+        with self.active_downloads_lock:
+            self.active_downloads.append(job_info)
+        self.queue.put(job_info)
+        self._broadcast_summary()
+
     def get_active_downloads(self):
         with self.active_downloads_lock:
             # Return a copy to avoid race conditions during iteration by caller
             return list(self.active_downloads)
 
     def queue_download(self, query: str, artist: str = None, title: str = None, album: str = None, image_url: str = None):
-        job_info = {
-            'query': query, 
-            'artist': artist, 
-            'title': title, 
-            'album': album,
-            'image_url': image_url,
-            'status': 'queued'
-        }
-        
-        with self.active_downloads_lock:
-            # Check if already in active downloads to avoid duplicates in queue
-            for job in self.active_downloads:
-                if job['query'] == query:
-                    logger.info(f"Skipping {query}, already in queue/downloading.")
-                    return {"status": "skipped", "message": "Already in queue"}
-            
-            self.active_downloads.append(job_info)
-        
-        self.queue.put(job_info)
-        logger.info(f"Queued download: {query}")
-        return {"status": "queued", "query": query}
+        result = download_coordinator.queue(self, query, artist=artist, title=title, album=album, image_url=image_url)
+        if result["status"] == "queued":
+            logger.info(f"Queued download: {query}")
+        return result
 
     def _worker(self):
         while True:
             job_info = self.queue.get()
             try:
                 query = job_info['query']
+                job_id = job_info.get('job_id')
                 
                 # Update status to downloading
                 with self.active_downloads_lock:
@@ -71,6 +64,9 @@ class DownloaderService:
                         if job['query'] == query:
                             job['status'] = 'downloading'
                             break
+                if job_id:
+                    download_coordinator.mark_running(job_id)
+                self._broadcast_summary()
                 
                 self._download_song_sync(job_info)
                 
@@ -82,11 +78,13 @@ class DownloaderService:
                     # We need to remove the specific job_info or find by query
                     # Using list comprehension to remove
                     self.active_downloads = [j for j in self.active_downloads if j['query'] != job_info['query']]
+                self._broadcast_summary()
                 
                 self.queue.task_done()
 
     def _download_song_sync(self, job_info):
         query = job_info['query']
+        job_id = job_info.get('job_id')
         artist = job_info.get('artist')
         title = job_info.get('title')
         album = job_info.get('album')
@@ -94,11 +92,15 @@ class DownloaderService:
 
         if is_downloaded(query):
             logger.info(f"Skipping {query}, already downloaded.")
+            if job_id:
+                download_coordinator.mark_success(job_id, {"status": "skipped"})
             return {"status": "skipped", "message": "Already downloaded"}
 
         if yt_dlp is None:
             logger.warning("yt_dlp is not installed; downloader is running in degraded mode.")
-            add_download(query, artist or "Unknown Artist", title or query, album or "Unknown Album", image_url=image_url, status="failed")
+            add_download(query, artist or "Unknown Artist", title or query, album or "Unknown Album", image_url=image_url, status="failed", last_error="yt_dlp is not installed")
+            if job_id:
+                download_coordinator.mark_failed(job_id, "yt_dlp is not installed")
             return {"status": "error", "message": "yt_dlp is not installed"}
 
         # Use a temporary filename to avoid issues with special characters in YouTube titles
@@ -200,14 +202,36 @@ class DownloaderService:
                         os.rename(downloaded_file, final_filename)
                         logger.info(f"Renamed to: {final_filename}")
                         
-                        add_download(query, clean_artist, clean_title, clean_album, image_url=image_url, status="completed")
+                        add_download(query, clean_artist, clean_title, clean_album, image_url=image_url, status="completed", source_url=info.get("webpage_url"), match_confidence=0.9, alternate_candidate_count=max(0, len(info.get("entries", [])) - 1 if info.get("entries") else 0))
+                        if job_id:
+                            download_coordinator.mark_success(job_id, {"file": final_filename, "source_url": info.get("webpage_url")})
                         return {"status": "success", "info": info, "file": final_filename}
                     except Exception as e:
                         logger.error(f"Error tagging/renaming: {e}")
+                        add_download(query, clean_artist, clean_title, clean_album, image_url=image_url, status="failed", last_error=str(e))
+                        if job_id:
+                            download_coordinator.mark_failed(job_id, str(e))
                         return {"status": "partial_success", "message": "Downloaded but failed to tag/rename"}
                 else:
+                        add_download(query, artist or "Unknown Artist", title or query, album or "Unknown Album", image_url=image_url, status="failed", last_error="Downloaded file not found")
+                        if job_id:
+                            download_coordinator.mark_failed(job_id, "Downloaded file not found")
                         return {"status": "error", "message": "Downloaded file not found"}
 
             except Exception as e:
                 logger.error(f"Download failed for {query}: {e}")
+                add_download(query, artist or "Unknown Artist", title or query, album or "Unknown Album", image_url=image_url, status="failed", last_error=str(e))
+                if job_id:
+                    download_coordinator.mark_failed(job_id, str(e))
                 return {"status": "error", "message": str(e)}
+
+    def _broadcast_summary(self):
+        try:
+            payload = {
+                "type": "job.summary",
+                "summary": get_job_summary(),
+                "active_downloads": self.get_active_downloads(),
+            }
+            manager.broadcast_sync(payload)
+        except Exception:
+            pass

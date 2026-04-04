@@ -1,7 +1,7 @@
 import random
 import time
 from datetime import datetime, timezone
-from database import get_downloads, get_setting, get_dismissed_tracks
+from database import add_feedback, get_downloads, get_feedback_map, get_setting, get_dismissed_tracks, list_releases
 from .lastfm import LastFMService
 from .cache_manager import CacheManager
 import logging
@@ -36,6 +36,12 @@ class RecommendationsService:
             return get_dismissed_tracks(user)
         except Exception:
             return set()
+
+    def _get_feedback_map(self, user: str):
+        try:
+            return get_feedback_map(user)
+        except Exception:
+            return {}
 
     def _enrich_track(self, track: dict, source_type: str):
         enriched = dict(track)
@@ -85,25 +91,77 @@ class RecommendationsService:
                     "reason": f"Because you love {source_artist}",
                     "tags": tags,
                     "listeners": int(t.get("listeners") or 0),
+                    "score": 40,
                 })
+
+        for gem in self._get_forgotten_gems(user, limit=6):
+            candidates.append(
+                {
+                    "artist": gem["artist"],
+                    "title": gem["title"],
+                    "image": gem.get("image"),
+                    "query": f"{gem['artist']} {gem['title']}",
+                    "reason": "A forgotten gem from your own history",
+                    "tags": ["Library Memory"],
+                    "listeners": 0,
+                    "source_type": "forgotten_gem",
+                    "score": 55 + int(gem.get("playcount", 0)),
+                }
+            )
+
+        for release in list_releases(limit=12):
+            candidates.append(
+                {
+                    "artist": release["artist"],
+                    "title": release["title"],
+                    "image": release.get("image_url"),
+                    "query": f"{release['artist']} {release['title']}",
+                    "reason": "A recent release from someone worth watching",
+                    "tags": [release.get("release_type") or "Release Radar"],
+                    "listeners": 0,
+                    "source_type": "release_radar",
+                    "score": 65,
+                }
+            )
 
         random.shuffle(candidates)
 
         # Filter already downloaded & dismissed
         downloaded_set = self._get_downloaded_set()
         dismissed_set = self._get_dismissed_set(user)
+        feedback_map = self._get_feedback_map(user)
         seen = set()
         result = []
         for c in candidates:
             key = (c["artist"].lower(), c["title"].lower())
             if key in downloaded_set or key in dismissed_set or key in seen:
                 continue
+            if "dismissed" in feedback_map.get(key, set()) or "not_my_taste" in feedback_map.get(key, set()):
+                continue
+            if "saved_for_later" in feedback_map.get(key, set()):
+                c["score"] = c.get("score", 0) + 15
+            if "liked" in feedback_map.get(key, set()):
+                c["score"] = c.get("score", 0) + 20
             seen.add(key)
-            result.append(self._enrich_track(c, "similar_artist"))
-            if len(result) >= limit:
-                break
+            result.append(self._enrich_track(c, c.get("source_type", "similar_artist")))
+
+        result.sort(key=lambda item: item.get("score", 0), reverse=True)
+        result = result[:limit]
 
         return result
+
+    def add_feedback(self, artist: str, title: str, feedback_type: str):
+        user = self._get_user()
+        if not user:
+            return False
+        add_feedback(user, artist, title, feedback_type)
+        return True
+
+    def _get_forgotten_gems(self, user: str, limit: int = 6):
+        from .analytics import AnalyticsService
+
+        analytics = AnalyticsService(self.lastfm)
+        return analytics.get_forgotten_gems(user)[:limit]
 
     # ------------------------------------------------------------------ #
     # Artist Radar

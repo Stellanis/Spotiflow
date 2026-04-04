@@ -1,12 +1,12 @@
 import os
-import requests
-import time
 from database import get_setting
+from .external_client import ExternalAPIClient
 
 class LastFMApiClient:
     def __init__(self):
         self.base_url = "http://ws.audioscrobbler.com/2.0/"
         self._api_key = None
+        self.client = ExternalAPIClient("lastfm", base_url=self.base_url, timeout=10, retries=3, min_interval=0.25)
 
     @property
     def api_key(self):
@@ -29,23 +29,7 @@ class LastFMApiClient:
         request_params.update(params)
 
         try:
-            for attempt in range(3):
-                try:
-                    response = requests.get(self.base_url, params=request_params, timeout=timeout)
-                    if response.status_code >= 500:
-                        # Server error, retry
-                        print(f"Server error {response.status_code} for {method}, retrying ({attempt+1}/3)...")
-                        time.sleep(1 * (attempt + 1))
-                        continue
-                        
-                    response.raise_for_status()
-                    return response.json()
-                except requests.exceptions.RequestException as e:
-                    if attempt == 2:
-                        raise e
-                    print(f"Request error {e}, retrying ({attempt+1}/3)...")
-                    time.sleep(1 * (attempt + 1))
-            return None
-        except requests.exceptions.RequestException as e:
+            return self.client.request_json("GET", "", params=request_params, timeout=timeout)
+        except Exception as e:
             print(f"Error requesting {method}: {e}")
             return None

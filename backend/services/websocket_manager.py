@@ -1,6 +1,7 @@
 from fastapi import WebSocket
 from typing import List
 import logging
+import asyncio
 
 class ConnectionManager:
     def __init__(self):
@@ -25,5 +26,20 @@ class ConnectionManager:
             except Exception as e:
                 self.logger.warning(f"Failed to send to client: {e}")
                 self.disconnect(connection)
+
+    def broadcast_sync(self, message: dict):
+        try:
+            loop = asyncio.get_running_loop()
+            loop.create_task(self.broadcast(message))
+            return
+        except RuntimeError:
+            pass
+
+        try:
+            loop = asyncio.get_event_loop()
+            if loop.is_running():
+                loop.create_task(self.broadcast(message))
+        except RuntimeError:
+            return
 
 manager = ConnectionManager()

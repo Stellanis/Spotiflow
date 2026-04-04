@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
-import { Compass, FolderOpen, House, ListMusic, RefreshCw, Settings2, Ticket, Workflow } from 'lucide-react';
+import { Compass, FolderOpen, House, ListMusic, RefreshCw, Settings2, Sparkles, Ticket, Workflow } from 'lucide-react';
 import axios from 'axios';
 
 import { useSettings } from '../hooks/useSettings';
@@ -17,7 +17,9 @@ const PRIMARY_NAV = [
     { to: '/', label: 'Home', icon: House, end: true },
     { to: '/library', label: 'Library', icon: FolderOpen },
     { to: '/explore/discover', label: 'Explore', icon: Compass },
+    { to: '/insights', label: 'Insights', icon: Sparkles },
     { to: '/playlists', label: 'Playlists', icon: ListMusic },
+    { to: '/releases', label: 'Releases', icon: Ticket },
     { to: '/concerts', label: 'Concerts', icon: Ticket },
 ];
 

@@ -14,7 +14,9 @@ const API_URL = '/api';
 
 const FEATURES = [
     { id: 'library', label: 'Library' },
+    { id: 'insights', label: 'Insights' },
     { id: 'playlists', label: 'Playlists' },
+    { id: 'releases', label: 'Releases' },
     { id: 'undownloaded', label: 'Undownloaded' },
     { id: 'jobs', label: 'Jobs' },
     { id: 'stats', label: 'Stats' },
@@ -45,6 +47,10 @@ export default function SettingsPage() {
     const [tmApiKey, setTmApiKey] = useState('');
     const [bitAppId, setBitAppId] = useState('');
     const [disableFirefoxOpt, setDisableFirefoxOpt] = useState(false);
+    const [sessionGapMinutes, setSessionGapMinutes] = useState('30');
+    const [recommendationAggressiveness, setRecommendationAggressiveness] = useState('balanced');
+    const [enrichmentEnabled, setEnrichmentEnabled] = useState(true);
+    const [releasesEnabled, setReleasesEnabled] = useState(true);
 
     const isFirefox = typeof navigator !== 'undefined' && /firefox/i.test(navigator.userAgent);
 
@@ -63,6 +69,10 @@ export default function SettingsPage() {
                 setTmApiKey(response.data.tm_api_key || '');
                 setBitAppId(response.data.bit_app_id || '');
                 setDisableFirefoxOpt(localStorage.getItem('spotify_scrobbler_disable_optimization') === 'true');
+                setSessionGapMinutes(String(response.data.SESSION_GAP_MINUTES || 30));
+                setRecommendationAggressiveness(response.data.RECOMMENDATION_AGGRESSIVENESS || 'balanced');
+                setEnrichmentEnabled(response.data.ENRICHMENT_ENABLED !== 'false');
+                setReleasesEnabled(response.data.RELEASES_ENABLED !== 'false');
             } catch (error) {
                 console.error('Error fetching settings:', error);
                 toast.error('Failed to load settings');
@@ -95,6 +105,10 @@ export default function SettingsPage() {
                 scrobble_limit_count: parseInt(limitCount, 10),
                 auto_download: autoDownload,
                 hidden_features: Array.from(hiddenFeatures).join(','),
+                session_gap_minutes: parseInt(sessionGapMinutes, 10),
+                recommendation_aggressiveness: recommendationAggressiveness,
+                enrichment_enabled: enrichmentEnabled,
+                releases_enabled: releasesEnabled,
             };
 
             if (apiKey && !apiKey.includes('*')) {
@@ -188,6 +202,14 @@ export default function SettingsPage() {
                                 setLimitCount={setLimitCount}
                                 autoDownload={autoDownload}
                                 setAutoDownload={setAutoDownload}
+                                sessionGapMinutes={sessionGapMinutes}
+                                setSessionGapMinutes={setSessionGapMinutes}
+                                recommendationAggressiveness={recommendationAggressiveness}
+                                setRecommendationAggressiveness={setRecommendationAggressiveness}
+                                enrichmentEnabled={enrichmentEnabled}
+                                setEnrichmentEnabled={setEnrichmentEnabled}
+                                releasesEnabled={releasesEnabled}
+                                setReleasesEnabled={setReleasesEnabled}
                             />
                         </SettingsSection>
                     </div>

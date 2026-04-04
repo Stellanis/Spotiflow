@@ -44,6 +44,8 @@ export default function Home() {
     const { scrobbles, loadingScrobbles, fetchScrobbles } = useLibrary(username);
     const [summary, setSummary] = useState(null);
     const [checklist, setChecklist] = useState(null);
+    const [insights, setInsights] = useState(null);
+    const [gaps, setGaps] = useState(null);
     const [selectedTrack, setSelectedTrack] = useState(null);
 
     useEffect(() => {
@@ -55,12 +57,16 @@ export default function Home() {
     useEffect(() => {
         const load = async () => {
             try {
-                const [summaryRes, checklistRes] = await Promise.all([
+                const [summaryRes, checklistRes, insightsRes, gapsRes] = await Promise.all([
                     axios.get('/api/dashboard/summary'),
                     axios.get('/api/health/checklist'),
+                    axios.get('/api/insights/overview').catch(() => ({ data: null })),
+                    axios.get('/api/gaps').catch(() => ({ data: null })),
                 ]);
                 setSummary(summaryRes.data);
                 setChecklist(checklistRes.data);
+                setInsights(insightsRes.data);
+                setGaps(gapsRes.data);
             } catch (error) {
                 console.error('Failed to load dashboard summary', error);
             }
@@ -267,9 +273,16 @@ export default function Home() {
                                 </p>
                             </div>
                             <div className="rounded-3xl border border-white/10 bg-black/20 p-4">
-                                <div className="text-sm font-medium text-white">Concert reminders</div>
+                                <div className="text-sm font-medium text-white">Listening digest</div>
                                 <p className="mt-2 text-sm text-spotify-grey">
-                                    There are <span className="text-white">{summary?.highlights?.upcoming_concert_count ?? 0}</span> upcoming concerts across your synced artists.
+                                    {insights?.digest?.highlights?.[0] || 'Run a sync to generate a stronger personal digest.'}
+                                </p>
+                            </div>
+                            <div className="rounded-3xl border border-white/10 bg-black/20 p-4">
+                                <div className="text-sm font-medium text-white">Gap finder</div>
+                                <p className="mt-2 text-sm text-spotify-grey">
+                                    There are <span className="text-white">{gaps?.missing_top_tracks?.length ?? 0}</span> top missing tracks and{' '}
+                                    <span className="text-white">{gaps?.weak_artist_coverage?.length ?? 0}</span> artists with weak local coverage.
                                 </p>
                             </div>
                         </div>

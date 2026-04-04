@@ -1,5 +1,6 @@
-from datetime import datetime
 import sqlite3
+from datetime import datetime, timezone
+
 from ..core import get_connection
 
 def add_scrobble(user, artist, title, album, image_url, timestamp):
@@ -14,7 +15,7 @@ def add_scrobble(user, artist, title, album, image_url, timestamp):
                     title=excluded.title,
                     album=excluded.album,
                     image_url=excluded.image_url
-            ''', (user, artist, title, album, image_url, timestamp, datetime.now()))
+            ''', (user, artist, title, album, image_url, timestamp, datetime.now(timezone.utc).isoformat()))
             conn.commit()
             return True
         except Exception as e:
@@ -33,7 +34,7 @@ def add_scrobbles_batch(scrobbles):
         c = conn.cursor()
         try:
             # Prepare data with created_at
-            now = datetime.now()
+            now = datetime.now(timezone.utc).isoformat()
             data = []
             for s in scrobbles:
                 # s is expected to be a tuple/list matching the order

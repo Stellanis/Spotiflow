@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 import sqlite3
 import json
 from ..core import get_connection
@@ -35,7 +35,7 @@ def get_playlists_with_stats():
 def create_playlist(name, description, p_type='manual', rules=None, color=None):
     with get_connection() as conn:
         c = conn.cursor()
-        created_at = datetime.now()
+        created_at = datetime.now(timezone.utc).isoformat()
         try:
             c.execute('INSERT INTO playlists (name, description, type, rules, color, created_at) VALUES (?, ?, ?, ?, ?, ?)', 
                       (name, description, p_type, rules, color, created_at))
@@ -141,7 +141,7 @@ def add_song_to_playlist(playlist_id, song_query):
             c.execute('''
                 INSERT INTO playlist_songs (playlist_id, song_query, position, added_at)
                 VALUES (?, ?, ?, ?)
-            ''', (playlist_id, song_query, next_pos, datetime.now()))
+            ''', (playlist_id, song_query, next_pos, datetime.now(timezone.utc).isoformat()))
             conn.commit()
             return next_pos
         except Exception:
@@ -250,7 +250,7 @@ def add_songs_to_playlist_batch(playlist_id, song_queries):
         next_pos = current_pos + 1
         
         added_count = 0
-        now = datetime.now()
+        now = datetime.now(timezone.utc).isoformat()
         
         data = []
         for q in song_queries:

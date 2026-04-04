@@ -12,6 +12,12 @@ class DismissRequest(BaseModel):
     title: str
 
 
+class FeedbackRequest(BaseModel):
+    artist: str
+    title: str
+    feedback_type: str
+
+
 @router.get("/recommendations")
 def get_recommendations(limit: int = 20):
     """For You – personalized recommendations with reason + genre tags."""
@@ -48,3 +54,14 @@ def dismiss_recommendation(req: DismissRequest):
         raise HTTPException(status_code=400, detail="No LASTFM_USER configured")
     dismiss_track(user, req.artist, req.title)
     return {"status": "dismissed", "artist": req.artist, "title": req.title}
+
+
+@router.post("/recommendations/feedback")
+def add_recommendation_feedback(req: FeedbackRequest):
+    user = get_setting("LASTFM_USER") or os.getenv("LASTFM_USER")
+    if not user:
+        raise HTTPException(status_code=400, detail="No LASTFM_USER configured")
+    if req.feedback_type == "dismissed":
+        dismiss_track(user, req.artist, req.title)
+    recommendations_service.add_feedback(req.artist, req.title, req.feedback_type)
+    return {"status": "recorded", "feedback_type": req.feedback_type}

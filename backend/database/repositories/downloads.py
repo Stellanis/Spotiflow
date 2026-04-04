@@ -1,22 +1,35 @@
-from datetime import datetime
 import sqlite3
+from datetime import datetime, timezone
+
 from ..core import get_connection
 
-def add_download(query, artist, title, album, image_url=None, status="completed"):
+def add_download(query, artist, title, album, image_url=None, status="completed", source_url=None, match_confidence=None, alternate_candidate_count=0, last_error=None):
+    now = datetime.now(timezone.utc).isoformat()
     with get_connection() as conn:
         c = conn.cursor()
         try:
             c.execute('''
-                INSERT INTO downloads (query, artist, title, album, image_url, status, created_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO downloads (
+                    query, artist, title, album, image_url, status, created_at,
+                    source_url, match_confidence, alternate_candidate_count, last_error
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(query) DO UPDATE SET
                     artist=excluded.artist,
                     title=excluded.title,
                     album=excluded.album,
                     image_url=COALESCE(excluded.image_url, downloads.image_url),
                     status=excluded.status,
-                    created_at=excluded.created_at
-            ''', (query, artist, title, album, image_url, status, datetime.now()))
+                    created_at=excluded.created_at,
+                    source_url=COALESCE(excluded.source_url, downloads.source_url),
+                    match_confidence=COALESCE(excluded.match_confidence, downloads.match_confidence),
+                    alternate_candidate_count=CASE
+                        WHEN excluded.alternate_candidate_count > downloads.alternate_candidate_count
+                        THEN excluded.alternate_candidate_count
+                        ELSE downloads.alternate_candidate_count
+                    END,
+                    last_error=COALESCE(excluded.last_error, downloads.last_error)
+            ''', (query, artist, title, album, image_url, status, now, source_url, match_confidence, alternate_candidate_count, last_error))
             conn.commit()
             return True
         except sqlite3.IntegrityError:

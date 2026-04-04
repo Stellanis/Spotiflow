@@ -1,8 +1,6 @@
 from fastapi import APIRouter, HTTPException, BackgroundTasks
 from core import lastfm_service, logger
-from tasks import check_new_scrobbles
-from database import is_downloaded, get_download_info
-import urllib.parse
+from services.sync_service import sync_service
 
 from utils import sanitize_filename
 
@@ -48,6 +46,7 @@ def get_scrobbles(user: str, limit: int = 10):
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/sync")
+@router.post("/scrobbles/sync")
 async def sync_scrobbles(background_tasks: BackgroundTasks):
-    background_tasks.add_task(check_new_scrobbles)
+    background_tasks.add_task(sync_service.run_sync)
     return {"status": "sync_started"}
