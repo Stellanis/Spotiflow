@@ -11,6 +11,7 @@ const ConcertsPage = lazy(() => import('./pages/ConcertsPage'));
 const DiscoverPage = lazy(() => import('./pages/DiscoverPage'));
 const StatsPage = lazy(() => import('./pages/StatsPage'));
 const ExploreShell = lazy(() => import('./pages/ExploreShell'));
+const SettingsPage = lazy(() => import('./pages/SettingsPage'));
 
 function AppLoader() {
     return (
@@ -36,7 +37,7 @@ function App() {
                         <Route path="/playlists" element={<PlaylistsPage />} />
                         <Route path="/concerts" element={<ConcertsPage />} />
                         <Route path="/jobs" element={<JobsPage />} />
-                        <Route path="/settings" element={<Navigate to="/" replace state={{ openSettings: true }} />} />
+                        <Route path="/settings" element={<SettingsPage />} />
                         <Route path="/discover" element={<Navigate to="/explore/discover" replace />} />
                         <Route path="/stats" element={<Navigate to="/explore/stats" replace />} />
                         <Route path="/undownloaded" element={<Navigate to="/library?tab=pending" replace />} />

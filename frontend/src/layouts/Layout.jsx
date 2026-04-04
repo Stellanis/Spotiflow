@@ -1,11 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
-import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { Compass, FolderOpen, House, ListMusic, RefreshCw, Settings2, Ticket, Workflow } from 'lucide-react';
 import axios from 'axios';
 
 import { useSettings } from '../hooks/useSettings';
-import { SettingsModal } from '../SettingsModal';
 import { TutorialModal } from '../TutorialModal';
 import { PlayerBar } from '../components/PlayerBar';
 import { LyricsModal } from '../components/LyricsModal';
@@ -24,11 +23,11 @@ const PRIMARY_NAV = [
 
 const SECONDARY_NAV = [
     { to: '/jobs', label: 'Queue', icon: Workflow },
+    { to: '/settings', label: 'Settings', icon: Settings2 },
 ];
 
 export default function Layout() {
     const navigate = useNavigate();
-    const location = useLocation();
     const {
         username,
         setUsername,
@@ -43,7 +42,6 @@ export default function Layout() {
     } = useSettings();
     const { showLyrics, setShowLyrics, currentTrack, progress, playTrack } = usePlayer();
 
-    const [isSettingsOpen, setIsSettingsOpen] = useState(false);
     const [isSyncing, setIsSyncing] = useState(false);
     const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
     const [selectedArtist, setSelectedArtist] = useState(null);
@@ -56,13 +54,6 @@ export default function Layout() {
     useEffect(() => {
         fetchSettings();
     }, [fetchSettings]);
-
-    useEffect(() => {
-        if (location.state?.openSettings) {
-            setIsSettingsOpen(true);
-            navigate(location.pathname, { replace: true, state: {} });
-        }
-    }, [location.pathname, location.state, navigate]);
 
     useEffect(() => {
         const handleKeyDown = (event) => {
@@ -156,7 +147,7 @@ export default function Layout() {
                         <div className="grid grid-cols-2 gap-2">
                             <button
                                 type="button"
-                                onClick={() => setIsSettingsOpen(true)}
+                                onClick={() => navigate('/settings')}
                                 className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm font-medium text-white transition-colors hover:bg-white/[0.08]"
                             >
                                 Settings
@@ -193,7 +184,7 @@ export default function Layout() {
                             </button>
                             <button
                                 type="button"
-                                onClick={() => setIsSettingsOpen(true)}
+                                onClick={() => navigate('/settings')}
                                 className="rounded-full border border-white/10 p-3 text-white"
                             >
                                 <Settings2 className="h-4 w-4" />
@@ -201,7 +192,21 @@ export default function Layout() {
                         </div>
                     </div>
 
-                    <Outlet context={{ username, isSyncing, handleSync, autoDownload, openSettings: () => setIsSettingsOpen(true) }} />
+                    <Outlet
+                        context={{
+                            username,
+                            isSyncing,
+                            handleSync,
+                            autoDownload,
+                            openSettings: () => navigate('/settings'),
+                            onSettingsSaved: (newUsername, newAutoDownload, newHiddenFeatures) => {
+                                setUsername(newUsername);
+                                setAutoDownload(newAutoDownload);
+                                setHiddenFeatures(new Set(newHiddenFeatures));
+                            },
+                            onReplayTutorial: () => setShowTutorial(true),
+                        }}
+                    />
                 </main>
             </div>
 
@@ -226,17 +231,6 @@ export default function Layout() {
                 </div>
             </div>
 
-            <SettingsModal
-                isOpen={isSettingsOpen}
-                onClose={() => setIsSettingsOpen(false)}
-                onSave={(newUsername, newAutoDownload, newHiddenFeatures) => {
-                    setUsername(newUsername);
-                    setAutoDownload(newAutoDownload);
-                    setHiddenFeatures(new Set(newHiddenFeatures));
-                }}
-                onReplayTutorial={() => setShowTutorial(true)}
-            />
-
             <TutorialModal
                 isOpen={showTutorial}
                 onClose={closeTutorial}
@@ -252,7 +246,7 @@ export default function Layout() {
                 onClose={() => setIsCommandPaletteOpen(false)}
                 username={username}
                 onSync={handleSync}
-                onSettingsOpen={() => setIsSettingsOpen(true)}
+                onSettingsOpen={() => navigate('/settings')}
             />
 
             <ArtistModal
