@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import axios from 'axios';
-import { Loader2, RefreshCw } from 'lucide-react';
+import { Download, Loader2, RefreshCw } from 'lucide-react';
+import { toast } from 'react-hot-toast';
 
 import { EmptyState } from '../components/ui/EmptyState';
 import { PageHeader } from '../components/ui/PageHeader';
@@ -24,6 +25,7 @@ export default function InsightsPage() {
     const [timecapsule, setTimecapsule] = useState(null);
     const [gaps, setGaps] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [queueing, setQueueing] = useState({});
 
     const load = async () => {
         setLoading(true);
@@ -50,6 +52,45 @@ export default function InsightsPage() {
     useEffect(() => {
         load();
     }, []);
+
+    const queueGapTrack = async (track) => {
+        const key = `${track.artist}-${track.title}`;
+        setQueueing((previous) => ({ ...previous, [key]: true }));
+        try {
+            await axios.post('/api/gaps/queue-track', {
+                artist: track.artist,
+                title: track.title,
+                album: track.album || '',
+                image: track.image || '',
+            });
+            toast.success(`Queued ${track.title}`);
+        } catch (error) {
+            console.error('Failed to queue gap track', error);
+            toast.error(`Failed to queue ${track.title}`);
+        } finally {
+            setQueueing((previous) => ({ ...previous, [key]: false }));
+        }
+    };
+
+    const ignoreGapTrack = async (track) => {
+        try {
+            await axios.post('/api/gaps/ignore', {
+                item_type: 'gap_track',
+                artist: track.artist,
+                title: track.title,
+                album: track.album || '',
+                reason: 'Ignored from insight surface',
+            });
+            setGaps((previous) => ({
+                ...previous,
+                missing_top_tracks: (previous?.missing_top_tracks || []).filter((item) => !(item.artist === track.artist && item.title === track.title)),
+            }));
+            toast.success(`Ignored ${track.title} in gap finder`);
+        } catch (error) {
+            console.error('Failed to ignore gap track', error);
+            toast.error(`Failed to ignore ${track.title}`);
+        }
+    };
 
     return (
         <div className="space-y-8">
@@ -186,7 +227,25 @@ export default function InsightsPage() {
                                 <div className="space-y-2">
                                     {(gaps?.missing_top_tracks || []).slice(0, 5).map((item) => (
                                         <div key={`${item.artist}-${item.title}`} className="rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-white/85">
-                                            {item.artist} - {item.title}
+                                            <div>{item.artist} - {item.title}</div>
+                                            <div className="mt-3 flex flex-wrap gap-2">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => queueGapTrack(item)}
+                                                    disabled={queueing[`${item.artist}-${item.title}`]}
+                                                    className="inline-flex items-center gap-1 rounded-full bg-spotify-green px-3 py-1.5 text-xs font-medium text-black disabled:opacity-50"
+                                                >
+                                                    <Download className="h-3 w-3" />
+                                                    Queue
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => ignoreGapTrack(item)}
+                                                    className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs text-white/75"
+                                                >
+                                                    Ignore
+                                                </button>
+                                            </div>
                                         </div>
                                     ))}
                                 </div>
