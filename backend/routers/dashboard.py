@@ -13,6 +13,7 @@ from database import (
 )
 from services.recommendations import recommendations_service
 from services.concerts import ConcertService
+from services.stream_resolver import stream_resolver
 
 router = APIRouter(tags=["dashboard"])
 
@@ -64,6 +65,13 @@ def get_dashboard_summary():
     concerts = concert_service.get_all_concerts()
     upcoming_concerts = [concert for concert in concerts if concert.get("date") and concert["date"] >= datetime.now().strftime("%Y-%m-%d")]
     streaming = get_streaming_dashboard_stats()
+    streaming["policy"] = {
+        "streaming_enabled": (get_setting("REALTIME_STREAMING_ENABLED", "true") or "true").lower() == "true",
+        "auto_promote_streamed_tracks": (get_setting("AUTO_PROMOTE_STREAMED_TRACKS", "true") or "true").lower() == "true",
+        "failure_threshold": stream_resolver.failure_threshold,
+        "cooldown_hours": stream_resolver.failed_source_cooldown_hours,
+        "metadata_ttl_hours": stream_resolver.metadata_ttl_hours,
+    }
 
     return {
         "user": user,

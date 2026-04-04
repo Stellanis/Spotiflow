@@ -141,10 +141,11 @@ def mark_stream_source_failure(stream_source_id, error_message, health_status="d
                 failure_count = failure_count + 1,
                 health_status = ?,
                 last_error = ?,
+                playable_url = CASE WHEN ? = 'cooldown' THEN NULL ELSE playable_url END,
                 updated_at = ?
             WHERE id = ?
             """,
-            (health_status, error_message, _now(), stream_source_id),
+            (health_status, error_message, health_status, _now(), stream_source_id),
         )
         conn.commit()
 
@@ -160,6 +161,7 @@ def mark_stream_source_verified(stream_source_id, playable_url=None, expires_at=
                 expires_at = COALESCE(?, expires_at),
                 last_verified_at = ?,
                 health_status = ?,
+                failure_count = 0,
                 last_error = NULL,
                 updated_at = ?
             WHERE id = ?
@@ -262,7 +264,9 @@ def get_streaming_dashboard_stats(hours=24):
             SELECT
                 COUNT(*) AS total_recent,
                 SUM(CASE WHEN health_status = 'healthy' THEN 1 ELSE 0 END) AS healthy_recent,
-                SUM(CASE WHEN health_status = 'degraded' THEN 1 ELSE 0 END) AS degraded_recent
+                SUM(CASE WHEN health_status = 'degraded' THEN 1 ELSE 0 END) AS degraded_recent,
+                SUM(CASE WHEN health_status = 'cooldown' THEN 1 ELSE 0 END) AS cooldown_recent,
+                SUM(CASE WHEN health_status = 'expired' THEN 1 ELSE 0 END) AS expired_recent
             FROM stream_sources
             WHERE updated_at >= ?
             """,
@@ -272,17 +276,42 @@ def get_streaming_dashboard_stats(hours=24):
         total_recent = stream_row["total_recent"] or 0
         healthy_recent = stream_row["healthy_recent"] or 0
         degraded_recent = stream_row["degraded_recent"] or 0
+        cooldown_recent = stream_row["cooldown_recent"] or 0
+        expired_recent = stream_row["expired_recent"] or 0
+
+        c.execute(
+            """
+            SELECT COUNT(*) FROM playback_events
+            WHERE created_at >= ?
+              AND event_type = 'error'
+              AND playback_type IN ('remote_stream', 'preview')
+            """,
+            (cutoff,),
+        )
+        recent_stream_errors = c.fetchone()[0]
 
         c.execute("SELECT COUNT(*) FROM stream_sources WHERE promoted_to_download = 1")
         promoted_downloads = c.fetchone()[0]
 
     resolve_success_rate = round((healthy_recent / total_recent) * 100, 2) if total_recent else None
+    if resolve_success_rate is None:
+        resolve_health_status = "unknown"
+    elif resolve_success_rate >= 80:
+        resolve_health_status = "healthy"
+    elif resolve_success_rate >= 50:
+        resolve_health_status = "warning"
+    else:
+        resolve_health_status = "critical"
     return {
         "active_radio_sessions": active_radio_sessions,
         "recent_stream_resolutions": total_recent,
         "healthy_recent_streams": healthy_recent,
         "degraded_recent_streams": degraded_recent,
+        "cooldown_recent_streams": cooldown_recent,
+        "expired_recent_streams": expired_recent,
         "resolve_success_rate": resolve_success_rate,
+        "resolve_health_status": resolve_health_status,
+        "recent_stream_errors": recent_stream_errors,
         "promoted_downloads": promoted_downloads,
     }
 

@@ -65,5 +65,9 @@ def test_dashboard_summary_includes_streaming_stats(temp_db):
     assert payload["streaming"]["recent_stream_resolutions"] == 2
     assert payload["streaming"]["healthy_recent_streams"] == 1
     assert payload["streaming"]["degraded_recent_streams"] == 1
+    assert payload["streaming"]["cooldown_recent_streams"] == 0
+    assert payload["streaming"]["expired_recent_streams"] == 0
     assert payload["streaming"]["promoted_downloads"] == 1
     assert payload["streaming"]["resolve_success_rate"] == 50.0
+    assert payload["streaming"]["resolve_health_status"] == "warning"
+    assert payload["streaming"]["policy"]["failure_threshold"] >= 1

@@ -23,6 +23,7 @@ from database import (
 from main import app
 from services.radio_service import radio_service
 from services.playable_source_service import playable_source_service
+from services.stream_resolver import stream_resolver
 
 
 @pytest.fixture
@@ -182,6 +183,28 @@ def test_radio_service_record_event_filters_non_persisted_fields(temp_db):
     )
     assert event["event_type"] == "error"
     assert promotion is None
+
+
+def test_stream_source_enters_cooldown_after_repeated_failures(temp_db):
+    source = upsert_stream_source(
+        artist="Cooldown Artist",
+        title="Cooldown Track",
+        source_name="resolver",
+        source_url="https://example.com/source",
+        playable_url="https://example.com/audio.mp3",
+        playback_type="remote_stream",
+        cache_key="cooldown|track|",
+    )
+
+    first = playable_source_service.mark_failure(source["id"], "first failure")
+    second = playable_source_service.mark_failure(source["id"], "second failure")
+
+    assert first["status"] == "degraded"
+    assert second["status"] == "cooldown"
+    assert second["failure_count"] == stream_resolver.failure_threshold
+
+    cached = playable_source_service.resolve("Cooldown Artist", "Cooldown Track")
+    assert cached is None
 
 
 def test_radio_service_next_playable_track_skips_unresolvable(temp_db, monkeypatch):

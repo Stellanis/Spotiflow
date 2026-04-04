@@ -15,7 +15,7 @@ from database import (
 from services.download_service import download_coordinator
 from services.playable_source_service import playable_source_service
 from services.recommendation_index_service import recommendation_index_service
-from services.stream_resolver import build_track_key
+from services.stream_resolver import build_track_key, stream_resolver
 from services.websocket_manager import manager
 from core import downloader_service
 
@@ -148,9 +148,11 @@ class RadioService:
             if key in self._playback_event_fields
         }
         event = add_playback_event(username=username, **event_payload)
+        stream_health = None
         if payload.get("event_type") == "error" and payload.get("source_url"):
-            self._mark_source_failure(payload)
+            stream_health = self._mark_source_failure(payload)
         promotion = self._maybe_promote(username, payload)
+        self._broadcast_event(payload.get("session_id"), event, stream_health=stream_health, promotion=promotion)
         return event, promotion
 
     def verify_stream_sources(self):
@@ -160,8 +162,8 @@ class RadioService:
         degraded = 0
         for source in list_recent_stream_sources(hours=24, limit=200):
             checked += 1
-            expires_at = source.get("expires_at")
-            if expires_at and expires_at < datetime.now(timezone.utc).isoformat():
+            health = stream_resolver.describe_source_health(source)
+            if health and health.get("is_expired"):
                 upsert_stream_source(
                     track_id=source.get("track_id"),
                     artist=source["artist"],
@@ -175,6 +177,26 @@ class RadioService:
                     expires_at=source.get("expires_at"),
                     last_verified_at=source.get("last_verified_at"),
                     health_status="expired",
+                    failure_count=source.get("failure_count", 0),
+                    last_error=source.get("last_error"),
+                    promoted_to_download=bool(source.get("promoted_to_download")),
+                    cache_key=source["cache_key"],
+                )
+                degraded += 1
+            elif source.get("health_status") == "cooldown" and health and not health.get("is_in_cooldown"):
+                upsert_stream_source(
+                    track_id=source.get("track_id"),
+                    artist=source["artist"],
+                    title=source["title"],
+                    album=source.get("album"),
+                    source_name=source["source_name"],
+                    source_url=source.get("source_url"),
+                    playable_url=None,
+                    playback_type=source["playback_type"],
+                    resolver_payload=source.get("resolver_payload"),
+                    expires_at=source.get("expires_at"),
+                    last_verified_at=source.get("last_verified_at"),
+                    health_status="degraded",
                     failure_count=source.get("failure_count", 0),
                     last_error=source.get("last_error"),
                     promoted_to_download=bool(source.get("promoted_to_download")),
@@ -282,21 +304,59 @@ class RadioService:
     def _mark_source_failure(self, payload):
         stream_source_id = payload.get("stream_source_id")
         if stream_source_id:
-            playable_source_service.mark_failure(stream_source_id, payload.get("error_message") or "Playback error")
+            return playable_source_service.mark_failure(stream_source_id, payload.get("error_message") or "Playback error")
+        return None
 
     def _broadcast_session(self, session):
         queue = session.get("queue_payload") or []
         current_index = session.get("current_index", 0)
+        current_track = queue[current_index] if current_index < len(queue) else None
         manager.broadcast_sync(
             {
                 "type": "playback.session",
                 "session_id": session.get("id"),
                 "queue_length": len(queue),
-                "current_track": queue[current_index] if current_index < len(queue) else None,
-                "stream_health": None,
+                "remaining_queue": max(len(queue) - current_index - 1, 0),
+                "current_index": current_index,
+                "current_track": current_track,
+                "stream_health": self._build_stream_health_payload(track=current_track),
                 "promotion_events": [],
             }
         )
+
+    def _broadcast_event(self, session_id, event, stream_health=None, promotion=None):
+        if not session_id and not promotion:
+            return
+        promotion_events = []
+        if promotion:
+            promotion_events.append(
+                {
+                    "artist": event.get("artist"),
+                    "title": event.get("title"),
+                    "status": promotion.get("status"),
+                }
+            )
+        manager.broadcast_sync(
+            {
+                "type": "playback.session",
+                "session_id": session_id,
+                "event": event,
+                "stream_health": stream_health or self._build_stream_health_payload(track=event),
+                "promotion_events": promotion_events,
+            }
+        )
+
+    def _build_stream_health_payload(self, stream_source_id=None, track=None):
+        if stream_source_id:
+            source = get_stream_source(stream_source_id)
+            if not source:
+                return None
+            return stream_resolver.describe_source_health(source)
+        if not track:
+            return None
+        if track.get("playback_type") == "local":
+            return {"status": "local", "can_use_cached": True, "should_attempt_resolution": False}
+        return stream_resolver.get_stream_source_health(track.get("artist"), track.get("title"), album=track.get("album"))
 
 
 radio_service = RadioService()

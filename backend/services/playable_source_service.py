@@ -27,6 +27,17 @@ class PlayableSourceService:
                 "stream_source_id": cached.get("id"),
             }
 
+        source_health = stream_resolver.get_stream_source_health(artist, title, album=album)
+        if source_health and not source_health.get("should_attempt_resolution"):
+            logger.info(
+                "stream_resolution_cooldown artist=%s title=%s stream_source_id=%s cooldown_until=%s",
+                artist,
+                title,
+                source_health.get("stream_source_id"),
+                source_health.get("cooldown_until"),
+            )
+            return stream_resolver._preview_result(preview_url, build_track_key(artist, title, album))
+
         if not self.is_streaming_enabled() and preview_url:
             return stream_resolver._preview_result(preview_url, build_track_key(artist, title, album))
         if not self.is_streaming_enabled():
@@ -40,6 +51,9 @@ class PlayableSourceService:
         cached = stream_resolver.get_cached_stream_source(artist, title, album=album)
         if cached:
             return "cached_stream", True
+        source_health = stream_resolver.get_stream_source_health(artist, title, album=album)
+        if source_health and not source_health.get("should_attempt_resolution"):
+            return "cooldown", bool(preview_url)
         if preview_url:
             return "resolvable", True
         if self.is_streaming_enabled():
@@ -47,12 +61,23 @@ class PlayableSourceService:
         return "unavailable", False
 
     def mark_failure(self, stream_source_id, error_message):
-        if stream_source_id:
-            mark_stream_source_failure(stream_source_id, error_message)
+        if not stream_source_id:
+            return None
+        source = get_stream_source(stream_source_id)
+        if not source:
+            return None
+        next_failure_count = int(source.get("failure_count") or 0) + 1
+        health_status = "cooldown" if next_failure_count >= stream_resolver.failure_threshold else "degraded"
+        mark_stream_source_failure(stream_source_id, error_message, health_status=health_status)
+        updated_source = get_stream_source(stream_source_id)
+        return stream_resolver.describe_source_health(updated_source)
 
     def mark_success(self, stream_source_id, playable_url=None, expires_at=None):
         if stream_source_id:
             mark_stream_source_verified(stream_source_id, playable_url=playable_url, expires_at=expires_at)
+
+    def get_stream_health(self, artist, title, album=None):
+        return stream_resolver.get_stream_source_health(artist, title, album=album)
 
     def refresh_proxy_url(self, stream_source_id):
         source = get_stream_source(stream_source_id)

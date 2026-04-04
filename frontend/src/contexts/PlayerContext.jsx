@@ -57,6 +57,19 @@ export function PlayerProvider({ children }) {
                         setActiveDownloads(data.active_downloads);
                     }
                     if (data.type === 'playback.session' && data.session_id && data.session_id === sessionId) {
+                        if (data.stream_health?.status) {
+                            if (data.stream_health.status === 'healthy') {
+                                setStreamStatus('streaming');
+                            } else {
+                                setStreamStatus(data.stream_health.status);
+                            }
+                            if (data.stream_health.status === 'cooldown') {
+                                toast.error('Stream source is cooling down after repeated playback errors');
+                            }
+                        }
+                        if (data.event?.event_type === 'error') {
+                            setStreamStatus('error');
+                        }
                         if (Array.isArray(data.promotion_events) && data.promotion_events.length > 0) {
                             setIsPromoted(true);
                             toast.success(`Queued "${data.promotion_events[0].title}" for download`);
@@ -101,7 +114,13 @@ export function PlayerProvider({ children }) {
         setCanPromote(Boolean(playable.is_promotable));
         setIsPromoted(false);
         setRetryCount(0);
-        setStreamStatus(playable.playback_type === 'local' ? 'ready' : 'streaming');
+        setStreamStatus(
+            options.streamHealth?.status && options.streamHealth.status !== 'healthy'
+                ? options.streamHealth.status
+                : playable.playback_type === 'local'
+                    ? 'ready'
+                    : 'streaming'
+        );
         setIsReady(false);
 
         audio.src = playable.audio_url;
@@ -145,6 +164,7 @@ export function PlayerProvider({ children }) {
             queueIndex: 0,
             sessionId: response.data.session_id,
             queueMode: response.data.queue_mode || 'radio',
+            streamHealth: response.data.stream_health || null,
         });
         return response.data;
     };
@@ -228,6 +248,7 @@ export function PlayerProvider({ children }) {
                     queueMode: 'radio',
                     autoplay: false,
                     sendStartEvent: false,
+                    streamHealth: session.stream_health || null,
                 });
                 setStreamStatus('restored');
             } catch (error) {
@@ -284,6 +305,7 @@ export function PlayerProvider({ children }) {
                     queueIndex: nextIdx >= 0 ? nextIdx : queueIndex + 1,
                     sessionId,
                     queueMode: 'radio',
+                    streamHealth: response.data.stream_health || null,
                 });
                 return;
             } catch (error) {
