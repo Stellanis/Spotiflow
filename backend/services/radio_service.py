@@ -69,6 +69,67 @@ class RadioService:
         current_track = queue[next_index] if next_index < len(queue) else None
         return session, current_track
 
+    def next_playable_track(self, session_id, reason="next"):
+        session = get_radio_session(session_id)
+        if not session:
+            return None, None, None, []
+
+        queue = list(session.get("queue_payload") or [])
+        search_index = session.get("current_index", 0) + 1
+        skipped_tracks = []
+
+        while True:
+            if len(queue) - search_index <= self.refill_threshold:
+                previous_length = len(queue)
+                queue = self._refill_queue(session, queue)
+                if len(queue) != previous_length:
+                    logger.info(
+                        "radio_refill session_id=%s old_length=%s new_length=%s",
+                        session_id,
+                        previous_length,
+                        len(queue),
+                    )
+
+            while search_index < len(queue):
+                candidate = queue[search_index]
+                playable = playable_source_service.resolve(
+                    candidate["artist"],
+                    candidate["title"],
+                    album=candidate.get("album"),
+                    preview_url=candidate.get("preview_url"),
+                )
+                if playable:
+                    session = update_radio_session(session_id, current_index=search_index, queue_payload=queue)
+                    self._broadcast_session(session)
+                    logger.info(
+                        "radio_next_playable session_id=%s index=%s skipped=%s playback_type=%s",
+                        session_id,
+                        search_index,
+                        len(skipped_tracks),
+                        playable.get("playback_type"),
+                    )
+                    return session, candidate, playable, skipped_tracks
+
+                skipped_tracks.append(candidate)
+                logger.warning(
+                    "radio_skip_unplayable session_id=%s index=%s artist=%s title=%s",
+                    session_id,
+                    search_index,
+                    candidate.get("artist"),
+                    candidate.get("title"),
+                )
+                search_index += 1
+
+            previous_length = len(queue)
+            queue = self._refill_queue(session, queue)
+            if len(queue) == previous_length:
+                logger.warning(
+                    "radio_no_playable_remaining session_id=%s skipped=%s",
+                    session_id,
+                    len(skipped_tracks),
+                )
+                return session, None, None, skipped_tracks
+
     def ensure_refill(self, session_id):
         session = get_radio_session(session_id)
         if not session:

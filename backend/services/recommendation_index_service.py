@@ -1,5 +1,5 @@
 from collections import defaultdict
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import logging
 import os
 
@@ -221,7 +221,7 @@ class RecommendationIndexService:
         return {"tracks": downloaded, "artists": artists}
 
     def _recent_start_ts(self, days):
-        cutoff = datetime.utcnow() - timedelta(days=days)
+        cutoff = datetime.now(timezone.utc) - timedelta(days=days)
         return int(cutoff.timestamp())
 
 

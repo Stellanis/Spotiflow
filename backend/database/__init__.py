@@ -112,6 +112,7 @@ from .repositories.playback import (
     get_radio_session,
     update_radio_session,
     list_active_radio_sessions,
+    get_streaming_dashboard_stats,
     add_playback_event,
     list_playback_events,
     get_playback_event_counts,

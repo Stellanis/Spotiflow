@@ -182,3 +182,71 @@ def test_radio_service_record_event_filters_non_persisted_fields(temp_db):
     )
     assert event["event_type"] == "error"
     assert promotion is None
+
+
+def test_radio_service_next_playable_track_skips_unresolvable(temp_db, monkeypatch):
+    session = create_radio_session(
+        username="tester",
+        seed_type="recommendation",
+        seed_payload={"artist": "Seed", "title": "Seed Track"},
+        queue_payload=[
+            {"artist": "Seed", "title": "Seed Track", "track_key": "seed"},
+            {"artist": "Bad", "title": "Unplayable", "track_key": "bad"},
+            {"artist": "Good", "title": "Playable", "track_key": "good"},
+        ],
+    )
+
+    def fake_resolve(artist, title, album=None, preview_url=None):
+        if artist == "Good":
+            return {
+                "playback_type": "remote_stream",
+                "audio_url": "https://example.com/good.mp3",
+                "source_name": "resolver",
+                "source_url": "https://example.com/source",
+            }
+        return None
+
+    monkeypatch.setattr("services.radio_service.playable_source_service.resolve", fake_resolve)
+
+    updated_session, track, playable, skipped = radio_service.next_playable_track(session["id"])
+
+    assert updated_session["current_index"] == 2
+    assert track["artist"] == "Good"
+    assert playable["audio_url"] == "https://example.com/good.mp3"
+    assert len(skipped) == 1
+    assert skipped[0]["artist"] == "Bad"
+
+
+def test_playback_next_endpoint_returns_next_valid_playable(temp_db, monkeypatch):
+    from routers import playback as playback_router
+
+    monkeypatch.setattr(
+        playback_router.radio_service,
+        "next_playable_track",
+        lambda session_id, reason="next": (
+            {"id": session_id, "queue_payload": [{"artist": "Bad", "title": "Unplayable"}, {"artist": "Good", "title": "Playable", "track_key": "good"}]},
+            {"artist": "Good", "title": "Playable", "track_key": "good"},
+            {
+                "playback_type": "remote_stream",
+                "audio_url": "https://example.com/good.mp3",
+                "expires_at": None,
+                "source_name": "resolver",
+                "source_url": "https://example.com/source",
+                "headers_required": False,
+                "duration_seconds": 200,
+                "cache_key": "good",
+                "can_download": True,
+                "is_promotable": True,
+                "stream_source_id": 1,
+            },
+            [{"artist": "Bad", "title": "Unplayable"}],
+        ),
+    )
+
+    client = TestClient(app)
+    response = client.post("/playback/next", json={"session_id": 5})
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["track"]["artist"] == "Good"
+    assert payload["skipped_tracks"][0]["artist"] == "Bad"

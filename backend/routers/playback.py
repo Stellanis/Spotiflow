@@ -100,18 +100,16 @@ def start_playback(req: PlaybackTrackRequest):
 
 @router.post("/playback/next")
 def next_playback(req: PlaybackNextRequest):
-    session, track = radio_service.next_track(req.session_id, reason=req.reason or "next")
-    if not session or not track:
+    session, track, playable, skipped_tracks = radio_service.next_playable_track(req.session_id, reason=req.reason or "next")
+    if not session or not track or not playable:
         raise HTTPException(status_code=404, detail="No next track available")
-    playable = playable_source_service.resolve(track["artist"], track["title"], album=track.get("album"), preview_url=track.get("preview_url"))
-    if not playable:
-        raise HTTPException(status_code=404, detail="No playable source found for next track")
     return {
         "session_id": session["id"],
         "track": track,
         "playable": playable,
         "queue": session.get("queue_payload") or [],
         "queue_mode": "radio",
+        "skipped_tracks": skipped_tracks,
     }
 
 

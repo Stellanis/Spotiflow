@@ -3,6 +3,7 @@ import axios from 'axios';
 import { toast } from 'react-hot-toast';
 
 const PlayerContext = createContext();
+const PLAYER_SESSION_STORAGE_KEY = 'spotiflow.player.session';
 
 function mergeTrackWithPlayable(track, playable) {
     return {
@@ -40,6 +41,7 @@ export function PlayerProvider({ children }) {
 
     const audioRef = useRef(new Audio());
     const wsRef = useRef(null);
+    const hasRestoredSessionRef = useRef(false);
 
     useEffect(() => {
         const connect = () => {
@@ -93,9 +95,6 @@ export function PlayerProvider({ children }) {
         if (options.sessionId !== undefined) setSessionId(options.sessionId);
         if (options.queueMode) setQueueMode(options.queueMode);
 
-        audio.src = playable.audio_url;
-        audio.load();
-
         setCurrentTrack(resolvedTrack);
         setPlaybackType(playable.playback_type);
         setSourceName(playable.source_name);
@@ -105,16 +104,27 @@ export function PlayerProvider({ children }) {
         setStreamStatus(playable.playback_type === 'local' ? 'ready' : 'streaming');
         setIsReady(false);
 
+        audio.src = playable.audio_url;
+        audio.load();
+
+        if (options.autoplay === false) {
+            setIsPlaying(false);
+            return resolvedTrack;
+        }
+
         try {
             await audio.play();
             setIsPlaying(true);
-            await sendPlaybackEvent('start', resolvedTrack);
+            if (options.sendStartEvent !== false) {
+                await sendPlaybackEvent('start', resolvedTrack);
+            }
         } catch (error) {
             setIsPlaying(false);
             setStreamStatus('error');
             console.error('Playback failed', error);
             toast.error(`Playback failed for "${resolvedTrack.title}"`);
         }
+        return resolvedTrack;
     };
 
     const resolveAndPlayTrack = async (track) => {
@@ -166,6 +176,68 @@ export function PlayerProvider({ children }) {
 
         await resolveAndPlayTrack(track);
     };
+
+    useEffect(() => {
+        if (typeof window === 'undefined') return;
+        const payload = {
+            sessionId,
+            queueMode,
+            queueIndex,
+            queue,
+            currentTrack,
+            playbackType,
+            sourceName,
+            canPromote,
+            isPromoted,
+        };
+        window.localStorage.setItem(PLAYER_SESSION_STORAGE_KEY, JSON.stringify(payload));
+    }, [sessionId, queueMode, queueIndex, queue, currentTrack, playbackType, sourceName, canPromote, isPromoted]);
+
+    useEffect(() => {
+        if (hasRestoredSessionRef.current || typeof window === 'undefined') return;
+        hasRestoredSessionRef.current = true;
+
+        const restoreSession = async () => {
+            const raw = window.localStorage.getItem(PLAYER_SESSION_STORAGE_KEY);
+            if (!raw) return;
+
+            try {
+                const saved = JSON.parse(raw);
+                if (!saved?.sessionId || saved.queueMode !== 'radio') return;
+
+                const response = await axios.get(`/api/playback/session/${saved.sessionId}`);
+                const session = response.data;
+                const restoredQueue = session.queue_payload || [];
+                const restoredIndex = session.current_index ?? 0;
+                const restoredTrack = restoredQueue[restoredIndex];
+                if (!restoredTrack) return;
+
+                const playableResponse = await axios.get('/api/playback/resolve', {
+                    params: {
+                        artist: restoredTrack.artist,
+                        title: restoredTrack.title,
+                        album: restoredTrack.album || null,
+                        preview_url: restoredTrack.preview_url || null,
+                    },
+                });
+
+                await loadPlayableTrack(restoredTrack, playableResponse.data, {
+                    queue: restoredQueue,
+                    queueIndex: restoredIndex,
+                    sessionId: session.id,
+                    queueMode: 'radio',
+                    autoplay: false,
+                    sendStartEvent: false,
+                });
+                setStreamStatus('restored');
+            } catch (error) {
+                console.error('Failed to restore player session', error);
+                window.localStorage.removeItem(PLAYER_SESSION_STORAGE_KEY);
+            }
+        };
+
+        restoreSession();
+    }, []);
 
     const sendPlaybackEvent = async (eventType, trackOverride = null, extras = {}) => {
         const track = trackOverride || currentTrack;
