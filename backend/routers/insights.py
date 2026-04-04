@@ -27,7 +27,7 @@ def get_sessions(rebuild: bool = False):
     if rebuild:
         sessions = insight_service.rebuild_sessions(user)
     else:
-        sessions = insight_service.rebuild_sessions(user)
+        sessions = insight_service.get_persisted_sessions(user, rebuild_if_empty=True)
     return {"items": sessions, "total": len(sessions)}
 
 

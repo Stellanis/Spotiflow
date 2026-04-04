@@ -21,6 +21,7 @@ from database import (
     upsert_stream_source,
 )
 from main import app
+from services.radio_service import radio_service
 from services.playable_source_service import playable_source_service
 
 
@@ -140,3 +141,44 @@ def test_playback_start_endpoint_returns_session_and_queue(temp_db, monkeypatch)
     assert payload["queue_mode"] == "radio"
     assert len(payload["queue"]) == 2
     assert payload["playable"]["playback_type"] == "remote_stream"
+
+
+def test_playback_event_accepts_extra_fields_without_500(temp_db):
+    set_setting("LASTFM_USER", "tester")
+    client = TestClient(app)
+
+    response = client.post(
+        "/playback/event",
+        json={
+            "artist": "Test Artist",
+            "title": "Test Track",
+            "event_type": "start",
+            "playback_type": "remote_stream",
+            "duration_seconds": 123,
+            "stream_source_id": 9,
+            "image": "https://example.com/cover.jpg",
+            "error_message": "ignored for start",
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["event"]["event_type"] == "start"
+
+
+def test_radio_service_record_event_filters_non_persisted_fields(temp_db):
+    event, promotion = radio_service.record_event(
+        "tester",
+        {
+            "artist": "Artist",
+            "title": "Track",
+            "event_type": "error",
+            "playback_type": "remote_stream",
+            "duration_seconds": 10,
+            "stream_source_id": 22,
+            "image": "https://example.com/image.jpg",
+            "error_message": "boom",
+        },
+    )
+    assert event["event_type"] == "error"
+    assert promotion is None

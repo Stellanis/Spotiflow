@@ -7,10 +7,15 @@ class ConnectionManager:
     def __init__(self):
         self.active_connections: List[WebSocket] = []
         self.logger = logging.getLogger(__name__)
+        self._loop = None
 
     async def connect(self, websocket: WebSocket):
         await websocket.accept()
         self.active_connections.append(websocket)
+        try:
+            self._loop = asyncio.get_running_loop()
+        except RuntimeError:
+            self._loop = None
         self.logger.info(f"Client connected. Total connections: {len(self.active_connections)}")
 
     def disconnect(self, websocket: WebSocket):
@@ -35,11 +40,10 @@ class ConnectionManager:
         except RuntimeError:
             pass
 
-        try:
-            loop = asyncio.get_event_loop()
-            if loop.is_running():
-                loop.create_task(self.broadcast(message))
-        except RuntimeError:
+        if self._loop and self._loop.is_running():
+            asyncio.run_coroutine_threadsafe(self.broadcast(message), self._loop)
             return
+
+        self.logger.warning("Dropping websocket broadcast: no running event loop is available")
 
 manager = ConnectionManager()
