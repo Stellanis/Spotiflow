@@ -1,7 +1,7 @@
 from fastapi import APIRouter
 from pydantic import BaseModel
 from core import downloader_service, scheduler, logger
-from database import get_downloads, get_total_downloads_count, get_all_pending_downloads, get_all_failed_downloads
+from database import get_downloads, get_total_downloads_count, get_all_pending_downloads, get_all_failed_downloads, get_job, get_job_events, get_job_summary, list_jobs
 
 
 from utils import sanitize_filename
@@ -114,16 +114,26 @@ def retry_failed_downloads():
 @router.get("/jobs")
 def get_jobs():
     active_downloads = downloader_service.get_active_downloads()
-    
-    # Get next run time for scrobble check
     next_run = None
-    # Check if we can access the scheduler jobs
     if scheduler.running:
         job = scheduler.get_job('scrobble_check')
         if job:
             next_run = job.next_run_time
-        
+
     return {
+        "summary": get_job_summary(),
+        "jobs": list_jobs(limit=50),
         "active_downloads": active_downloads,
         "next_scrobble_check": next_run
+    }
+
+
+@router.get("/jobs/{job_id}")
+def get_job_detail(job_id: int):
+    job = get_job(job_id)
+    if not job:
+        return {"error": "Job not found"}
+    return {
+        "job": job,
+        "events": get_job_events(job_id),
     }

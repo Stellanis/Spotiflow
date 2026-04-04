@@ -67,3 +67,41 @@ from .repositories.discover import (
     dismiss_track,
     get_dismissed_tracks
 )
+
+from .repositories.jobs import (
+    create_job,
+    add_job_event,
+    update_job,
+    mark_job_running,
+    mark_job_succeeded,
+    mark_job_failed,
+    increment_job_retry,
+    get_job,
+    find_active_job,
+    list_jobs,
+    get_job_events,
+    get_job_summary
+)
+
+from .repositories.intelligence import (
+    upsert_artist,
+    upsert_album,
+    upsert_track,
+    upsert_artist_alias,
+    upsert_album_alias,
+    upsert_track_enrichment,
+    list_enriched_tracks,
+    replace_sessions,
+    get_sessions,
+    add_feedback,
+    get_feedback_map,
+    ignore_item,
+    get_ignored_items,
+    upsert_release_watch_artist,
+    list_release_watch_artists,
+    upsert_artist_release,
+    list_releases,
+    mark_release_state,
+    set_feature_refresh_state,
+    get_feature_refresh_state
+)

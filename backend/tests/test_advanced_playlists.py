@@ -3,7 +3,7 @@ import sys
 import unittest
 import json
 import sqlite3
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 # Add backend to path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -49,7 +49,7 @@ class TestSmartPlaylists(unittest.TestCase):
         c.execute('DELETE FROM playlists')
         
         # Add 3 Metallica songs, 2 AC/DC
-        now = datetime.now()
+        now = datetime.now(timezone.utc)
         data = [
             ("q1", "Metallica", "Enter Sandman", "Black Album", now),
             ("q2", "Metallica", "Master of Puppets", "Master of Puppets", now - timedelta(days=10)),
@@ -60,7 +60,7 @@ class TestSmartPlaylists(unittest.TestCase):
         
         for q, art, tit, alb, dt in data:
             c.execute('INSERT INTO downloads (query, artist, title, album, status, created_at) VALUES (?, ?, ?, ?, ?, ?)',
-                      (q, art, tit, alb, 'completed', dt))
+                      (q, art, tit, alb, 'completed', dt.isoformat()))
         conn.commit()
         conn.close()
 

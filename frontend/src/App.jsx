@@ -12,6 +12,8 @@ const DiscoverPage = lazy(() => import('./pages/DiscoverPage'));
 const StatsPage = lazy(() => import('./pages/StatsPage'));
 const ExploreShell = lazy(() => import('./pages/ExploreShell'));
 const SettingsPage = lazy(() => import('./pages/SettingsPage'));
+const InsightsPage = lazy(() => import('./pages/InsightsPage'));
+const ReleasesPage = lazy(() => import('./pages/ReleasesPage'));
 
 function AppLoader() {
     return (
@@ -36,6 +38,8 @@ function App() {
                         </Route>
                         <Route path="/playlists" element={<PlaylistsPage />} />
                         <Route path="/concerts" element={<ConcertsPage />} />
+                        <Route path="/insights" element={<InsightsPage />} />
+                        <Route path="/releases" element={<ReleasesPage />} />
                         <Route path="/jobs" element={<JobsPage />} />
                         <Route path="/settings" element={<SettingsPage />} />
                         <Route path="/discover" element={<Navigate to="/explore/discover" replace />} />
