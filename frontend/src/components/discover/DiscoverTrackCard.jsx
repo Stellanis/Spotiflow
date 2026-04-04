@@ -1,30 +1,31 @@
 import React from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Download, Play, X, Loader2, CheckCircle, Music } from 'lucide-react';
+import { motion } from 'framer-motion';
+import {
+    Download,
+    Play,
+    X,
+    Loader2,
+    CheckCircle,
+    Music,
+    Heart,
+    BookmarkPlus,
+    Library,
+    EyeOff,
+} from 'lucide-react';
 import { GlassCard } from '../GlassCard';
 import { cn } from '../../utils';
 
-/**
- * DiscoverTrackCard
- * A reusable card for all Discover tabs.
- * Props:
- *   track      – { artist, title, image, reason?, tags?, audio_url? }
- *   status     – 'idle' | 'loading' | 'success' | 'error'
- *   onDownload – (track) => void
- *   onPlay     – (track) => void   (only shown if track.audio_url is present)
- *   onDismiss  – (track) => void   (optional, shows ✕ button)
- *   isCurrentlyPlaying – bool
- */
 export function DiscoverTrackCard({
     track,
     status = 'idle',
     onDownload,
     onPlay,
     onDismiss,
+    onFeedback,
     isCurrentlyPlaying = false,
 }) {
     const isQueued = status === 'loading' || status === 'success';
-    const hasAudio = Boolean(track.audio_url);
+    const hasAudio = Boolean(track.audio_url || track.is_streamable);
 
     return (
         <motion.div
@@ -43,21 +44,15 @@ export function DiscoverTrackCard({
                 )}
                 onClick={() => hasAudio && onPlay?.(track)}
             >
-                {/* Album Art */}
                 <div className="w-full aspect-square rounded-lg overflow-hidden bg-white/5 relative shadow-lg">
                     {track.image ? (
-                        <img
-                            src={track.image}
-                            alt={track.title}
-                            className="w-full h-full object-cover"
-                        />
+                        <img src={track.image} alt={track.title} className="w-full h-full object-cover" />
                     ) : (
                         <div className="w-full h-full flex items-center justify-center">
                             <Music className="w-10 h-10 text-white/20" />
                         </div>
                     )}
 
-                    {/* Hover overlay – play / download / spinner */}
                     <div
                         className={cn(
                             'absolute inset-0 bg-black/50 flex items-center justify-center gap-2 transition-opacity',
@@ -97,25 +92,21 @@ export function DiscoverTrackCard({
                         )}
                     </div>
 
-                    {/* Currently playing pulse ring */}
                     {isCurrentlyPlaying && (
                         <div className="absolute inset-0 rounded-lg ring-2 ring-spotify-green animate-pulse pointer-events-none" />
                     )}
                 </div>
 
-                {/* Text info */}
                 <div className="w-full min-w-0">
                     <h3 className="font-semibold truncate text-sm text-white leading-tight">{track.title}</h3>
                     <p className="text-spotify-grey truncate text-xs mt-0.5">{track.artist}</p>
 
-                    {/* Reason badge */}
                     {track.reason && (
                         <p className="text-xs text-spotify-green/70 italic truncate mt-1 leading-tight">
                             {track.reason}
                         </p>
                     )}
 
-                    {/* Genre tags */}
                     {track.tags && track.tags.length > 0 && (
                         <div className="flex flex-wrap gap-1 mt-1.5">
                             {track.tags.slice(0, 2).map((tag) => (
@@ -128,10 +119,46 @@ export function DiscoverTrackCard({
                             ))}
                         </div>
                     )}
+
+                    {onFeedback && (
+                        <div className="mt-3 flex flex-wrap gap-1.5">
+                            <button
+                                type="button"
+                                onClick={(e) => { e.stopPropagation(); onFeedback(track, 'liked'); }}
+                                className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/[0.04] px-2 py-1 text-[11px] text-white/75 transition-colors hover:bg-white/[0.1]"
+                            >
+                                <Heart className="h-3 w-3" />
+                                Like
+                            </button>
+                            <button
+                                type="button"
+                                onClick={(e) => { e.stopPropagation(); onFeedback(track, 'saved_for_later'); }}
+                                className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/[0.04] px-2 py-1 text-[11px] text-white/75 transition-colors hover:bg-white/[0.1]"
+                            >
+                                <BookmarkPlus className="h-3 w-3" />
+                                Save
+                            </button>
+                            <button
+                                type="button"
+                                onClick={(e) => { e.stopPropagation(); onFeedback(track, 'already_know'); }}
+                                className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/[0.04] px-2 py-1 text-[11px] text-white/75 transition-colors hover:bg-white/[0.1]"
+                            >
+                                <Library className="h-3 w-3" />
+                                Know It
+                            </button>
+                            <button
+                                type="button"
+                                onClick={(e) => { e.stopPropagation(); onFeedback(track, 'not_my_taste'); }}
+                                className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/[0.04] px-2 py-1 text-[11px] text-white/75 transition-colors hover:bg-white/[0.1]"
+                            >
+                                <EyeOff className="h-3 w-3" />
+                                Pass
+                            </button>
+                        </div>
+                    )}
                 </div>
             </GlassCard>
 
-            {/* Dismiss button */}
             {onDismiss && (
                 <motion.button
                     initial={{ opacity: 0, scale: 0.8 }}

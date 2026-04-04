@@ -41,7 +41,7 @@ function SkeletonGrid({ count = 12 }) {
 // ─────────────────────────────────────────────
 // TrackGrid – also defined OUTSIDE. Props must carry all dependencies.
 // ─────────────────────────────────────────────
-function TrackGrid({ tracks, downloading, currentTrack, onDownload, onPlay, onDismiss }) {
+function TrackGrid({ tracks, downloading, currentTrack, onDownload, onPlay, onDismiss, onFeedback }) {
     return (
         <div className="grid gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
             {tracks.map((track, i) => {
@@ -52,8 +52,9 @@ function TrackGrid({ tracks, downloading, currentTrack, onDownload, onPlay, onDi
                         track={track}
                         status={downloading[query] || 'idle'}
                         onDownload={onDownload}
-                        onPlay={track.audio_url ? onPlay : undefined}
+                        onPlay={(track.audio_url || track.is_streamable) ? onPlay : undefined}
                         onDismiss={onDismiss}
+                        onFeedback={onFeedback}
                         isCurrentlyPlaying={
                             currentTrack?.title === track.title &&
                             currentTrack?.artist === track.artist
@@ -82,7 +83,7 @@ function EmptyState({ icon: Icon, message }) {
 // ─────────────────────────────────────────────
 export default function DiscoverPage() {
     const { username } = useOutletContext();
-    const { playTrack, currentTrack } = usePlayer();
+    const { currentTrack, resolveAndPlayTrack, sendPlaybackEvent } = usePlayer();
 
     const [activeTab, setActiveTab] = useState('foryou');
 
@@ -237,9 +238,40 @@ export default function DiscoverPage() {
         }
     }, []);
 
-    const handlePlay = useCallback((track) => {
-        if (track.audio_url) playTrack(track);
-    }, [playTrack]);
+    const handleFeedback = useCallback(async (track, feedbackType) => {
+        if (feedbackType === 'not_my_taste' || feedbackType === 'already_know') {
+            const key = `${track.artist.toLowerCase()}|${track.title.toLowerCase()}`;
+            setDismissed(prev => new Set([...prev, key]));
+        }
+        try {
+            await axios.post('/api/recommendations/feedback', {
+                artist: track.artist,
+                title: track.title,
+                feedback_type: feedbackType,
+            });
+            if (feedbackType === 'liked') toast.success(`Saved ${track.title} as a strong recommendation.`);
+            if (feedbackType === 'saved_for_later') toast.success(`Saved ${track.title} for later.`);
+            if (currentTrack?.artist === track.artist && currentTrack?.title === track.title) {
+                if (feedbackType === 'liked') {
+                    await sendPlaybackEvent('like', currentTrack);
+                }
+                if (feedbackType === 'saved_for_later') {
+                    await sendPlaybackEvent('save', currentTrack);
+                }
+            }
+        } catch {
+            toast.error('Failed to save recommendation feedback.');
+        }
+    }, [currentTrack, sendPlaybackEvent]);
+
+    const handlePlay = useCallback(async (track) => {
+        if (!track.audio_url && !track.is_streamable) return;
+        try {
+            await resolveAndPlayTrack(track);
+        } catch {
+            toast.error(`Could not start "${track.title}"`);
+        }
+    }, [resolveAndPlayTrack]);
 
     // ─────────────────────────────────────────
     // Derived data (memoized)
@@ -327,6 +359,7 @@ export default function DiscoverPage() {
                                 onDownload={handleDownload}
                                 onPlay={handlePlay}
                                 onDismiss={handleDismiss}
+                                onFeedback={handleFeedback}
                             />
                         )
                     )}
@@ -393,6 +426,7 @@ export default function DiscoverPage() {
                                                 currentTrack={currentTrack}
                                                 onDownload={handleDownload}
                                                 onPlay={handlePlay}
+                                                onFeedback={handleFeedback}
                                             />
                                         )}
                                     </motion.div>

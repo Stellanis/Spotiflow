@@ -1,5 +1,5 @@
-import { Play, Pause, SkipBack, SkipForward, Volume2, Loader2, Maximize2, Download, Mic2 } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { Play, Pause, SkipBack, SkipForward, Volume2, Loader2, Maximize2, Mic2, Radio } from 'lucide-react';
+import { motion } from 'framer-motion';
 import { usePlayer } from '../contexts/PlayerContext';
 import { cn } from '../utils';
 import { isFirefox } from '../utils/browser';
@@ -13,8 +13,36 @@ function formatDuration(seconds) {
 }
 
 export function PlayerBar() {
-    const { currentTrack, isPlaying, togglePlay, progress, duration, seek, volume, updateVolume, isReady, activeDownloads, nextTrack, prevTrack, showLyrics, toggleLyrics } = usePlayer();
+    const {
+        currentTrack,
+        isPlaying,
+        togglePlay,
+        progress,
+        duration,
+        seek,
+        volume,
+        updateVolume,
+        isReady,
+        activeDownloads,
+        nextTrack,
+        prevTrack,
+        showLyrics,
+        toggleLyrics,
+        playbackType,
+        sourceName,
+        queueMode,
+        buffering,
+        isPromoted,
+    } = usePlayer();
     const navigate = useNavigate();
+
+    const playbackBadge = playbackType === 'local'
+        ? 'Downloaded'
+        : playbackType === 'preview'
+            ? 'Preview'
+            : playbackType === 'remote_stream'
+                ? 'Streaming'
+                : null;
 
     // Show nothing if no track and no downloads
     if (!currentTrack && activeDownloads.length === 0) return null;
@@ -64,6 +92,29 @@ export function PlayerBar() {
                 <div className="min-w-0">
                     <h4 className="font-semibold text-sm truncate hover:underline cursor-pointer">{currentTrack.title}</h4>
                     <p className="text-xs text-spotify-grey truncate hover:underline cursor-pointer">{currentTrack.artist}</p>
+                    <div className="mt-1 flex flex-wrap items-center gap-2">
+                        {playbackBadge && (
+                            <span className="rounded-full bg-white/10 px-2 py-0.5 text-[10px] font-medium text-white/80">
+                                {playbackBadge}
+                            </span>
+                        )}
+                        {queueMode === 'radio' && (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-spotify-green/20 px-2 py-0.5 text-[10px] font-medium text-spotify-green">
+                                <Radio className="h-3 w-3" />
+                                Radio
+                            </span>
+                        )}
+                        {buffering && (
+                            <span className="rounded-full bg-amber-500/20 px-2 py-0.5 text-[10px] font-medium text-amber-300">
+                                Buffering
+                            </span>
+                        )}
+                        {isPromoted && (
+                            <span className="rounded-full bg-blue-500/20 px-2 py-0.5 text-[10px] font-medium text-blue-300">
+                                Download queued
+                            </span>
+                        )}
+                    </div>
                 </div>
             </div>
 
@@ -120,6 +171,12 @@ export function PlayerBar() {
                         <span className="hidden md:inline">{activeDownloads.length} Downloading</span>
                         <span className="md:hidden">{activeDownloads.length}</span>
                     </motion.button>
+                )}
+
+                {sourceName && playbackType !== 'local' && (
+                    <span className="hidden rounded-full bg-white/10 px-3 py-1.5 text-xs text-white/70 md:inline-flex">
+                        {sourceName}
+                    </span>
                 )}
 
                 <div className="h-8 w-px bg-white/10 mx-1 md:mx-2" />

@@ -4,8 +4,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from database import DB_NAME, get_job_summary, init_db, get_setting
 from core import scheduler, logger, downloader_service
-from tasks import check_new_scrobbles, refresh_daily_stats
-from routers import scrobbles, stats, downloads, settings, websockets, concerts, recommendations, dashboard
+from tasks import check_new_scrobbles, refresh_daily_stats, verify_stream_sources, warm_recommendation_streamability
+from routers import scrobbles, stats, downloads, settings, websockets, concerts, recommendations, dashboard, playback
 from services.concerts import ConcertService
 from services.websocket_manager import manager
 from datetime import datetime
@@ -49,6 +49,12 @@ async def lifespan(app: FastAPI):
     logger.info("Scheduling daily stats refresh at 2:00 AM.")
     if not scheduler.get_job('daily_stats_refresh'):
         scheduler.add_job(refresh_daily_stats, 'cron', hour=2, minute=0, id='daily_stats_refresh')
+
+    if not scheduler.get_job('verify_stream_sources'):
+        scheduler.add_job(verify_stream_sources, 'interval', hours=6, id='verify_stream_sources')
+
+    if not scheduler.get_job('warm_recommendation_streamability'):
+        scheduler.add_job(warm_recommendation_streamability, 'interval', hours=6, id='warm_recommendation_streamability')
     
     # 3. Schedule Daily Concert Sync
     # Runs unconditionally for global artist discovery
@@ -96,6 +102,7 @@ app.include_router(settings.router)
 app.include_router(websockets.router)
 app.include_router(concerts.router)
 app.include_router(recommendations.router)
+app.include_router(playback.router)
 app.include_router(dashboard.router)
 from routers import playlists
 app.include_router(playlists.router)

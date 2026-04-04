@@ -17,6 +17,7 @@ from .repositories.downloads import (
     is_downloaded,
     get_downloads_batch,
     get_download_info,
+    find_download_by_track,
     get_download_status,
     get_downloads,
     get_all_pending_downloads,
@@ -104,4 +105,22 @@ from .repositories.intelligence import (
     mark_release_state,
     set_feature_refresh_state,
     get_feature_refresh_state
+)
+
+from .repositories.playback import (
+    create_radio_session,
+    get_radio_session,
+    update_radio_session,
+    list_active_radio_sessions,
+    add_playback_event,
+    list_playback_events,
+    get_playback_event_counts,
+    upsert_stream_source,
+    get_stream_source,
+    get_stream_source_by_cache_key,
+    find_recent_stream_source,
+    mark_stream_source_failure,
+    mark_stream_source_verified,
+    list_recent_stream_sources,
+    get_stream_failure_counts,
 )
