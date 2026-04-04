@@ -1,26 +1,17 @@
 import React from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Download, Play, X, Loader2, CheckCircle, Music } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { BookmarkPlus, CheckCircle, Download, EyeOff, Heart, Library, Loader2, Music, Play, X } from 'lucide-react';
+
 import { GlassCard } from '../GlassCard';
 import { cn } from '../../utils';
 
-/**
- * DiscoverTrackCard
- * A reusable card for all Discover tabs.
- * Props:
- *   track      – { artist, title, image, reason?, tags?, audio_url? }
- *   status     – 'idle' | 'loading' | 'success' | 'error'
- *   onDownload – (track) => void
- *   onPlay     – (track) => void   (only shown if track.audio_url is present)
- *   onDismiss  – (track) => void   (optional, shows ✕ button)
- *   isCurrentlyPlaying – bool
- */
 export function DiscoverTrackCard({
     track,
     status = 'idle',
     onDownload,
     onPlay,
     onDismiss,
+    onFeedback,
     isCurrentlyPlaying = false,
 }) {
     const isQueued = status === 'loading' || status === 'success';
@@ -38,111 +29,153 @@ export function DiscoverTrackCard({
             <GlassCard
                 image={track.image}
                 className={cn(
-                    'p-3 flex flex-col gap-2 group cursor-pointer hover:bg-white/10 transition-all overflow-hidden',
+                    'group flex cursor-pointer flex-col gap-2 overflow-hidden p-3 transition-all hover:bg-white/10',
                     isCurrentlyPlaying && 'ring-2 ring-spotify-green'
                 )}
                 onClick={() => hasAudio && onPlay?.(track)}
             >
-                {/* Album Art */}
-                <div className="w-full aspect-square rounded-lg overflow-hidden bg-white/5 relative shadow-lg">
+                <div className="relative aspect-square w-full overflow-hidden rounded-lg bg-white/5 shadow-lg">
                     {track.image ? (
-                        <img
-                            src={track.image}
-                            alt={track.title}
-                            className="w-full h-full object-cover"
-                        />
+                        <img src={track.image} alt={track.title} className="h-full w-full object-cover" />
                     ) : (
-                        <div className="w-full h-full flex items-center justify-center">
-                            <Music className="w-10 h-10 text-white/20" />
+                        <div className="flex h-full w-full items-center justify-center">
+                            <Music className="h-10 w-10 text-white/20" />
                         </div>
                     )}
 
-                    {/* Hover overlay – play / download / spinner */}
                     <div
                         className={cn(
-                            'absolute inset-0 bg-black/50 flex items-center justify-center gap-2 transition-opacity',
+                            'absolute inset-0 flex items-center justify-center gap-2 bg-black/50 transition-opacity',
                             isQueued || isCurrentlyPlaying ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
                         )}
                     >
                         {status === 'loading' ? (
-                            <Loader2 className="w-8 h-8 text-spotify-green animate-spin" />
+                            <Loader2 className="h-8 w-8 animate-spin text-spotify-green" />
                         ) : status === 'success' ? (
-                            <CheckCircle className="w-8 h-8 text-spotify-green" />
+                            <CheckCircle className="h-8 w-8 text-spotify-green" />
                         ) : (
                             <>
-                                {hasAudio && (
+                                {hasAudio ? (
                                     <motion.button
                                         whileHover={{ scale: 1.15 }}
                                         whileTap={{ scale: 0.9 }}
-                                        onClick={(e) => { e.stopPropagation(); onPlay?.(track); }}
-                                        className="p-2.5 bg-spotify-green rounded-full shadow-lg shadow-black/40"
+                                        onClick={(event) => {
+                                            event.stopPropagation();
+                                            onPlay?.(track);
+                                        }}
+                                        className="rounded-full bg-spotify-green p-2.5 shadow-lg shadow-black/40"
                                         title="Play"
                                     >
-                                        <Play className="w-5 h-5 text-black fill-black" />
+                                        <Play className="h-5 w-5 fill-black text-black" />
                                     </motion.button>
-                                )}
+                                ) : null}
                                 <motion.button
                                     whileHover={{ scale: 1.15 }}
                                     whileTap={{ scale: 0.9 }}
-                                    onClick={(e) => { e.stopPropagation(); onDownload?.(track); }}
+                                    onClick={(event) => {
+                                        event.stopPropagation();
+                                        onDownload?.(track);
+                                    }}
                                     className={cn(
-                                        'p-2.5 rounded-full shadow-lg shadow-black/40',
+                                        'rounded-full p-2.5 shadow-lg shadow-black/40',
                                         hasAudio ? 'bg-white/20' : 'bg-spotify-green'
                                     )}
                                     title="Download"
                                 >
-                                    <Download className={cn('w-5 h-5', hasAudio ? 'text-white' : 'text-black')} />
+                                    <Download className={cn('h-5 w-5', hasAudio ? 'text-white' : 'text-black')} />
                                 </motion.button>
                             </>
                         )}
                     </div>
 
-                    {/* Currently playing pulse ring */}
-                    {isCurrentlyPlaying && (
-                        <div className="absolute inset-0 rounded-lg ring-2 ring-spotify-green animate-pulse pointer-events-none" />
-                    )}
+                    {isCurrentlyPlaying ? (
+                        <div className="pointer-events-none absolute inset-0 animate-pulse rounded-lg ring-2 ring-spotify-green" />
+                    ) : null}
                 </div>
 
-                {/* Text info */}
-                <div className="w-full min-w-0">
-                    <h3 className="font-semibold truncate text-sm text-white leading-tight">{track.title}</h3>
-                    <p className="text-spotify-grey truncate text-xs mt-0.5">{track.artist}</p>
+                <div className="min-w-0">
+                    <h3 className="truncate text-sm font-semibold leading-tight text-white">{track.title}</h3>
+                    <p className="mt-0.5 truncate text-xs text-spotify-grey">{track.artist}</p>
 
-                    {/* Reason badge */}
-                    {track.reason && (
-                        <p className="text-xs text-spotify-green/70 italic truncate mt-1 leading-tight">
-                            {track.reason}
-                        </p>
-                    )}
+                    {track.reason ? (
+                        <p className="mt-1 truncate text-xs italic leading-tight text-spotify-green/70">{track.reason}</p>
+                    ) : null}
 
-                    {/* Genre tags */}
-                    {track.tags && track.tags.length > 0 && (
-                        <div className="flex flex-wrap gap-1 mt-1.5">
+                    {track.tags?.length ? (
+                        <div className="mt-1.5 flex flex-wrap gap-1">
                             {track.tags.slice(0, 2).map((tag) => (
-                                <span
-                                    key={tag}
-                                    className="text-[10px] px-1.5 py-0.5 bg-white/10 rounded-full text-spotify-grey leading-none"
-                                >
+                                <span key={tag} className="rounded-full bg-white/10 px-1.5 py-0.5 text-[10px] leading-none text-spotify-grey">
                                     {tag}
                                 </span>
                             ))}
                         </div>
-                    )}
+                    ) : null}
+
+                    {onFeedback ? (
+                        <div className="mt-3 flex flex-wrap gap-1.5">
+                            <button
+                                type="button"
+                                onClick={(event) => {
+                                    event.stopPropagation();
+                                    onFeedback(track, 'liked');
+                                }}
+                                className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/[0.04] px-2 py-1 text-[11px] text-white/75 transition-colors hover:bg-white/[0.1]"
+                            >
+                                <Heart className="h-3 w-3" />
+                                Like
+                            </button>
+                            <button
+                                type="button"
+                                onClick={(event) => {
+                                    event.stopPropagation();
+                                    onFeedback(track, 'saved_for_later');
+                                }}
+                                className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/[0.04] px-2 py-1 text-[11px] text-white/75 transition-colors hover:bg-white/[0.1]"
+                            >
+                                <BookmarkPlus className="h-3 w-3" />
+                                Save
+                            </button>
+                            <button
+                                type="button"
+                                onClick={(event) => {
+                                    event.stopPropagation();
+                                    onFeedback(track, 'already_know');
+                                }}
+                                className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/[0.04] px-2 py-1 text-[11px] text-white/75 transition-colors hover:bg-white/[0.1]"
+                            >
+                                <Library className="h-3 w-3" />
+                                Know It
+                            </button>
+                            <button
+                                type="button"
+                                onClick={(event) => {
+                                    event.stopPropagation();
+                                    onFeedback(track, 'not_my_taste');
+                                }}
+                                className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/[0.04] px-2 py-1 text-[11px] text-white/75 transition-colors hover:bg-white/[0.1]"
+                            >
+                                <EyeOff className="h-3 w-3" />
+                                Pass
+                            </button>
+                        </div>
+                    ) : null}
                 </div>
             </GlassCard>
 
-            {/* Dismiss button */}
-            {onDismiss && (
+            {onDismiss ? (
                 <motion.button
                     initial={{ opacity: 0, scale: 0.8 }}
                     whileHover={{ scale: 1.1 }}
-                    className="absolute top-1.5 right-1.5 opacity-0 group-hover:opacity-100 p-1 bg-black/60 rounded-full text-white/60 hover:text-white transition-all z-10"
-                    onClick={(e) => { e.stopPropagation(); onDismiss(track); }}
+                    className="absolute right-1.5 top-1.5 z-10 rounded-full bg-black/60 p-1 text-white/60 opacity-0 transition-all group-hover:opacity-100 hover:text-white"
+                    onClick={(event) => {
+                        event.stopPropagation();
+                        onDismiss(track);
+                    }}
                     title="Don't show this"
                 >
-                    <X className="w-3 h-3" />
+                    <X className="h-3 w-3" />
                 </motion.button>
-            )}
+            ) : null}
         </motion.div>
     );
 }
