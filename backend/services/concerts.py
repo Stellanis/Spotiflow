@@ -2,8 +2,12 @@ import requests
 import urllib.parse
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
-from geopy.geocoders import Nominatim
-from geopy.distance import geodesic
+try:
+    from geopy.geocoders import Nominatim
+    from geopy.distance import geodesic
+except ModuleNotFoundError:
+    Nominatim = None
+    geodesic = None
 from database import get_setting, add_concert, get_cached_concerts, clear_concerts, get_all_artists, get_favorite_artists
 from core import lastfm_service
 
@@ -396,6 +400,8 @@ class ConcertService:
                 if radius and coords and venue.get('latitude') and venue.get('longitude'):
                     # Distance Filter
                     try:
+                        if geodesic is None:
+                            continue
                         event_coords = (float(venue['latitude']), float(venue['longitude']))
                         distance = geodesic(coords, event_coords).km
                         if distance > float(radius):
@@ -479,6 +485,8 @@ class ConcertService:
         return list(unique.values())
 
     def _get_coordinates(self, city):
+        if Nominatim is None:
+            return None
         try:
             geolocator = Nominatim(user_agent="spotify_scrobbler_app")
             location = geolocator.geocode(city)

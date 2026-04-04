@@ -1,9 +1,12 @@
-import yt_dlp
 import os
 import logging
 import threading
 import queue
 import time
+try:
+    import yt_dlp
+except ModuleNotFoundError:
+    yt_dlp = None
 from database import is_downloaded, add_download
 
 logger = logging.getLogger(__name__)
@@ -92,6 +95,11 @@ class DownloaderService:
         if is_downloaded(query):
             logger.info(f"Skipping {query}, already downloaded.")
             return {"status": "skipped", "message": "Already downloaded"}
+
+        if yt_dlp is None:
+            logger.warning("yt_dlp is not installed; downloader is running in degraded mode.")
+            add_download(query, artist or "Unknown Artist", title or query, album or "Unknown Album", image_url=image_url, status="failed")
+            return {"status": "error", "message": "yt_dlp is not installed"}
 
         # Use a temporary filename to avoid issues with special characters in YouTube titles
         temp_filename = f'{self.download_path}/temp_{query.replace(" ", "_")}.%(ext)s'

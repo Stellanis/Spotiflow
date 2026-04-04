@@ -1,25 +1,26 @@
 # Spotiflow
 
-A self-hosted application that automatically downloads your recent Last.fm scrobbles as high-quality MP3s, organized perfectly for Plex.
+A self-hosted listening hub for Last.fm users. Spotiflow keeps recent listening actionable by syncing scrobbles into a local library, surfacing discovery and stats, helping curate playlists, and tracking concerts and queue health from one interface.
 
 ![Dashboard Preview](assets/dashboard_2025.png)
 
 ## 🚀 Features
 
+-   **Unified Home Dashboard**: See sync status, queue health, setup warnings, and quick next actions in one place.
 -   **Automatic Background Downloads**: Checks for new scrobbles every 30 minutes (configurable).
 -   **Smart Deduplication**: Maintains a local database to prevent re-downloading existing songs.
 -   **Plex-Ready Organization**: Automatically sorts files into `Artist/Album/Song.mp3`.
 -   **Metadata Injection**: Embeds correct Artist, Title, and Album tags (ignoring messy YouTube titles).
--   **Modern UI**: Beautiful, responsive dashboard built with React, Vite, and Tailwind CSS v4.
+-   **Modern Listening Hub UI**: Responsive shell with Home, Library, Explore, Playlists, Concerts, and Queue surfaces.
 -   **Concert Explorations**: Find upcoming concerts for your favorite artists with advanced filtering (Top 50, Location, Global).
 -   **Concert Reminders**: Set reminders for specific concerts and view them in a dedicated list.
 -   **Playlist Analytics**: "Nerdy Attributes" (Hipster Index, Mood Analysis), reordering, and deep customization for playlists.
 -   **Theming**: Fully customizable with a focus on a sleek Dark Mode experience.
--   **Library Management**: View your downloaded collection, search for tracks, and manually trigger downloads.
--   **Undownloaded View**: Quickly see which scrobbles haven't been downloaded yet, search them, and queue them all with one click.
--   **Job Management**: Monitor active and pending downloads in real-time with a dedicated Jobs page.
+-   **Unified Library Management**: Manage downloaded, pending, and failed items from one library surface.
+-   **Explore**: Combine recommendations, mood stations, artist radar, and listening stats under one discovery section.
+-   **Queue Management**: Monitor active and pending downloads in real-time with a dedicated queue page.
 -   **Advanced Statistics**: Visualize your listening habits with top tracks, activity charts, listening streaks, and more.
--   **Interactive Tutorial**: A built-in guide to help you get started and configure your API keys on the first run.
+-   **Setup Wizard**: Guided onboarding for credentials, download behavior, and first sync.
 -   **Dockerized**: Easy deployment on local machines or NAS (Synology, Unraid, etc.).
 
 ## 📸 Screenshots

@@ -52,12 +52,12 @@ export default function Concerts() {
                 <div className="flex items-center justify-between">
                     <div>
                         <h1 className="text-3xl font-bold text-white tracking-tight flex flex-wrap items-center gap-2 md:gap-3">
-                            Concerts Repository
+                            Concerts
                             <span className="text-xs font-normal bg-white/10 px-2 py-0.5 rounded-full text-spotify-grey whitespace-nowrap">
                                 {filteredConcerts.length} events
                             </span>
                         </h1>
-                        <p className="text-spotify-grey mt-1">Global tour dates from Ticketmaster & Bandsintown</p>
+                        <p className="text-spotify-grey mt-1">Relevant events from your artists, reminders, and optional global discovery.</p>
                     </div>
 
                     <div className="flex items-center gap-3">

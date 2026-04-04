@@ -1,15 +1,10 @@
-import { useState, useEffect } from 'react';
-import { Outlet, useLocation, useNavigate, useOutletContext } from 'react-router-dom'; // Add useOutletContext export for convenience if needed, but usually we import from rrd
-import { motion, AnimatePresence } from 'framer-motion';
+import { useEffect, useMemo, useState } from 'react';
+import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
-import {
-    Disc, CheckCircle, Music, Download, Hourglass, Trophy, Ticket,
-    Settings, RefreshCw, Menu, X, Calendar, Compass
-} from 'lucide-react';
+import { Compass, FolderOpen, House, ListMusic, RefreshCw, Settings2, Ticket, Workflow } from 'lucide-react';
 import axios from 'axios';
 
 import { useSettings } from '../hooks/useSettings';
-import { GlassCard } from '../components/GlassCard';
 import { SettingsModal } from '../SettingsModal';
 import { TutorialModal } from '../TutorialModal';
 import { PlayerBar } from '../components/PlayerBar';
@@ -17,21 +12,23 @@ import { LyricsModal } from '../components/LyricsModal';
 import { CommandPalette } from '../components/CommandPalette';
 import { ArtistModal } from '../components/ArtistModal';
 import { usePlayer } from '../contexts/PlayerContext';
-import { MobileMenu } from '../components/MobileMenu';
 import { cn } from '../utils';
 
-// Helper to access common context in pages
-export function useLayoutContext() {
-    return useOutletContext();
-}
+const PRIMARY_NAV = [
+    { to: '/', label: 'Home', icon: House, end: true },
+    { to: '/library', label: 'Library', icon: FolderOpen },
+    { to: '/explore/discover', label: 'Explore', icon: Compass },
+    { to: '/playlists', label: 'Playlists', icon: ListMusic },
+    { to: '/concerts', label: 'Concerts', icon: Ticket },
+];
 
-const API_URL = '/api';
+const SECONDARY_NAV = [
+    { to: '/jobs', label: 'Queue', icon: Workflow },
+];
 
 export default function Layout() {
     const navigate = useNavigate();
     const location = useLocation();
-
-    // Global Settings State
     const {
         username,
         setUsername,
@@ -42,154 +39,194 @@ export default function Layout() {
         showTutorial,
         setShowTutorial,
         fetchSettings,
-        closeTutorial
+        closeTutorial,
     } = useSettings();
-
-    // Player Context (for global LyricsModal)
-    // Layout is inside PlayerProvider so we can use usePlayer
     const { showLyrics, setShowLyrics, currentTrack, progress, playTrack } = usePlayer();
 
-    // UI State
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-    const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [isSyncing, setIsSyncing] = useState(false);
     const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
     const [selectedArtist, setSelectedArtist] = useState(null);
 
-    // Derived view for highlighting
-    const currentPath = location.pathname === '/' ? 'scrobbles' : location.pathname.slice(1);
-
-    // Sync Logic (Global)
-    const handleSync = async () => {
-        if (!username) return;
-        setIsSyncing(true);
-        try {
-            // Trigger sync
-            await axios.post(`${API_URL}/scrobbles/sync`);
-
-            // If we are on concerts, maybe sync concerts?
-            // Original App.jsx had a unified handleSync in useLibrary that seemingly handled scrobbles.
-            // But Concerts page has its own sync button usually?
-            // The header button in App.jsx called onSync which called handleSync from useLibrary.
-
-            // We'll expose a refresh trigger to the pages via context
-            // For now, let's just wait a bit to simulate
-            await new Promise(r => setTimeout(r, 2000));
-
-            // In a real app we might want to invalidate queries/reload data
-            // We will pass a "syncTrigger" timestamp to pages so they can refetch
-        } catch (error) {
-            console.error("Sync failed", error);
-        } finally {
-            setIsSyncing(false);
-        }
-    };
-
-    // Prefetch Stats (Moved from App.jsx)
-    const prefetchStats = async (userOverride) => {
-        const user = userOverride || username;
-        if (!user) return;
-        const periods = ['overall', '1month'];
-        try {
-            const promises = [
-                ...periods.map(period => axios.get(`${API_URL}/stats/top-tracks/${user}`, { params: { period, limit: 50 } })),
-                axios.get(`${API_URL}/stats/chart`, { params: { user, period: '1month' } }),
-                axios.get(`${API_URL}/stats/listening-clock/${user}`, { params: { period: 'overall' } }),
-                axios.get(`${API_URL}/stats/genre-breakdown/${user}`, { params: { period: 'overall' } }),
-                axios.get(`${API_URL}/stats/on-this-day/${user}`),
-                axios.get(`${API_URL}/stats/streak/${user}`),
-                axios.get(`${API_URL}/stats/diversity/${user}`, { params: { period: 'overall' } }),
-                axios.get(`${API_URL}/stats/mainstream/${user}`, { params: { period: 'overall' } }),
-                axios.get(`${API_URL}/stats/top-artists/${user}`, { params: { period: 'overall', limit: 3 } })
-            ];
-            await Promise.all(promises);
-        } catch (error) {
-            console.error("Error prefetching stats:", error);
-        }
-    };
-
-    const navItems = [
-        { id: 'scrobbles', icon: Disc, label: 'Scrobbles', path: '/' },
-        { id: 'discover', icon: Compass, label: 'Discover', path: '/discover' },
-        { id: 'library', icon: CheckCircle, label: 'Library', path: '/library' },
-        { id: 'playlists', icon: Music, label: 'Playlists', path: '/playlists' },
-        { id: 'undownloaded', icon: Download, label: 'Undownloaded', path: '/undownloaded' },
-        { id: 'jobs', icon: Hourglass, label: 'Jobs', path: '/jobs' },
-        { id: 'stats', icon: Trophy, label: 'Stats', path: '/stats' },
-        { id: 'concerts', icon: Ticket, label: 'Concerts', path: '/concerts' },
-    ].filter(item => !hiddenFeatures.has(item.id));
+    const navItems = useMemo(
+        () => PRIMARY_NAV.filter((item) => !hiddenFeatures.has(item.label.toLowerCase())),
+        [hiddenFeatures]
+    );
 
     useEffect(() => {
         fetchSettings();
+    }, [fetchSettings]);
 
-        const handleKeyDown = (e) => {
-            if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
-                e.preventDefault();
-                setIsCommandPaletteOpen(prev => !prev);
+    useEffect(() => {
+        if (location.state?.openSettings) {
+            setIsSettingsOpen(true);
+            navigate(location.pathname, { replace: true, state: {} });
+        }
+    }, [location.pathname, location.state, navigate]);
+
+    useEffect(() => {
+        const handleKeyDown = (event) => {
+            if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
+                event.preventDefault();
+                setIsCommandPaletteOpen((current) => !current);
             }
         };
-
-        const handleOpenArtist = (e) => {
-            setSelectedArtist(e.detail);
-        };
-
-        // Swipe Gesture for Mobile Menu
-        let touchStartX = 0;
-        let touchStartY = 0;
-
-        const handleTouchStart = (e) => {
-            touchStartX = e.touches[0].clientX;
-            touchStartY = e.touches[0].clientY;
-        };
-
-        const handleTouchEnd = (e) => {
-            const touchEndX = e.changedTouches[0].clientX;
-            const touchEndY = e.changedTouches[0].clientY;
-
-            const diffX = touchEndX - touchStartX;
-            const diffY = touchEndY - touchStartY;
-
-            // Check if it's a swipe from the left edge (first 40px)
-            // And mostly horizontal
-            if (touchStartX < 40 && diffX > 75 && Math.abs(diffY) < 50) {
-                setIsMobileMenuOpen(true);
-            }
-        };
+        const handleOpenArtist = (event) => setSelectedArtist(event.detail);
 
         window.addEventListener('keydown', handleKeyDown);
         window.addEventListener('open-artist-deep-dive', handleOpenArtist);
-        // Passive listener for better scrolling performance check
-        window.addEventListener('touchstart', handleTouchStart, { passive: true });
-        window.addEventListener('touchend', handleTouchEnd);
-
         return () => {
             window.removeEventListener('keydown', handleKeyDown);
             window.removeEventListener('open-artist-deep-dive', handleOpenArtist);
-            window.removeEventListener('touchstart', handleTouchStart);
-            window.removeEventListener('touchend', handleTouchEnd);
         };
     }, []);
 
-    return (
-        <div className="min-h-screen bg-background text-foreground p-8 pb-32 transition-colors duration-300">
-            <Toaster position="bottom-right" toastOptions={{
-                style: { background: '#333', color: '#fff' },
-            }} />
+    const handleSync = async () => {
+        if (!username || isSyncing) return;
+        setIsSyncing(true);
+        try {
+            await axios.post('/api/scrobbles/sync');
+        } catch (error) {
+            console.error('Sync failed', error);
+        } finally {
+            window.setTimeout(() => setIsSyncing(false), 1200);
+        }
+    };
 
-            <MobileMenu
-                isOpen={isMobileMenuOpen}
-                onClose={() => setIsMobileMenuOpen(false)}
-                navItems={navItems}
-                currentPath={currentPath}
-                onNavigate={(path) => {
-                    navigate(path);
-                    setIsMobileMenuOpen(false);
-                }}
-                username={username}
-                onSync={handleSync}
-                isSyncing={isSyncing}
-                onSettingsOpen={() => setIsSettingsOpen(true)}
-            />
+    return (
+        <div className="min-h-screen bg-background text-foreground">
+            <Toaster position="bottom-right" toastOptions={{ style: { background: '#111', color: '#fff', border: '1px solid rgba(255,255,255,0.08)' } }} />
+
+            <div className="pointer-events-none fixed inset-x-0 top-0 z-0 h-80 bg-[radial-gradient(circle_at_top,_rgba(29,185,84,0.18),_transparent_60%)]" />
+
+            <div className="relative z-10 mx-auto flex min-h-screen w-full max-w-[1600px] gap-6 px-4 pb-32 pt-4 md:px-6 lg:px-8">
+                <aside className="sticky top-4 hidden h-[calc(100vh-2rem)] w-72 shrink-0 flex-col rounded-[2rem] border border-white/10 bg-white/[0.04] p-5 backdrop-blur-xl lg:flex">
+                    <div className="mb-8 flex items-center gap-3">
+                        <div className={cn('flex h-12 w-12 items-center justify-center rounded-2xl text-xl font-semibold', autoDownload ? 'bg-spotify-green text-black' : 'bg-red-500 text-white')}>
+                            S
+                        </div>
+                        <div>
+                            <p className="text-xs uppercase tracking-[0.25em] text-spotify-grey">Listening Hub</p>
+                            <h1 className="text-2xl font-semibold text-white">Spotiflow</h1>
+                        </div>
+                    </div>
+
+                    <div className="space-y-2">
+                        <p className="px-3 text-xs font-semibold uppercase tracking-[0.2em] text-spotify-grey">Primary</p>
+                        {navItems.map(({ to, label, icon: Icon, end }) => (
+                            <NavLink
+                                key={to}
+                                end={end}
+                                to={to}
+                                className={({ isActive }) =>
+                                    cn(
+                                        'flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium transition-colors',
+                                        isActive ? 'bg-white text-black' : 'text-spotify-grey hover:bg-white/5 hover:text-white'
+                                    )
+                                }
+                            >
+                                <Icon className="h-5 w-5" />
+                                <span>{label}</span>
+                            </NavLink>
+                        ))}
+                    </div>
+
+                    <div className="mt-8 space-y-2">
+                        <p className="px-3 text-xs font-semibold uppercase tracking-[0.2em] text-spotify-grey">More</p>
+                        {SECONDARY_NAV.map(({ to, label, icon: Icon }) => (
+                            <NavLink
+                                key={to}
+                                to={to}
+                                className={({ isActive }) =>
+                                    cn(
+                                        'flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium transition-colors',
+                                        isActive ? 'bg-white text-black' : 'text-spotify-grey hover:bg-white/5 hover:text-white'
+                                    )
+                                }
+                            >
+                                <Icon className="h-5 w-5" />
+                                <span>{label}</span>
+                            </NavLink>
+                        ))}
+                    </div>
+
+                    <div className="mt-auto space-y-3 rounded-[1.75rem] border border-white/10 bg-black/20 p-4">
+                        <div>
+                            <p className="text-xs uppercase tracking-[0.2em] text-spotify-grey">Current User</p>
+                            <p className="mt-2 text-lg font-medium text-white">{username || 'Not configured'}</p>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                            <button
+                                type="button"
+                                onClick={() => setIsSettingsOpen(true)}
+                                className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm font-medium text-white transition-colors hover:bg-white/[0.08]"
+                            >
+                                Settings
+                            </button>
+                            <button
+                                type="button"
+                                onClick={handleSync}
+                                disabled={!username || isSyncing}
+                                className="rounded-2xl bg-spotify-green px-4 py-3 text-sm font-medium text-black transition-transform hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                                <span className="inline-flex items-center gap-2">
+                                    <RefreshCw className={cn('h-4 w-4', isSyncing && 'animate-spin')} />
+                                    Sync
+                                </span>
+                            </button>
+                        </div>
+                    </div>
+                </aside>
+
+                <main className="min-w-0 flex-1">
+                    <div className="mb-6 flex items-center justify-between rounded-[1.75rem] border border-white/10 bg-white/[0.04] px-4 py-3 backdrop-blur-xl lg:hidden">
+                        <div>
+                            <p className="text-xs uppercase tracking-[0.22em] text-spotify-grey">Spotiflow</p>
+                            <p className="text-base font-semibold text-white">{username || 'Setup required'}</p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <button
+                                type="button"
+                                onClick={handleSync}
+                                disabled={!username || isSyncing}
+                                className="rounded-full border border-white/10 p-3 text-white disabled:opacity-50"
+                            >
+                                <RefreshCw className={cn('h-4 w-4', isSyncing && 'animate-spin')} />
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setIsSettingsOpen(true)}
+                                className="rounded-full border border-white/10 p-3 text-white"
+                            >
+                                <Settings2 className="h-4 w-4" />
+                            </button>
+                        </div>
+                    </div>
+
+                    <Outlet context={{ username, isSyncing, handleSync, autoDownload, openSettings: () => setIsSettingsOpen(true) }} />
+                </main>
+            </div>
+
+            <div className="fixed inset-x-4 bottom-24 z-40 flex justify-center lg:hidden">
+                <div className="flex w-full max-w-xl items-center justify-between rounded-full border border-white/10 bg-black/70 px-3 py-2 backdrop-blur-2xl">
+                    {navItems.map(({ to, label, icon: Icon, end }) => (
+                        <NavLink
+                            key={to}
+                            end={end}
+                            to={to}
+                            className={({ isActive }) =>
+                                cn(
+                                    'flex flex-1 flex-col items-center gap-1 rounded-full px-3 py-2 text-[11px] font-medium transition-colors',
+                                    isActive ? 'bg-white text-black' : 'text-spotify-grey'
+                                )
+                            }
+                        >
+                            <Icon className="h-4 w-4" />
+                            <span>{label}</span>
+                        </NavLink>
+                    ))}
+                </div>
+            </div>
 
             <SettingsModal
                 isOpen={isSettingsOpen}
@@ -205,102 +242,12 @@ export default function Layout() {
             <TutorialModal
                 isOpen={showTutorial}
                 onClose={closeTutorial}
-                onTutorialComplete={async (newUsername) => {
-                    setUsername(newUsername);
-                    await prefetchStats(newUsername);
-                }}
+                onTutorialComplete={(newUsername) => setUsername(newUsername)}
             />
-
-            <div className="w-full px-0 md:w-[95%] md:px-0 mx-auto space-y-4 md:space-y-8">
-                {/* Header */}
-                <GlassCard className="flex flex-col md:flex-row items-center justify-between p-3 md:p-6 gap-4 rounded-none md:rounded-2xl border-x-0 border-t-0 md:border md:border-white/10">
-                    <div className="flex items-center gap-4">
-                        <div className={cn("p-3 rounded-full transition-colors duration-300", autoDownload ? "bg-spotify-green" : "!bg-red-500")}>
-                            <Music className="w-8 h-8 text-white" />
-                        </div>
-                        <div>
-                            <h1 className="text-3xl font-bold tracking-tight">Spotiflow</h1>
-                        </div>
-                    </div>
-
-                    <div className="flex items-center gap-4 flex-wrap justify-end md:justify-center flex-1">
-                        {/* Desktop Navigation Tabs */}
-                        <div className="hidden lg:flex bg-white/10 p-1 rounded-full border border-white/5">
-                            {navItems.map((item) => (
-                                <button
-                                    key={item.id}
-                                    onClick={() => navigate(item.path)}
-                                    className={cn(
-                                        "relative px-4 py-1.5 rounded-full text-sm font-medium transition-colors flex items-center gap-2 z-10 outline-none",
-                                        currentPath === item.id ? "text-white" : "text-gray-400 hover:text-white"
-                                    )}
-                                >
-                                    {currentPath === item.id && (
-                                        <motion.div
-                                            layoutId="nav-active"
-                                            className="absolute inset-0 bg-spotify-green rounded-full -z-10"
-                                            transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
-                                        />
-                                    )}
-                                    <item.icon className="w-4 h-4 relative z-10" />
-                                    <span className="relative z-10">{item.label}</span>
-                                </button>
-                            ))}
-                        </div>
-
-                        {/* Icons */}
-                        <div className="flex items-center gap-2">
-                            <motion.button
-                                whileTap={{ scale: 0.95 }}
-                                onClick={() => setIsSettingsOpen(true)}
-                                className="p-2 hover:bg-white/10 rounded-full transition-colors text-spotify-grey hover:text-white"
-                                title="Settings"
-                            >
-                                <Settings className="w-6 h-6" />
-                            </motion.button>
-
-                            <motion.button
-                                whileTap={{ scale: 0.95 }}
-                                onClick={handleSync}
-                                disabled={isSyncing}
-                                className={cn(
-                                    "p-2 hover:bg-white/10 rounded-full transition-colors text-spotify-grey hover:text-white",
-                                    isSyncing && "animate-spin text-spotify-green"
-                                )}
-                                title="Sync with Last.fm"
-                            >
-                                <RefreshCw className="w-6 h-6" />
-                            </motion.button>
-                        </div>
-
-                        {/* Mobile Menu Toggle */}
-                        <motion.button
-                            whileTap={{ scale: 0.95 }}
-                            onClick={() => setIsMobileMenuOpen(true)}
-                            className="lg:hidden p-2 hover:bg-white/10 rounded-full transition-colors text-white"
-                        >
-                            <Menu className="w-6 h-6" />
-                        </motion.button>
-                    </div>
-                </GlassCard>
-
-                {/* Page Content */}
-                <Outlet context={{
-                    username,
-                    isSyncing,
-                    handleSync, // Allow pages to trigger sync?
-                    autoDownload,
-                }} />
-            </div>
 
             <PlayerBar />
 
-            <LyricsModal
-                isOpen={showLyrics}
-                onClose={() => setShowLyrics(false)}
-                track={currentTrack}
-                progress={progress}
-            />
+            <LyricsModal isOpen={showLyrics} onClose={() => setShowLyrics(false)} track={currentTrack} progress={progress} />
 
             <CommandPalette
                 isOpen={isCommandPaletteOpen}

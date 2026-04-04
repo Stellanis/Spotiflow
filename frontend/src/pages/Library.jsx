@@ -1,260 +1,317 @@
-import { useEffect, useState, useRef, useCallback } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { Link, useOutletContext, useSearchParams } from 'react-router-dom';
 import axios from 'axios';
-import { useOutletContext } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
-import { CheckCircle, Search, Loader2, Music, Info, Plus, Heart, Play, Sparkles } from 'lucide-react';
-import { useDownloads } from '../hooks/useDownloads';
-import { useLibrary } from '../hooks/useLibrary';
+import { AlertCircle, Download, Filter, Loader2, Music2, Play, RefreshCw, Search } from 'lucide-react';
+
 import { usePlayer } from '../contexts/PlayerContext';
-import { GlassCard } from '../components/GlassCard';
-import { SkeletonCard } from '../components/SkeletonCard';
-import { FilterDropdown } from '../components/FilterDropdown';
 import { AddToPlaylistModal } from '../components/AddToPlaylistModal';
 import { TrackStatsModal } from '../components/TrackStatsModal';
-import { cn } from '../utils';
+import { EmptyState } from '../components/ui/EmptyState';
+import { PageHeader } from '../components/ui/PageHeader';
+import { SectionHeader } from '../components/ui/SectionHeader';
+import { SegmentedControl } from '../components/ui/SegmentedControl';
+import { StatusBadge } from '../components/ui/StatusBadge';
+
+const TABS = [
+    { value: 'downloaded', label: 'Downloaded' },
+    { value: 'pending', label: 'Pending' },
+    { value: 'failed', label: 'Failed' },
+];
+
+const SORTS = [
+    { value: 'recent', label: 'Most recent' },
+    { value: 'artist', label: 'Artist' },
+    { value: 'album', label: 'Album' },
+    { value: 'title', label: 'Title' },
+];
+
+function normalizeStatus(tab) {
+    if (tab === 'pending') return 'pending';
+    if (tab === 'failed') return 'failed';
+    return 'completed';
+}
 
 export default function Library() {
     const { username } = useOutletContext();
     const { playTrack } = usePlayer();
-
-    // Local Modals State
+    const [searchParams, setSearchParams] = useSearchParams();
+    const [tracks, setTracks] = useState([]);
+    const [summary, setSummary] = useState(null);
+    const [loading, setLoading] = useState(true);
+    const [search, setSearch] = useState(searchParams.get('q') || '');
+    const [sort, setSort] = useState(searchParams.get('sort') || 'recent');
     const [selectedTrack, setSelectedTrack] = useState(null);
     const [playlistTrackToAdd, setPlaylistTrackToAdd] = useState(null);
 
-    // Hooks
-    const {
-        downloadedTracks,
-        loadingDownloads,
-        currentPage,
-        setCurrentPage,
-        itemsPerPage,
-        totalPages,
-        artistFilter,
-        setArtistFilter,
-        albumFilter,
-        setAlbumFilter,
-        searchQuery,
-        setSearchQuery,
-        debouncedSearchQuery,
-        setDebouncedSearchQuery,
-        fetchDownloads,
-    } = useDownloads();
+    const activeTab = searchParams.get('tab') || 'downloaded';
 
-    const {
-        favoriteArtists,
-        fetchFavorites,
-        fetchFilters,
-        filterOptions,
-        toggleFavoriteArtist
-    } = useLibrary(username);
-
-    // Initial Fetch
     useEffect(() => {
-        if (!downloadedTracks.length) {
-            fetchDownloads('library');
-        }
-        fetchFavorites();
-        fetchFilters();
-    }, []); // Run once on mount
-
-    // Search Debounce
-    useEffect(() => {
-        const timer = setTimeout(() => {
-            setDebouncedSearchQuery(searchQuery);
-            if (searchQuery !== debouncedSearchQuery) {
-                setCurrentPage(1);
+        const timeout = window.setTimeout(async () => {
+            setLoading(true);
+            try {
+                const [downloadsRes, summaryRes] = await Promise.all([
+                    axios.get('/api/downloads', {
+                        params: {
+                            status: normalizeStatus(activeTab),
+                            search: search || undefined,
+                            limit: 200,
+                        },
+                    }),
+                    axios.get('/api/dashboard/summary'),
+                ]);
+                setTracks(downloadsRes.data.items || []);
+                setSummary(summaryRes.data);
+            } catch (error) {
+                console.error('Failed to load library', error);
+            } finally {
+                setLoading(false);
             }
-        }, 500);
-        return () => clearTimeout(timer);
-    }, [searchQuery, setCurrentPage, debouncedSearchQuery, setDebouncedSearchQuery]);
+        }, 250);
 
-    // Refetch on filter change
+        return () => window.clearTimeout(timeout);
+    }, [activeTab, search]);
+
     useEffect(() => {
-        const controller = new AbortController();
-        fetchDownloads('library', controller.signal);
+        const next = new URLSearchParams(searchParams);
+        if (search) next.set('q', search);
+        else next.delete('q');
+        if (sort !== 'recent') next.set('sort', sort);
+        else next.delete('sort');
+        setSearchParams(next, { replace: true });
+    }, [search, searchParams, setSearchParams, sort]);
 
-        if (artistFilter) { // Update album filters when artist changes
-            fetchFilters(artistFilter);
-        }
+    const sortedTracks = useMemo(() => {
+        const copy = [...tracks];
+        if (sort === 'artist') copy.sort((a, b) => (a.artist || '').localeCompare(b.artist || ''));
+        if (sort === 'album') copy.sort((a, b) => (a.album || '').localeCompare(b.album || ''));
+        if (sort === 'title') copy.sort((a, b) => (a.title || '').localeCompare(b.title || ''));
+        return copy;
+    }, [sort, tracks]);
 
-        // Prefetch first 5 artists on page load/change
-        if (downloadedTracks.length > 0) {
-            const uniqueArtists = [...new Set(downloadedTracks.map(t => t.artist))].slice(0, 5);
-            uniqueArtists.forEach(artist => {
-                axios.get(`${API_URL}/stats/artist-deep-dive/${username}?artist=${encodeURIComponent(artist)}`)
-                    .catch(() => { });
+    const tabCounts = useMemo(
+        () => ({
+            downloaded: summary?.library?.total_downloaded ?? 0,
+            pending: summary?.downloads?.pending ?? 0,
+            failed: summary?.downloads?.failed ?? 0,
+        }),
+        [summary]
+    );
+
+    const handleBatchAction = async () => {
+        try {
+            if (activeTab === 'pending') {
+                await axios.post('/api/download/all');
+            } else if (activeTab === 'failed') {
+                await axios.post('/api/download/retry-failed');
+            }
+            const response = await axios.get('/api/downloads', {
+                params: { status: normalizeStatus(activeTab), search: search || undefined, limit: 200 },
             });
+            setTracks(response.data.items || []);
+        } catch (error) {
+            console.error('Failed to run batch action', error);
         }
-
-        return () => controller.abort();
-    }, [currentPage, debouncedSearchQuery, artistFilter, albumFilter, fetchDownloads]);
-    const API_URL = '/api';
-
-    // Infinite Scroll
-    const observer = useRef();
-    const lastTrackElementRef = useCallback(node => {
-        if (loadingDownloads) return;
-        if (observer.current) observer.current.disconnect();
-        observer.current = new IntersectionObserver(entries => {
-            if (entries[0].isIntersecting && currentPage < totalPages) {
-                setCurrentPage(prevPage => prevPage + 1);
-            }
-        });
-        if (node) observer.current.observe(node);
-    }, [loadingDownloads, totalPages, currentPage, setCurrentPage]);
+    };
 
     return (
-        <div className="space-y-4 p-3 md:p-0">
-            <TrackStatsModal
-                isOpen={!!selectedTrack}
-                onClose={() => setSelectedTrack(null)}
-                track={selectedTrack}
-                username={username}
+        <div className="space-y-8">
+            <TrackStatsModal isOpen={!!selectedTrack} onClose={() => setSelectedTrack(null)} track={selectedTrack} username={username} />
+            <AddToPlaylistModal isOpen={!!playlistTrackToAdd} onClose={() => setPlaylistTrackToAdd(null)} track={playlistTrackToAdd} />
+
+            <PageHeader
+                eyebrow="Library Flow"
+                title="Manage your music pipeline"
+                description="Downloaded tracks, pending downloads, and failures now live in one place so you can act without route-hopping."
+                actions={
+                    <div className="flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-sm text-white">
+                        <Filter className="h-4 w-4 text-spotify-grey" />
+                        <span>{tabCounts[activeTab] ?? 0} items in this view</span>
+                    </div>
+                }
             />
-            <AddToPlaylistModal
-                isOpen={!!playlistTrackToAdd}
-                onClose={() => setPlaylistTrackToAdd(null)}
-                track={playlistTrackToAdd}
-            />
 
-            <div className="flex items-center justify-between">
-                <h2 className="text-xl font-semibold flex items-center gap-2">
-                    <CheckCircle className="w-5 h-5 text-spotify-green" />
-                    Downloaded Library
-                </h2>
-            </div>
-
-            {/* Filters */}
-            <div className="flex flex-col md:flex-row gap-4">
-                <div className="relative flex-1">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-spotify-grey" />
-                    <input
-                        type="text"
-                        placeholder="Search library..."
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        className="w-full bg-white/5 border border-white/10 rounded-full py-2 pl-10 pr-4 text-white placeholder:text-spotify-grey focus:outline-none focus:border-spotify-green focus:bg-white/10 transition-colors"
+            <div className="flex flex-col gap-4 rounded-[2rem] border border-white/10 bg-white/[0.04] p-5">
+                <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+                    <SegmentedControl
+                        items={TABS.map((tab) => ({ value: tab.value, label: `${tab.label} (${tabCounts[tab.value] ?? 0})` }))}
+                        value={activeTab}
+                        onChange={(value) => setSearchParams((prev) => {
+                            const next = new URLSearchParams(prev);
+                            next.set('tab', value);
+                            return next;
+                        })}
                     />
-                </div>
-                <div className="flex gap-2 text-white">
-                    <FilterDropdown
-                        value={artistFilter}
-                        options={filterOptions.artists}
-                        onChange={(val) => { setArtistFilter(val); setAlbumFilter(''); }}
-                        placeholder="All Artists"
-                    />
-                    <FilterDropdown
-                        value={albumFilter}
-                        options={filterOptions.albums}
-                        onChange={setAlbumFilter}
-                        placeholder="All Albums"
-                    />
-                </div>
-            </div>
-
-            {/* Grid */}
-            {loadingDownloads && downloadedTracks.length === 0 ? (
-                <div className="grid gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
-                    {Array.from({ length: itemsPerPage }).map((_, i) => (
-                        <SkeletonCard key={i} type="vertical" />
-                    ))}
-                </div>
-            ) : (
-                <div className="relative min-h-[200px]">
-                    {loadingDownloads && (
-                        <div className="absolute inset-0 flex items-center justify-center z-10 bg-background/50 backdrop-blur-sm rounded-xl transition-all duration-300">
-                            <Loader2 className="w-10 h-10 animate-spin text-spotify-green" />
-                        </div>
-                    )}
-
-                    <div className="grid gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
-                        {downloadedTracks.length === 0 ? (
-                            <div className="col-span-full flex flex-col items-center justify-center py-20 text-spotify-grey">
-                                <Music className="w-16 h-16 mb-4 opacity-50" />
-                                <p className="text-xl font-semibold">Your library is empty</p>
-                            </div>
-                        ) : (
-                            downloadedTracks.map((track, index) => (
-                                <motion.div
-                                    key={`${track.artist}-${track.title}-${index}`}
-                                    initial={{ opacity: 0, scale: 0.95 }}
-                                    animate={{ opacity: 1, scale: 1 }}
-                                    whileHover={{ scale: 1.02 }}
-                                >
-                                    <GlassCard
-                                        className="p-4 flex flex-col gap-3 aspect-square justify-between hover:bg-white/10 relative group overflow-hidden cursor-pointer"
-                                        ref={index === downloadedTracks.length - 1 ? lastTrackElementRef : null}
-                                        onClick={() => playTrack(track, downloadedTracks)} // Pass context for queue?
-                                        image={track.image_url}
-                                    >
-                                        <div className="w-full aspect-square rounded-md overflow-hidden bg-spotify-dark relative shadow-lg group-hover:shadow-xl transition-all">
-                                            {track.image_url ? (
-                                                <img src={track.image_url} alt={track.title} className="w-full h-full object-cover" />
-                                            ) : (
-                                                <div className="w-full h-full flex flex-col items-center justify-center bg-white/5 p-2 text-center">
-                                                    <span className="font-bold text-white text-sm line-clamp-2">{track.title}</span>
-                                                    <span className="text-xs text-spotify-grey line-clamp-1 mt-1">{track.artist}</span>
-                                                </div>
-                                            )}
-
-                                            {/* Hover Play */}
-                                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                                                <button className="p-3 bg-spotify-green rounded-full text-white shadow-lg transform scale-0 group-hover:scale-100 transition-transform duration-300">
-                                                    <Play className="w-6 h-6 fill-current pl-1" />
-                                                </button>
-                                            </div>
-
-                                            {/* Actions */}
-                                            <div className="absolute top-2 right-2 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity flex gap-2">
-                                                <button
-                                                    onClick={(e) => { e.stopPropagation(); setSelectedTrack(track); }}
-                                                    className="p-2 bg-black/50 hover:bg-white/20 rounded-full text-white backdrop-blur-sm"
-                                                >
-                                                    <Info className="w-4 h-4" />
-                                                </button>
-                                                <button
-                                                    onClick={(e) => { e.stopPropagation(); setPlaylistTrackToAdd(track); }}
-                                                    className="p-2 bg-black/50 hover:bg-spotify-green rounded-full text-white backdrop-blur-sm"
-                                                >
-                                                    <Plus className="w-4 h-4" />
-                                                </button>
-                                            </div>
-                                        </div>
-
-                                        <div className="w-full text-left">
-                                            <h3 className="font-semibold truncate w-full text-sm text-white">{track.title}</h3>
-                                            <div className="flex items-center justify-between w-full">
-                                                <div
-                                                    className="text-spotify-grey truncate text-xs flex-1 hover:text-white hover:underline transition-all cursor-pointer flex items-center gap-1 group/artist"
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        window.dispatchEvent(new CustomEvent('open-artist-deep-dive', { detail: track.artist }));
-                                                    }}
-                                                >
-                                                    <span className="truncate">{track.artist}</span>
-                                                    <Sparkles className="w-2.5 h-2.5 opacity-0 group-hover/artist:opacity-100 transition-opacity text-spotify-green flex-shrink-0" />
-                                                </div>
-                                                <button
-                                                    onClick={(e) => { e.stopPropagation(); toggleFavoriteArtist(track.artist, e); }}
-                                                    className="hover:scale-110 transition-transform p-1 -mr-1"
-                                                >
-                                                    <Heart className={cn("w-4 h-4", favoriteArtists.has(track.artist) ? "fill-spotify-green text-spotify-green" : "text-spotify-grey hover:text-white")} />
-                                                </button>
-                                            </div>
-                                        </div>
-                                    </GlassCard>
-                                </motion.div>
-                            ))
+                    <div className="flex flex-col gap-3 md:flex-row md:items-center">
+                        <label className="relative min-w-[260px]">
+                            <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-spotify-grey" />
+                            <input
+                                type="text"
+                                value={search}
+                                onChange={(event) => setSearch(event.target.value)}
+                                placeholder={`Search ${activeTab} tracks`}
+                                className="w-full rounded-full border border-white/10 bg-black/20 py-3 pl-11 pr-4 text-sm text-white outline-none transition-colors placeholder:text-spotify-grey focus:border-white/25"
+                            />
+                        </label>
+                        <select
+                            value={sort}
+                            onChange={(event) => setSort(event.target.value)}
+                            className="rounded-full border border-white/10 bg-black/20 px-4 py-3 text-sm text-white outline-none"
+                        >
+                            {SORTS.map((item) => (
+                                <option key={item.value} value={item.value}>
+                                    {item.label}
+                                </option>
+                            ))}
+                        </select>
+                        {(activeTab === 'pending' || activeTab === 'failed') && (
+                            <button
+                                type="button"
+                                onClick={handleBatchAction}
+                                className="rounded-full bg-spotify-green px-4 py-3 text-sm font-medium text-black"
+                            >
+                                {activeTab === 'pending' ? 'Queue all pending' : 'Retry failed'}
+                            </button>
                         )}
                     </div>
-
-                    {loadingDownloads && downloadedTracks.length > 0 && (
-                        <div className="py-4 flex justify-center w-full">
-                            <Loader2 className="w-6 h-6 animate-spin text-spotify-green" />
-                        </div>
-                    )}
                 </div>
-            )}
+
+                <div className="flex flex-wrap items-center gap-2 text-sm text-spotify-grey">
+                    <span className="font-medium text-white">Filter summary:</span>
+                    <StatusBadge status={activeTab === 'downloaded' ? 'completed' : activeTab}>{activeTab}</StatusBadge>
+                    {search ? <StatusBadge status="active">Search: {search}</StatusBadge> : null}
+                    <StatusBadge status="active">Sort: {SORTS.find((item) => item.value === sort)?.label}</StatusBadge>
+                </div>
+            </div>
+
+            <div className="rounded-[2rem] border border-white/10 bg-white/[0.04] p-6">
+                <SectionHeader
+                    title={activeTab === 'downloaded' ? 'Downloaded library' : activeTab === 'pending' ? 'Pending downloads' : 'Failed downloads'}
+                    description={
+                        activeTab === 'downloaded'
+                            ? 'Play tracks, inspect stats, or add them to playlists.'
+                            : activeTab === 'pending'
+                                ? 'These items are waiting to be downloaded into your local library.'
+                                : 'Retry these items or inspect them before queueing again.'
+                    }
+                    actions={
+                        activeTab === 'pending' ? <Link className="text-sm text-spotify-green" to="/jobs">Open queue</Link> : null
+                    }
+                />
+
+                {loading ? (
+                    <div className="flex justify-center py-20">
+                        <Loader2 className="h-8 w-8 animate-spin text-spotify-green" />
+                    </div>
+                ) : sortedTracks.length === 0 ? (
+                    <div className="mt-6">
+                        <EmptyState
+                            icon={activeTab === 'failed' ? AlertCircle : Music2}
+                            title={`No ${activeTab} tracks`}
+                            description={
+                                activeTab === 'downloaded'
+                                    ? 'Your downloaded library will appear here once Spotiflow finishes processing tracks.'
+                                    : activeTab === 'pending'
+                                        ? 'Pending items will appear here when auto-download is disabled or the queue has not caught up yet.'
+                                        : 'Failed downloads will appear here when the downloader cannot complete a track.'
+                            }
+                            action={
+                                activeTab === 'pending' ? (
+                                    <button type="button" onClick={handleBatchAction} className="rounded-full bg-spotify-green px-4 py-2 text-sm font-medium text-black">
+                                        Queue pending tracks
+                                    </button>
+                                ) : null
+                            }
+                        />
+                    </div>
+                ) : (
+                    <div className="mt-6 space-y-3">
+                        {sortedTracks.map((track, index) => {
+                            const canPlay = activeTab === 'downloaded' && Boolean(track.audio_url);
+                            return (
+                                <div
+                                    key={`${track.query || `${track.artist}-${track.title}`}-${index}`}
+                                    className="flex flex-col gap-4 rounded-3xl border border-white/10 bg-black/20 px-4 py-4 md:flex-row md:items-center md:justify-between"
+                                >
+                                    <div className="flex min-w-0 items-center gap-4">
+                                        <div className="h-16 w-16 overflow-hidden rounded-2xl bg-white/5">
+                                            {track.image_url ? (
+                                                <img src={track.image_url} alt={track.title} className="h-full w-full object-cover" />
+                                            ) : (
+                                                <div className="flex h-full w-full items-center justify-center">
+                                                    <Music2 className="h-5 w-5 text-white/25" />
+                                                </div>
+                                            )}
+                                        </div>
+                                        <div className="min-w-0">
+                                            <div className="truncate text-base font-medium text-white">{track.title}</div>
+                                            <div className="truncate text-sm text-spotify-grey">{track.artist}</div>
+                                            <div className="truncate text-xs text-white/35">{track.album || 'No album metadata'}</div>
+                                        </div>
+                                    </div>
+
+                                    <div className="flex flex-wrap items-center gap-2 md:justify-end">
+                                        <StatusBadge status={track.status || normalizeStatus(activeTab)} />
+                                        {canPlay ? (
+                                            <button
+                                                type="button"
+                                                onClick={() => playTrack(track, sortedTracks)}
+                                                className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-sm text-white"
+                                            >
+                                                <Play className="h-4 w-4" />
+                                                Play
+                                            </button>
+                                        ) : null}
+                                        {activeTab === 'downloaded' ? (
+                                            <>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setSelectedTrack(track)}
+                                                    className="rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-sm text-white"
+                                                >
+                                                    Inspect
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setPlaylistTrackToAdd(track)}
+                                                    className="rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-sm text-white"
+                                                >
+                                                    Add to playlist
+                                                </button>
+                                            </>
+                                        ) : null}
+                                        {activeTab === 'pending' ? (
+                                            <button
+                                                type="button"
+                                                onClick={() => axios.post('/api/download', {
+                                                    query: track.query,
+                                                    artist: track.artist,
+                                                    title: track.title,
+                                                    album: track.album,
+                                                    image: track.image_url,
+                                                })}
+                                                className="inline-flex items-center gap-2 rounded-full bg-spotify-green px-4 py-2 text-sm font-medium text-black"
+                                            >
+                                                <Download className="h-4 w-4" />
+                                                Queue
+                                            </button>
+                                        ) : null}
+                                        {activeTab === 'failed' ? (
+                                            <button
+                                                type="button"
+                                                onClick={handleBatchAction}
+                                                className="inline-flex items-center gap-2 rounded-full border border-red-400/30 bg-red-500/10 px-4 py-2 text-sm text-red-200"
+                                            >
+                                                <RefreshCw className="h-4 w-4" />
+                                                Retry
+                                            </button>
+                                        ) : null}
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                )}
+            </div>
         </div>
     );
 }

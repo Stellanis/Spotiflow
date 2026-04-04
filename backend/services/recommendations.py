@@ -1,5 +1,6 @@
 import random
 import time
+from datetime import datetime, timezone
 from database import get_downloads, get_setting, get_dismissed_tracks
 from .lastfm import LastFMService
 from .cache_manager import CacheManager
@@ -35,6 +36,16 @@ class RecommendationsService:
             return get_dismissed_tracks(user)
         except Exception:
             return set()
+
+    def _enrich_track(self, track: dict, source_type: str):
+        enriched = dict(track)
+        enriched["source_type"] = source_type
+        enriched["generated_at"] = datetime.now(timezone.utc).isoformat()
+        actions = ["download", "add_to_playlist", "dismiss", "save"]
+        if enriched.get("audio_url"):
+            actions.insert(1, "play")
+        enriched["available_actions"] = actions
+        return enriched
 
     # ------------------------------------------------------------------ #
     # For You – enriched recommendations
@@ -88,7 +99,7 @@ class RecommendationsService:
             if key in downloaded_set or key in dismissed_set or key in seen:
                 continue
             seen.add(key)
-            result.append(c)
+            result.append(self._enrich_track(c, "similar_artist"))
             if len(result) >= limit:
                 break
 
@@ -130,6 +141,9 @@ class RecommendationsService:
                     "listeners": listeners,
                     "match": s.get("match"),
                     "because": artist["name"],
+                    "reason": f"Similar to {artist['name']}",
+                    "source_type": "radar",
+                    "generated_at": datetime.now(timezone.utc).isoformat(),
                     "top_tracks": [
                         {
                             "title": t["title"],
@@ -183,7 +197,10 @@ class RecommendationsService:
                 key = (t["artist"].lower(), t["title"].lower())
                 if key not in downloaded_set and key not in dismissed_set and key not in seen:
                     seen.add(key)
-                    filtered.append(t)
+                    filtered.append(self._enrich_track({
+                        **t,
+                        "reason": f"Built from your {tag} listening",
+                    }, "mood_tag"))
             stations.append({"mood": tag, "tracks": filtered})
 
         self.cache.set(cache_key, stations)
@@ -307,12 +324,13 @@ class RecommendationsService:
                             track_meta[key] = img
 
                 for (artist, title), count in counter.most_common(5):
-                    tracks.append({
+                    tracks.append(self._enrich_track({
                         "artist": artist,
                         "title": title,
                         "image": track_meta[(artist, title)],
                         "plays": count,
-                    })
+                        "reason": f"You played this during this week in {year}",
+                    }, "history"))
 
             entry = {
                 "year": year,

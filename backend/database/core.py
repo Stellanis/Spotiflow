@@ -12,11 +12,15 @@ DB_NAME = os.path.join(DATA_DIR, "downloads.db")
 print(f"Database path: {os.path.abspath(DB_NAME)}")
 
 def get_db_path():
-    return DB_NAME
+    try:
+        import database
+        return getattr(database, "DB_NAME", DB_NAME)
+    except Exception:
+        return DB_NAME
 
 @contextmanager
 def get_connection():
-    conn = sqlite3.connect(DB_NAME)
+    conn = sqlite3.connect(get_db_path())
     conn.row_factory = sqlite3.Row
     try:
         yield conn
@@ -24,8 +28,10 @@ def get_connection():
         conn.close()
 
 def init_db():
-    if not os.path.exists(DATA_DIR):
-        os.makedirs(DATA_DIR)
+    db_path = get_db_path()
+    data_dir = os.path.dirname(db_path)
+    if not os.path.exists(data_dir):
+        os.makedirs(data_dir)
 
     with get_connection() as conn:
         c = conn.cursor()

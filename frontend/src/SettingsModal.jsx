@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { AnimatePresence } from 'framer-motion';
 import { X, Save, Loader2 } from 'lucide-react';
 import axios from 'axios';
 import { isFirefox } from './utils/browser';
@@ -143,7 +143,10 @@ export function SettingsModal({ isOpen, onClose, onSave, onReplayTutorial }) {
                     >
                         <div className="bg-spotify-dark border border-white/10 rounded-xl shadow-2xl w-full max-w-md pointer-events-auto m-4 flex flex-col max-h-[90vh]">
                             <div className="p-6 pb-0 mb-6 flex items-center justify-between shrink-0">
-                                <h2 className="text-xl font-bold text-white">Settings</h2>
+                                <div>
+                                    <p className="text-xs font-semibold uppercase tracking-[0.22em] text-spotify-green/80">Settings</p>
+                                    <h2 className="mt-1 text-xl font-bold text-white">Configure your listening hub</h2>
+                                </div>
                                 <button
                                     onClick={onClose}
                                     className="p-2 hover:bg-white/10 rounded-full transition-colors text-spotify-grey hover:text-white"
@@ -197,7 +200,7 @@ export function SettingsModal({ isOpen, onClose, onSave, onReplayTutorial }) {
                                         }}
                                         className="px-4 py-2 rounded-lg text-sm font-medium text-spotify-grey hover:text-white hover:bg-white/10 transition-colors"
                                     >
-                                        Replay Tutorial
+                                        Reset Onboarding
                                     </button>
                                     <div className="flex gap-3">
                                         <button
