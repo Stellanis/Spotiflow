@@ -72,6 +72,32 @@ def get_download_info(query):
         result = c.fetchone()
         return dict(result) if result else None
 
+def find_download_by_track(artist, title, album=None):
+    with get_connection() as conn:
+        c = conn.cursor()
+        if album:
+            c.execute(
+                '''
+                SELECT * FROM downloads
+                WHERE lower(artist) = lower(?) AND lower(title) = lower(?) AND lower(album) = lower(?) AND status = "completed"
+                ORDER BY created_at DESC
+                LIMIT 1
+                ''',
+                (artist, title, album),
+            )
+        else:
+            c.execute(
+                '''
+                SELECT * FROM downloads
+                WHERE lower(artist) = lower(?) AND lower(title) = lower(?) AND status = "completed"
+                ORDER BY created_at DESC
+                LIMIT 1
+                ''',
+                (artist, title),
+            )
+        result = c.fetchone()
+        return dict(result) if result else None
+
 def get_download_status(query):
     with get_connection() as conn:
         c = conn.cursor()
