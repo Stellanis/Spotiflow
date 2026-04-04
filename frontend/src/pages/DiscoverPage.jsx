@@ -71,9 +71,11 @@ function TrackGrid({ tracks, downloading, currentTrack, onDownload, onPlay, onDi
 // EmptyState
 // ─────────────────────────────────────────────
 function EmptyState({ icon: Icon, message }) {
+    const ResolvedIcon = typeof Icon === 'function' ? Icon : null;
+
     return (
         <div className="flex flex-col items-center justify-center py-24 text-center">
-            <Icon className="w-14 h-14 text-white/10 mb-4" />
+            {ResolvedIcon ? <ResolvedIcon className="w-14 h-14 text-white/10 mb-4" /> : null}
             <p className="text-spotify-grey text-sm max-w-xs">{message}</p>
         </div>
     );
@@ -297,7 +299,7 @@ export default function DiscoverPage() {
                                 : 'text-spotify-grey hover:text-white hover:bg-white/10'
                         )}
                     >
-                        <Icon className="w-3.5 h-3.5" />
+                        {typeof Icon === 'function' ? <Icon className="w-3.5 h-3.5" /> : null}
                         {label}
                     </motion.button>
                 ))}
