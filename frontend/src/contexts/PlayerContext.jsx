@@ -248,7 +248,6 @@ export function PlayerProvider({ children }) {
                     queueMode: 'radio',
                     autoplay: false,
                     sendStartEvent: false,
-                    streamHealth: session.stream_health || null,
                 });
                 setStreamStatus('restored');
             } catch (error) {
