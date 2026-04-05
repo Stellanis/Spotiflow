@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { DndContext, PointerSensor, closestCenter, useSensor, useSensors } from '@dnd-kit/core';
 import { SortableContext, arrayMove, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import { restrictToParentElement, restrictToVerticalAxis } from '@dnd-kit/modifiers';
 import { CSS } from '@dnd-kit/utilities';
 import { GripVertical, ListMusic, Radio, Trash2, X } from 'lucide-react';
 
@@ -168,7 +169,12 @@ export function PlaybackQueuePanel() {
                                         No upcoming tracks queued.
                                     </div>
                                 ) : (
-                                    <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                                    <DndContext
+                                        sensors={sensors}
+                                        collisionDetection={closestCenter}
+                                        modifiers={[restrictToVerticalAxis, restrictToParentElement]}
+                                        onDragEnd={handleDragEnd}
+                                    >
                                         <SortableContext items={displayedUpcoming.map((item) => item.track_key)} strategy={verticalListSortingStrategy}>
                                             {displayedUpcoming.map((item) => (
                                                 <QueueRow key={item.track_key} item={item} onRemove={handleRemove} />
