@@ -55,189 +55,196 @@ export function PlayerBar() {
     // Collapsed Status Bar (Only Downloads)
     if (!currentTrack) {
         return (
-            <motion.div
-                initial={{ y: 100 }}
-                animate={{ y: 0 }}
-                exit={{ y: 100 }}
-                className={cn(
-                    "fixed bottom-0 left-0 right-0 h-12 border-t border-white/10 px-4 md:px-8 flex items-center justify-center z-50 text-white cursor-pointer transition-colors",
-                    isFirefox ? "bg-black/95 hover:bg-black" : "bg-black/60 backdrop-blur-xl hover:bg-black/70"
-                )}
-                onClick={() => navigate('/jobs')}
-            >
-                <div className="flex items-center gap-3 text-sm font-medium text-spotify-green animate-pulse">
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    <span>{activeDownloads.length} item{activeDownloads.length !== 1 && 's'} downloading...</span>
+            <div className="pointer-events-none fixed inset-x-0 bottom-0 z-50">
+                <div className="mx-auto w-full max-w-[1880px] px-3 md:px-5 lg:px-6">
+                    <motion.div
+                        initial={{ y: 100 }}
+                        animate={{ y: 0 }}
+                        exit={{ y: 100 }}
+                        className={cn(
+                            "pointer-events-auto flex h-12 cursor-pointer items-center justify-center border-t border-white/10 px-4 text-white transition-colors lg:ml-[19.5rem]",
+                            isFirefox ? "bg-black/95 hover:bg-black" : "bg-black/60 backdrop-blur-xl hover:bg-black/70"
+                        )}
+                        onClick={() => navigate('/jobs')}
+                    >
+                        <div className="flex items-center gap-3 text-sm font-medium text-spotify-green animate-pulse">
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                            <span>{activeDownloads.length} item{activeDownloads.length !== 1 && 's'} downloading...</span>
+                        </div>
+                    </motion.div>
                 </div>
-            </motion.div>
+            </div>
         );
     }
 
     // Full Player Bar
     return (
-        <motion.div
-            initial={{ y: 100 }}
-            animate={{ y: 0 }}
-            className={cn(
-                "fixed bottom-0 left-0 right-0 h-24 border-t border-white/10 px-4 md:px-8 flex items-center justify-between z-[9000] text-white",
-                isFirefox ? "bg-black/95" : "bg-black/40 backdrop-blur-xl"
-            )}
-        >
-            {/* Track Info */}
-            <div className="flex items-center gap-4 w-[30%]">
-                <div className="w-14 h-14 rounded-md overflow-hidden bg-white/10 relative group">
-                    {currentTrack.image || currentTrack.image_url ? (
-                        <img src={currentTrack.image || currentTrack.image_url} alt={currentTrack.title} className="w-full h-full object-cover" />
-                    ) : (
-                        <div className="w-full h-full flex items-center justify-center bg-spotify-grey/20">
-                            <Maximize2 className="w-6 h-6 text-white/50" />
-                        </div>
+        <div className="pointer-events-none fixed inset-x-0 bottom-0 z-[9000]">
+            <div className="mx-auto w-full max-w-[1880px] px-3 md:px-5 lg:px-6">
+                <motion.div
+                    initial={{ y: 100 }}
+                    animate={{ y: 0 }}
+                    className={cn(
+                        "pointer-events-auto flex h-24 items-center justify-between border-t border-white/10 px-4 md:px-8 text-white lg:ml-[19.5rem]",
+                        isFirefox ? "bg-black/95" : "bg-black/40 backdrop-blur-xl"
                     )}
-                </div>
-                <div className="min-w-0">
-                    <h4 className="font-semibold text-sm truncate hover:underline cursor-pointer">{currentTrack.title}</h4>
-                    <p className="text-xs text-spotify-grey truncate hover:underline cursor-pointer">{currentTrack.artist}</p>
-                    <div className="mt-1 flex flex-wrap items-center gap-2">
-                        {playbackBadge && (
-                            <span className="rounded-full bg-white/10 px-2 py-0.5 text-[10px] font-medium text-white/80">
-                                {playbackBadge}
-                            </span>
-                        )}
-                        {queueMode === 'radio' && (
-                            <span className="inline-flex items-center gap-1 rounded-full bg-spotify-green/20 px-2 py-0.5 text-[10px] font-medium text-spotify-green">
-                                <Radio className="h-3 w-3" />
-                                Radio
-                            </span>
-                        )}
-                        {hasSuspendedRadio && (
-                            <span className="rounded-full bg-sky-500/20 px-2 py-0.5 text-[10px] font-medium text-sky-300">
-                                Manual override
-                            </span>
-                        )}
-                        {buffering && (
-                            <span className="rounded-full bg-amber-500/20 px-2 py-0.5 text-[10px] font-medium text-amber-300">
-                                Buffering
-                            </span>
-                        )}
-                        {streamStatus === 'cooldown' && (
-                            <span className="rounded-full bg-red-500/20 px-2 py-0.5 text-[10px] font-medium text-red-300">
-                                Cooling down
-                            </span>
-                        )}
-                        {streamStatus === 'degraded' && (
-                            <span className="rounded-full bg-amber-500/20 px-2 py-0.5 text-[10px] font-medium text-amber-200">
-                                Stream degraded
-                            </span>
-                        )}
-                        {streamStatus === 'restored' && (
-                            <span className="rounded-full bg-sky-500/20 px-2 py-0.5 text-[10px] font-medium text-sky-300">
-                                Session restored
-                            </span>
-                        )}
-                        {isPromoted && (
-                            <span className="rounded-full bg-blue-500/20 px-2 py-0.5 text-[10px] font-medium text-blue-300">
-                                Download queued
-                            </span>
-                        )}
+                >
+                    {/* Track Info */}
+                    <div className="flex items-center gap-4 w-[30%]">
+                        <div className="w-14 h-14 rounded-md overflow-hidden bg-white/10 relative group">
+                            {currentTrack.image || currentTrack.image_url ? (
+                                <img src={currentTrack.image || currentTrack.image_url} alt={currentTrack.title} className="w-full h-full object-cover" />
+                            ) : (
+                                <div className="w-full h-full flex items-center justify-center bg-spotify-grey/20">
+                                    <Maximize2 className="w-6 h-6 text-white/50" />
+                                </div>
+                            )}
+                        </div>
+                        <div className="min-w-0">
+                            <h4 className="font-semibold text-sm truncate hover:underline cursor-pointer">{currentTrack.title}</h4>
+                            <p className="text-xs text-spotify-grey truncate hover:underline cursor-pointer">{currentTrack.artist}</p>
+                            <div className="mt-1 flex flex-wrap items-center gap-2">
+                                {playbackBadge && (
+                                    <span className="rounded-full bg-white/10 px-2 py-0.5 text-[10px] font-medium text-white/80">
+                                        {playbackBadge}
+                                    </span>
+                                )}
+                                {queueMode === 'radio' && (
+                                    <span className="inline-flex items-center gap-1 rounded-full bg-spotify-green/20 px-2 py-0.5 text-[10px] font-medium text-spotify-green">
+                                        <Radio className="h-3 w-3" />
+                                        Radio
+                                    </span>
+                                )}
+                                {hasSuspendedRadio && (
+                                    <span className="rounded-full bg-sky-500/20 px-2 py-0.5 text-[10px] font-medium text-sky-300">
+                                        Manual override
+                                    </span>
+                                )}
+                                {buffering && (
+                                    <span className="rounded-full bg-amber-500/20 px-2 py-0.5 text-[10px] font-medium text-amber-300">
+                                        Buffering
+                                    </span>
+                                )}
+                                {streamStatus === 'cooldown' && (
+                                    <span className="rounded-full bg-red-500/20 px-2 py-0.5 text-[10px] font-medium text-red-300">
+                                        Cooling down
+                                    </span>
+                                )}
+                                {streamStatus === 'degraded' && (
+                                    <span className="rounded-full bg-amber-500/20 px-2 py-0.5 text-[10px] font-medium text-amber-200">
+                                        Stream degraded
+                                    </span>
+                                )}
+                                {streamStatus === 'restored' && (
+                                    <span className="rounded-full bg-sky-500/20 px-2 py-0.5 text-[10px] font-medium text-sky-300">
+                                        Session restored
+                                    </span>
+                                )}
+                                {isPromoted && (
+                                    <span className="rounded-full bg-blue-500/20 px-2 py-0.5 text-[10px] font-medium text-blue-300">
+                                        Download queued
+                                    </span>
+                                )}
+                            </div>
+                        </div>
                     </div>
-                </div>
-            </div>
 
-            {/* Controls & Scrubber */}
-            <div className="flex flex-col items-center gap-2 w-[40%] max-w-xl">
-                <div className="flex items-center gap-6">
-                    <button onClick={prevTrack} className="text-spotify-grey hover:text-white transition-colors">
-                        <SkipBack className="w-5 h-5" />
-                    </button>
+                    {/* Controls & Scrubber */}
+                    <div className="flex flex-col items-center gap-2 w-[40%] max-w-xl">
+                        <div className="flex items-center gap-6">
+                            <button onClick={prevTrack} className="text-spotify-grey hover:text-white transition-colors">
+                                <SkipBack className="w-5 h-5" />
+                            </button>
 
-                    <button
-                        onClick={togglePlay}
-                        className="w-10 h-10 rounded-full bg-white text-black flex items-center justify-center hover:scale-105 transition-transform"
-                        disabled={!isReady}
-                    >
-                        {!isReady ? (
-                            <Loader2 className="w-5 h-5 animate-spin" />
-                        ) : isPlaying ? (
-                            <Pause className="w-5 h-5 fill-current" />
-                        ) : (
-                            <Play className="w-5 h-5 fill-current ml-0.5" />
+                            <button
+                                onClick={togglePlay}
+                                className="w-10 h-10 rounded-full bg-white text-black flex items-center justify-center hover:scale-105 transition-transform"
+                                disabled={!isReady}
+                            >
+                                {!isReady ? (
+                                    <Loader2 className="w-5 h-5 animate-spin" />
+                                ) : isPlaying ? (
+                                    <Pause className="w-5 h-5 fill-current" />
+                                ) : (
+                                    <Play className="w-5 h-5 fill-current ml-0.5" />
+                                )}
+                            </button>
+
+                            <button onClick={nextTrack} className="text-spotify-grey hover:text-white transition-colors">
+                                <SkipForward className="w-5 h-5" />
+                            </button>
+                        </div>
+
+                        <div className="w-full flex items-center gap-2 text-xs font-mono text-spotify-grey">
+                            <span>{formatDuration(progress)}</span>
+                            <input
+                                type="range"
+                                min={0}
+                                max={duration || 100}
+                                value={progress}
+                                onChange={(e) => seek(Number(e.target.value))}
+                                className="flex-1 h-1 bg-white/10 rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white hover:[&::-webkit-slider-thumb]:scale-125 transition-all"
+                            />
+                            <span>{formatDuration(duration)}</span>
+                        </div>
+                    </div>
+
+                    {/* Volume & Extra */}
+                    <div className="flex items-center justify-end gap-2 md:gap-3 w-auto md:w-[30%]">
+                        {activeDownloads.length > 0 && (
+                            <motion.button
+                                layoutId="download-status"
+                                onClick={() => navigate('/jobs')}
+                                className="flex items-center gap-2 px-3 py-1.5 bg-blue-500/20 text-blue-400 rounded-full text-xs font-medium animate-pulse hover:bg-blue-500/30 transition-colors"
+                            >
+                                <Loader2 className="w-3 h-3 animate-spin" />
+                                <span className="hidden md:inline">{activeDownloads.length} Downloading</span>
+                                <span className="md:hidden">{activeDownloads.length}</span>
+                            </motion.button>
                         )}
-                    </button>
 
-                    <button onClick={nextTrack} className="text-spotify-grey hover:text-white transition-colors">
-                        <SkipForward className="w-5 h-5" />
-                    </button>
-                </div>
+                        {sourceName && playbackType !== 'local' && (
+                            <span className="hidden rounded-full bg-white/10 px-3 py-1.5 text-xs text-white/70 md:inline-flex">
+                                {sourceName}
+                            </span>
+                        )}
 
-                <div className="w-full flex items-center gap-2 text-xs font-mono text-spotify-grey">
-                    <span>{formatDuration(progress)}</span>
-                    <input
-                        type="range"
-                        min={0}
-                        max={duration || 100}
-                        value={progress}
-                        onChange={(e) => seek(Number(e.target.value))}
-                        className="flex-1 h-1 bg-white/10 rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white hover:[&::-webkit-slider-thumb]:scale-125 transition-all"
-                    />
-                    <span>{formatDuration(duration)}</span>
-                </div>
+                        <button
+                            onClick={() => setShowQueuePanel(!showQueuePanel)}
+                            className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs transition-colors ${
+                                showQueuePanel ? 'border-spotify-green/40 bg-spotify-green/10 text-spotify-green' : 'border-white/10 bg-white/[0.04] text-white/80 hover:bg-white/[0.08]'
+                            }`}
+                            title="Queue"
+                        >
+                            <ListMusic className="h-4 w-4" />
+                            <span>{queueSummary?.remaining ?? 0}</span>
+                        </button>
+
+                        <div className="h-8 w-px bg-white/10 mx-1 md:mx-2" />
+
+                        <button
+                            onClick={toggleLyrics}
+                            className={`text-spotify-grey hover:text-white transition-colors p-2 ${showLyrics ? 'text-spotify-green' : ''}`}
+                            title="Lyrics"
+                        >
+                            <Mic2 className="w-5 h-5" />
+                        </button>
+
+                        <div className="hidden md:flex items-center gap-3">
+                            <Volume2 className="w-5 h-5 text-spotify-grey" />
+                            <input
+                                type="range"
+                                min="0"
+                                max="1"
+                                step="0.01"
+                                value={volume}
+                                onChange={(e) => updateVolume(Number(e.target.value))}
+                                className="w-24 h-1 bg-white/10 rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white"
+                            />
+                        </div>
+                    </div>
+                </motion.div>
             </div>
-
-            {/* Volume & Extra */}
-            <div className="flex items-center justify-end gap-2 md:gap-3 w-auto md:w-[30%]">
-                {/* Global Download Status */}
-                {activeDownloads.length > 0 && (
-                    <motion.button
-                        layoutId="download-status"
-                        onClick={() => navigate('/jobs')}
-                        className="flex items-center gap-2 px-3 py-1.5 bg-blue-500/20 text-blue-400 rounded-full text-xs font-medium animate-pulse hover:bg-blue-500/30 transition-colors"
-                    >
-                        <Loader2 className="w-3 h-3 animate-spin" />
-                        <span className="hidden md:inline">{activeDownloads.length} Downloading</span>
-                        <span className="md:hidden">{activeDownloads.length}</span>
-                    </motion.button>
-                )}
-
-                {sourceName && playbackType !== 'local' && (
-                    <span className="hidden rounded-full bg-white/10 px-3 py-1.5 text-xs text-white/70 md:inline-flex">
-                        {sourceName}
-                    </span>
-                )}
-
-                <button
-                    onClick={() => setShowQueuePanel(!showQueuePanel)}
-                    className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs transition-colors ${
-                        showQueuePanel ? 'border-spotify-green/40 bg-spotify-green/10 text-spotify-green' : 'border-white/10 bg-white/[0.04] text-white/80 hover:bg-white/[0.08]'
-                    }`}
-                    title="Queue"
-                >
-                    <ListMusic className="h-4 w-4" />
-                    <span>{queueSummary?.remaining ?? 0}</span>
-                </button>
-
-                <div className="h-8 w-px bg-white/10 mx-1 md:mx-2" />
-
-                <button
-                    onClick={toggleLyrics}
-                    className={`text-spotify-grey hover:text-white transition-colors p-2 ${showLyrics ? 'text-spotify-green' : ''}`}
-                    title="Lyrics"
-                >
-                    <Mic2 className="w-5 h-5" />
-                </button>
-
-                <div className="hidden md:flex items-center gap-3">
-                    <Volume2 className="w-5 h-5 text-spotify-grey" />
-                    <input
-                        type="range"
-                        min="0"
-                        max="1"
-                        step="0.01"
-                        value={volume}
-                        onChange={(e) => updateVolume(Number(e.target.value))}
-                        className="w-24 h-1 bg-white/10 rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white"
-                    />
-                </div>
-            </div>
-        </motion.div>
+        </div>
     );
 }
