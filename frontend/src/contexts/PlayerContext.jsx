@@ -42,6 +42,16 @@ function buildRequestTrack(track) {
     };
 }
 
+function tracksMatch(left, right) {
+    if (!left || !right) return false;
+
+    if (left.track_key && right.track_key) {
+        return left.track_key === right.track_key;
+    }
+
+    return left.artist === right.artist && left.title === right.title;
+}
+
 export function PlayerProvider({ children }) {
     const [currentTrack, setCurrentTrack] = useState(null);
     const [isPlaying, setIsPlaying] = useState(false);
@@ -94,7 +104,7 @@ export function PlayerProvider({ children }) {
             const nextQueue = options.queue || queue;
             const nextIndex = typeof options.queueIndex === 'number'
                 ? options.queueIndex
-                : nextQueue.findIndex((item) => item.track_key === resolvedTrack.track_key);
+                : nextQueue.findIndex((item) => tracksMatch(item, resolvedTrack));
             if (options.queue) setQueue(nextQueue);
             if (nextIndex >= 0) setQueueIndex(nextIndex);
             if (options.sessionId !== undefined) {
@@ -383,7 +393,7 @@ export function PlayerProvider({ children }) {
         const normalizedTrack = normalizeTrack(track);
         if (newQueue?.length) {
             const items = newQueue.map(normalizeTrack);
-            const startIndex = Math.max(0, items.findIndex((item) => item.track_key === normalizedTrack.track_key || (item.artist === normalizedTrack.artist && item.title === normalizedTrack.title)));
+            const startIndex = Math.max(0, items.findIndex((item) => tracksMatch(item, normalizedTrack)));
             await startManualQueue(items, startIndex);
             return;
         }
