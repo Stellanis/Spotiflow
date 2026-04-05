@@ -1,7 +1,7 @@
 from database import (
-    add_download,
     create_job,
     find_active_job,
+    find_download_by_track,
     increment_job_retry,
     mark_job_failed,
     mark_job_running,
@@ -11,6 +11,16 @@ from database import (
 
 class DownloadCoordinator:
     def queue(self, downloader, query, artist=None, title=None, album=None, image_url=None):
+        existing_track = None
+        if artist and title:
+            existing_track = find_download_by_track(artist, title, album=album)
+        if existing_track:
+            return {
+                "status": "skipped",
+                "message": "Track already downloaded",
+                "query": existing_track["query"],
+            }
+
         existing = find_active_job("download", query=query)
         if existing:
             return {"status": "skipped", "message": "Already in queue", "job_id": existing["id"]}

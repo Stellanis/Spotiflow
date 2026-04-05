@@ -25,6 +25,7 @@ from database.core import get_connection
 from main import app
 from services.playable_source_service import playable_source_service
 from services.radio_service import radio_service
+from services.download_service import download_coordinator
 from services.stream_resolver import stream_resolver
 
 
@@ -261,6 +262,43 @@ def test_radio_service_record_event_filters_non_persisted_fields(temp_db):
     )
     assert event["event_type"] == "error"
     assert promotion is None
+
+
+def test_playable_source_resolves_local_even_when_album_text_differs(temp_db):
+    add_download(
+        "Artist - Track",
+        "Artist",
+        "Track",
+        "Library Album",
+        status="completed",
+    )
+
+    playable = playable_source_service.resolve("Artist", "Track", album="Load + Reverb")
+
+    assert playable is not None
+    assert playable["playback_type"] == "local"
+    assert playable["audio_url"].endswith("/Artist/Library Album/Track.mp3")
+
+
+def test_download_coordinator_skips_existing_track_when_query_differs(temp_db):
+    add_download(
+        "Artist - Track",
+        "Artist",
+        "Track",
+        "Library Album",
+        status="completed",
+    )
+
+    result = download_coordinator.queue(
+        downloader=None,
+        query="Artist - Track load plus reverb",
+        artist="Artist",
+        title="Track",
+        album="Load + Reverb",
+    )
+
+    assert result["status"] == "skipped"
+    assert result["message"] == "Track already downloaded"
 
 
 def test_verify_stream_sources_releases_elapsed_cooldown_without_reentering_it(temp_db):

@@ -79,8 +79,10 @@ def find_download_by_track(artist, title, album=None):
             c.execute(
                 '''
                 SELECT * FROM downloads
-                WHERE lower(artist) = lower(?) AND lower(title) = lower(?) AND lower(album) = lower(?) AND status = "completed"
-                ORDER BY created_at DESC
+                WHERE lower(artist) = lower(?) AND lower(title) = lower(?) AND status = "completed"
+                ORDER BY
+                    CASE WHEN lower(ifnull(album, '')) = lower(?) THEN 0 ELSE 1 END,
+                    created_at DESC
                 LIMIT 1
                 ''',
                 (artist, title, album),
