@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useOutletContext, useSearchParams } from 'react-router-dom';
 import axios from 'axios';
-import { AlertCircle, Download, Filter, Loader2, Music2, Play, RefreshCw, Search } from 'lucide-react';
+import { AlertCircle, Download, Loader2, Music2, Play, RefreshCw, Search } from 'lucide-react';
 
 import { usePlayer } from '../contexts/PlayerContext';
 import { AddToPlaylistModal } from '../components/AddToPlaylistModal';
@@ -120,12 +120,9 @@ export default function Library() {
             <AddToPlaylistModal isOpen={!!playlistTrackToAdd} onClose={() => setPlaylistTrackToAdd(null)} track={playlistTrackToAdd} />
 
             <PageHeader
-                eyebrow="Library Flow"
-                title="Manage your music pipeline"
-                description="Downloaded tracks, pending downloads, and failures now live in one place so you can act without route-hopping."
+                title="Library"
                 actions={
                     <div className="flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-sm text-white">
-                        <Filter className="h-4 w-4 text-spotify-grey" />
                         <span>{tabCounts[activeTab] ?? 0} items in this view</span>
                     </div>
                 }
@@ -175,26 +172,12 @@ export default function Library() {
                         )}
                     </div>
                 </div>
-
-                <div className="flex flex-wrap items-center gap-2 text-sm text-spotify-grey">
-                    <span className="font-medium text-white">Filter summary:</span>
-                    <StatusBadge status={activeTab === 'downloaded' ? 'completed' : activeTab}>{activeTab}</StatusBadge>
-                    {search ? <StatusBadge status="active">Search: {search}</StatusBadge> : null}
-                    <StatusBadge status="active">Sort: {SORTS.find((item) => item.value === sort)?.label}</StatusBadge>
-                </div>
             </div>
 
             <div className="relative overflow-hidden rounded-[2rem] border border-white/10 bg-white/[0.04] p-6">
                 <div className="pointer-events-none absolute inset-x-8 top-0 h-32 rounded-full bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.08),_transparent_72%)] blur-3xl" />
                 <SectionHeader
                     title={activeTab === 'downloaded' ? 'Downloaded library' : activeTab === 'pending' ? 'Pending downloads' : 'Failed downloads'}
-                    description={
-                        activeTab === 'downloaded'
-                            ? 'Play tracks, inspect stats, or add them to playlists.'
-                            : activeTab === 'pending'
-                                ? 'These items are waiting to be downloaded into your local library.'
-                                : 'Retry these items or inspect them before queueing again.'
-                    }
                     actions={
                         activeTab === 'pending' ? <Link className="text-sm text-spotify-green" to="/jobs">Open queue</Link> : null
                     }
@@ -209,13 +192,6 @@ export default function Library() {
                         <EmptyState
                             icon={activeTab === 'failed' ? AlertCircle : Music2}
                             title={`No ${activeTab} tracks`}
-                            description={
-                                activeTab === 'downloaded'
-                                    ? 'Your downloaded library will appear here once Spotiflow finishes processing tracks.'
-                                    : activeTab === 'pending'
-                                        ? 'Pending items will appear here when auto-download is disabled or the queue has not caught up yet.'
-                                        : 'Failed downloads will appear here when the downloader cannot complete a track.'
-                            }
                             action={
                                 activeTab === 'pending' ? (
                                     <button

@@ -70,10 +70,13 @@ export function PlayerProvider({ children }) {
     const audioRef = useRef(new Audio());
     const wsRef = useRef(null);
     const hasRestoredSessionRef = useRef(false);
+    const sessionIdRef = useRef(null);
 
     const syncSessionState = (payload) => {
         const resolvedQueue = (payload.queue || []).map(normalizeTrack);
-        setSessionId(payload.session_id ?? payload.sessionId ?? null);
+        const nextSessionId = payload.session_id ?? payload.sessionId ?? null;
+        sessionIdRef.current = nextSessionId;
+        setSessionId(nextSessionId);
         setQueueMode(payload.mode || payload.queue_mode || null);
         setSessionStatus(payload.status || null);
         setQueue(resolvedQueue);
@@ -94,7 +97,10 @@ export function PlayerProvider({ children }) {
                 : nextQueue.findIndex((item) => item.track_key === resolvedTrack.track_key);
             if (options.queue) setQueue(nextQueue);
             if (nextIndex >= 0) setQueueIndex(nextIndex);
-            if (options.sessionId !== undefined) setSessionId(options.sessionId);
+            if (options.sessionId !== undefined) {
+                sessionIdRef.current = options.sessionId;
+                setSessionId(options.sessionId);
+            }
             if (options.queueMode) setQueueMode(options.queueMode);
         }
 
@@ -185,6 +191,7 @@ export function PlayerProvider({ children }) {
                 window.localStorage.removeItem(PLAYER_SESSION_STORAGE_KEY);
             }
             if (error?.response?.status === 404) {
+                sessionIdRef.current = null;
                 setSessionId(null);
                 setQueue([]);
                 setQueueIndex(-1);
@@ -211,7 +218,7 @@ export function PlayerProvider({ children }) {
                     if (data.active_downloads) {
                         setActiveDownloads(data.active_downloads);
                     }
-                    if (data.type === 'playback.session' && data.session_id && data.session_id === sessionId) {
+                    if (data.type === 'playback.session' && data.session_id && data.session_id === sessionIdRef.current) {
                         if (data.queue) {
                             syncSessionState(data);
                         }
@@ -247,6 +254,10 @@ export function PlayerProvider({ children }) {
         return () => {
             if (wsRef.current) wsRef.current.close();
         };
+    }, [sessionId]);
+
+    useEffect(() => {
+        sessionIdRef.current = sessionId;
     }, [sessionId]);
 
     useEffect(() => {
@@ -306,6 +317,7 @@ export function PlayerProvider({ children }) {
                 setStreamStatus('restored');
             } catch (error) {
                 console.error('Failed to restore player session', error);
+                sessionIdRef.current = null;
                 window.localStorage.removeItem(PLAYER_SESSION_STORAGE_KEY);
             }
         };
