@@ -22,7 +22,7 @@ function QuickAction({ to, label, description, icon: Icon, onClick }) {
             </div>
             <div>
                 <div className="font-medium text-white">{label}</div>
-                <div className="mt-1 text-sm text-spotify-grey">{description}</div>
+                {description ? <div className="mt-1 text-sm text-spotify-grey">{description}</div> : null}
             </div>
         </div>
     );
@@ -90,9 +90,7 @@ export default function Home() {
             />
 
             <PageHeader
-                eyebrow="Operational Home"
-                title="Keep your listening in motion"
-                description="Spotiflow now acts as a listening hub: sync status, queue health, discovery highlights, and the newest activity all in one place."
+                title="Home"
                 actions={
                     <>
                         <button
@@ -124,9 +122,6 @@ export default function Home() {
                         <div className="space-y-3">
                             <div>
                                 <h2 className="text-lg font-semibold text-white">Setup still needs attention</h2>
-                                <p className="mt-1 text-sm text-amber-100/80">
-                                    Finish the checklist below to unlock reliable syncing, downloads, and optional concert discovery.
-                                </p>
                             </div>
                             <div className="flex flex-wrap gap-2">
                                 {attentionItems.map((item) => (
@@ -168,11 +163,11 @@ export default function Home() {
             </div>
 
             <ActionBar>
-                <QuickAction to="/library?tab=pending" label="Review pending" description="Manage queued and missing tracks from one library surface." icon={Download} />
-                <QuickAction to="/jobs" label="Open queue" description="See active jobs, failed downloads, and retry controls." icon={Loader2} />
-                <QuickAction to="/explore/discover" label="Explore taste" description="Open recommendations, mood stations, and artist radar." icon={Sparkles} />
-                <QuickAction to="/concerts" label="See concerts" description="Check reminders, nearby shows, and global favorites." icon={Ticket} />
-                <QuickAction onClick={openSettings} label="Fix setup" description="Validate Last.fm keys, concert integrations, and download behavior." icon={Settings2} />
+                <QuickAction to="/library?tab=pending" label="Review pending" icon={Download} />
+                <QuickAction to="/jobs" label="Open queue" icon={Loader2} />
+                <QuickAction to="/explore/discover" label="Explore taste" icon={Sparkles} />
+                <QuickAction to="/concerts" label="See concerts" icon={Ticket} />
+                <QuickAction onClick={openSettings} label="Fix setup" icon={Settings2} />
             </ActionBar>
 
             <div className="grid gap-6 xl:grid-cols-[1.4fr_1fr]">
@@ -180,7 +175,6 @@ export default function Home() {
                     <div className="rounded-[2rem] border border-white/10 bg-white/[0.04] p-6">
                         <SectionHeader
                             title="Recent listening"
-                            description="The latest tracks driving your library pipeline. Play downloaded tracks or inspect them for stats."
                         />
 
                         <div className="mt-5 space-y-3">
@@ -192,7 +186,6 @@ export default function Home() {
                                 <EmptyState
                                     icon={Disc3}
                                     title="No listening imported yet"
-                                    description="Run your first Last.fm sync and the newest scrobbles will appear here."
                                     action={
                                         <button
                                             type="button"
@@ -272,7 +265,7 @@ export default function Home() {
 
                 <div className="space-y-6">
                     <div className="rounded-[2rem] border border-white/10 bg-white/[0.04] p-6">
-                        <SectionHeader title="System health" description="What needs attention before the app can run smoothly." />
+                        <SectionHeader title="System health" />
                         <div className="mt-5 space-y-3">
                             {(checklist?.items || []).map((item) => (
                                 <div key={item.id} className="flex items-center justify-between rounded-3xl border border-white/10 bg-black/20 px-4 py-3">
@@ -289,7 +282,7 @@ export default function Home() {
                     </div>
 
                     <div className="rounded-[2rem] border border-white/10 bg-white/[0.04] p-6">
-                        <SectionHeader title="Now valuable" description="A quick snapshot of what Spotiflow can help with next." />
+                        <SectionHeader title="Overview" />
                         <div className="mt-5 grid gap-3">
                             <div className="rounded-3xl border border-white/10 bg-black/20 p-4">
                                 <div className="text-sm font-medium text-white">Library pipeline</div>
@@ -326,7 +319,6 @@ export default function Home() {
             <div className="rounded-[2rem] border border-white/10 bg-white/[0.04] p-6">
                 <SectionHeader
                     title="Sonic diary"
-                    description="A richer narrative layer for your listening patterns. This stays on the home page as a reflective complement to the operational view."
                 />
                 <div className="mt-6">
                     {username ? (
@@ -335,7 +327,6 @@ export default function Home() {
                         <EmptyState
                             icon={AlertTriangle}
                             title="Add your Last.fm account first"
-                            description="Sonic Diary depends on imported listening history."
                         />
                     )}
                 </div>
