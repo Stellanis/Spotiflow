@@ -108,6 +108,17 @@ from .repositories.intelligence import (
 )
 
 from .repositories.playback import (
+    create_playback_session,
+    get_playback_session,
+    get_active_playback_session,
+    update_playback_session,
+    finish_playback_session,
+    replace_queue_segment,
+    insert_queue_items,
+    remove_queue_item,
+    reorder_queue_items,
+    clear_upcoming_queue_items,
+    list_active_playback_sessions,
     create_radio_session,
     get_radio_session,
     update_radio_session,

@@ -7,6 +7,7 @@ import axios from 'axios';
 import { useSettings } from '../hooks/useSettings';
 import { TutorialModal } from '../TutorialModal';
 import { PlayerBar } from '../components/PlayerBar';
+import { PlaybackQueuePanel } from '../components/PlaybackQueuePanel';
 import { LyricsModal } from '../components/LyricsModal';
 import { CommandPalette } from '../components/CommandPalette';
 import { ArtistModal } from '../components/ArtistModal';
@@ -240,6 +241,7 @@ export default function Layout() {
             />
 
             <PlayerBar />
+            <PlaybackQueuePanel />
 
             <LyricsModal isOpen={showLyrics} onClose={() => setShowLyrics(false)} track={currentTrack} progress={progress} />
 

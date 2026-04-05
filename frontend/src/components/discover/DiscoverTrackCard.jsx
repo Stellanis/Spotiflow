@@ -22,6 +22,8 @@ export function DiscoverTrackCard({
     onPlay,
     onDismiss,
     onFeedback,
+    onPlayNext,
+    onAddToQueue,
     isCurrentlyPlaying = false,
 }) {
     const isQueued = status === 'loading' || status === 'success';
@@ -122,6 +124,24 @@ export function DiscoverTrackCard({
 
                     {onFeedback && (
                         <div className="mt-3 flex flex-wrap gap-1.5">
+                            {hasAudio ? (
+                                <>
+                                    <button
+                                        type="button"
+                                        onClick={(e) => { e.stopPropagation(); onPlayNext?.(track); }}
+                                        className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/[0.04] px-2 py-1 text-[11px] text-white/75 transition-colors hover:bg-white/[0.1]"
+                                    >
+                                        Play Next
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={(e) => { e.stopPropagation(); onAddToQueue?.(track); }}
+                                        className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/[0.04] px-2 py-1 text-[11px] text-white/75 transition-colors hover:bg-white/[0.1]"
+                                    >
+                                        Add to Queue
+                                    </button>
+                                </>
+                            ) : null}
                             <button
                                 type="button"
                                 onClick={(e) => { e.stopPropagation(); onFeedback(track, 'liked'); }}

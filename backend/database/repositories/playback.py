@@ -4,6 +4,9 @@ from datetime import datetime, timedelta, timezone
 from ..core import get_connection
 
 
+UNSET = object()
+
+
 def _now():
     return datetime.now(timezone.utc).isoformat()
 
@@ -18,7 +21,7 @@ def _parse_row(row):
     if not row:
         return None
     item = dict(row)
-    for field in ("resolver_payload", "seed_payload", "queue_payload"):
+    for field in ("resolver_payload", "seed_payload", "queue_payload", "suspended_queue_payload"):
         if field in item and item[field]:
             try:
                 item[field] = json.loads(item[field])
@@ -187,46 +190,116 @@ def list_recent_stream_sources(hours=24, limit=100):
         return [_parse_row(row) for row in c.fetchall()]
 
 
-def create_radio_session(username, seed_type, seed_payload, queue_payload, status="active"):
+def create_playback_session(
+    *,
+    username,
+    mode,
+    status="active",
+    seed_type=None,
+    seed_payload=None,
+    current_index=0,
+    queue_payload=None,
+    suspended_queue_payload=None,
+    suspended_mode=None,
+    started_at=None,
+    finished_at=None,
+):
     now = _now()
+    started_at = started_at or now
     with get_connection() as conn:
         c = conn.cursor()
         c.execute(
             """
-            INSERT INTO radio_sessions (
-                username, seed_type, seed_payload, current_index, queue_payload, status, started_at, updated_at
+            INSERT INTO playback_sessions (
+                username, mode, status, seed_type, seed_payload, current_index, queue_payload,
+                suspended_queue_payload, suspended_mode, started_at, updated_at, finished_at
             )
-            VALUES (?, ?, ?, 0, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
-            (username, seed_type, _json_dump(seed_payload), _json_dump(queue_payload), status, now, now),
+            (
+                username,
+                mode,
+                status,
+                seed_type,
+                _json_dump(seed_payload),
+                current_index,
+                _json_dump(queue_payload or []),
+                _json_dump(suspended_queue_payload),
+                suspended_mode,
+                started_at,
+                now,
+                finished_at,
+            ),
         )
         session_id = c.lastrowid
-        c.execute("SELECT * FROM radio_sessions WHERE id = ?", (session_id,))
+        c.execute("SELECT * FROM playback_sessions WHERE id = ?", (session_id,))
         row = c.fetchone()
         conn.commit()
     return _parse_row(row)
 
 
-def get_radio_session(session_id):
+def get_playback_session(session_id):
     with get_connection() as conn:
         c = conn.cursor()
-        c.execute("SELECT * FROM radio_sessions WHERE id = ?", (session_id,))
+        c.execute("SELECT * FROM playback_sessions WHERE id = ?", (session_id,))
         return _parse_row(c.fetchone())
 
 
-def update_radio_session(session_id, *, current_index=None, queue_payload=None, status=None, finished_at=None):
+def get_active_playback_session(username):
+    with get_connection() as conn:
+        c = conn.cursor()
+        c.execute(
+            """
+            SELECT * FROM playback_sessions
+            WHERE username = ? AND status IN ('active', 'paused')
+            ORDER BY updated_at DESC
+            LIMIT 1
+            """,
+            (username,),
+        )
+        return _parse_row(c.fetchone())
+
+
+def update_playback_session(
+    session_id,
+    *,
+    mode=UNSET,
+    status=UNSET,
+    seed_type=UNSET,
+    seed_payload=UNSET,
+    current_index=UNSET,
+    queue_payload=UNSET,
+    suspended_queue_payload=UNSET,
+    suspended_mode=UNSET,
+    finished_at=UNSET,
+):
     updates = []
     params = []
-    if current_index is not None:
-        updates.append("current_index = ?")
-        params.append(current_index)
-    if queue_payload is not None:
-        updates.append("queue_payload = ?")
-        params.append(_json_dump(queue_payload))
-    if status is not None:
+    if mode is not UNSET:
+        updates.append("mode = ?")
+        params.append(mode)
+    if status is not UNSET:
         updates.append("status = ?")
         params.append(status)
-    if finished_at is not None:
+    if seed_type is not UNSET:
+        updates.append("seed_type = ?")
+        params.append(seed_type)
+    if seed_payload is not UNSET:
+        updates.append("seed_payload = ?")
+        params.append(_json_dump(seed_payload))
+    if current_index is not UNSET:
+        updates.append("current_index = ?")
+        params.append(current_index)
+    if queue_payload is not UNSET:
+        updates.append("queue_payload = ?")
+        params.append(_json_dump(queue_payload))
+    if suspended_queue_payload is not UNSET:
+        updates.append("suspended_queue_payload = ?")
+        params.append(_json_dump(suspended_queue_payload))
+    if suspended_mode is not UNSET:
+        updates.append("suspended_mode = ?")
+        params.append(suspended_mode)
+    if finished_at is not UNSET:
         updates.append("finished_at = ?")
         params.append(finished_at)
     updates.append("updated_at = ?")
@@ -234,21 +307,118 @@ def update_radio_session(session_id, *, current_index=None, queue_payload=None, 
     params.append(session_id)
     with get_connection() as conn:
         c = conn.cursor()
-        c.execute(f"UPDATE radio_sessions SET {', '.join(updates)} WHERE id = ?", params)
-        c.execute("SELECT * FROM radio_sessions WHERE id = ?", (session_id,))
+        c.execute(f"UPDATE playback_sessions SET {', '.join(updates)} WHERE id = ?", params)
+        c.execute("SELECT * FROM playback_sessions WHERE id = ?", (session_id,))
         row = c.fetchone()
         conn.commit()
     return _parse_row(row)
 
 
-def list_active_radio_sessions(limit=50):
+def finish_playback_session(session_id, finished_at=None):
+    return update_playback_session(session_id, status="finished", finished_at=finished_at or _now())
+
+
+def replace_queue_segment(
+    session_id,
+    *,
+    queue_payload,
+    current_index=None,
+    suspended_queue_payload=None,
+    suspended_mode=None,
+):
+    return update_playback_session(
+        session_id,
+        queue_payload=queue_payload,
+        current_index=current_index,
+        suspended_queue_payload=suspended_queue_payload,
+        suspended_mode=suspended_mode,
+    )
+
+
+def insert_queue_items(session_id, index, items):
+    session = get_playback_session(session_id)
+    if not session:
+        return None
+    queue = list(session.get("queue_payload") or [])
+    queue[index:index] = items
+    return update_playback_session(session_id, queue_payload=queue)
+
+
+def remove_queue_item(session_id, track_key):
+    session = get_playback_session(session_id)
+    if not session:
+        return None
+    queue = list(session.get("queue_payload") or [])
+    filtered = [item for item in queue if item.get("track_key") != track_key]
+    if len(filtered) == len(queue):
+        return session
+    current_index = min(session.get("current_index", 0), max(len(filtered) - 1, 0))
+    return update_playback_session(session_id, queue_payload=filtered, current_index=current_index)
+
+
+def reorder_queue_items(session_id, ordered_track_keys):
+    session = get_playback_session(session_id)
+    if not session:
+        return None
+    queue = list(session.get("queue_payload") or [])
+    current_index = session.get("current_index", 0)
+    current_item = queue[: current_index + 1]
+    upcoming = queue[current_index + 1 :]
+    upcoming_by_key = {item.get("track_key"): item for item in upcoming}
+    reordered = [upcoming_by_key[key] for key in ordered_track_keys]
+    return update_playback_session(session_id, queue_payload=current_item + reordered)
+
+
+def clear_upcoming_queue_items(session_id):
+    session = get_playback_session(session_id)
+    if not session:
+        return None
+    queue = list(session.get("queue_payload") or [])
+    current_index = session.get("current_index", 0)
+    return update_playback_session(session_id, queue_payload=queue[: current_index + 1])
+
+
+def list_active_playback_sessions(limit=50):
     with get_connection() as conn:
         c = conn.cursor()
         c.execute(
-            "SELECT * FROM radio_sessions WHERE status = 'active' ORDER BY updated_at DESC LIMIT ?",
+            "SELECT * FROM playback_sessions WHERE status IN ('active', 'paused') ORDER BY updated_at DESC LIMIT ?",
             (limit,),
         )
         return [_parse_row(row) for row in c.fetchall()]
+
+
+def create_radio_session(username, seed_type, seed_payload, queue_payload, status="active"):
+    return create_playback_session(
+        username=username,
+        mode="radio",
+        status=status,
+        seed_type=seed_type,
+        seed_payload=seed_payload,
+        current_index=0,
+        queue_payload=queue_payload,
+    )
+
+
+def get_radio_session(session_id):
+    session = get_playback_session(session_id)
+    if session and session.get("mode") == "radio":
+        return session
+    return session
+
+
+def update_radio_session(session_id, *, current_index=None, queue_payload=None, status=None, finished_at=None):
+    return update_playback_session(
+        session_id,
+        current_index=current_index,
+        queue_payload=queue_payload,
+        status=status,
+        finished_at=finished_at,
+    )
+
+
+def list_active_radio_sessions(limit=50):
+    return [session for session in list_active_playback_sessions(limit=limit) if session.get("mode") == "radio"]
 
 
 def get_streaming_dashboard_stats(hours=24):
@@ -256,7 +426,7 @@ def get_streaming_dashboard_stats(hours=24):
     with get_connection() as conn:
         c = conn.cursor()
 
-        c.execute("SELECT COUNT(*) FROM radio_sessions WHERE status = 'active'")
+        c.execute("SELECT COUNT(*) FROM playback_sessions WHERE mode = 'radio' AND status IN ('active', 'paused')")
         active_radio_sessions = c.fetchone()[0]
 
         c.execute(

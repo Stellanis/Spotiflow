@@ -1,4 +1,4 @@
-import { Play, Pause, SkipBack, SkipForward, Volume2, Loader2, Maximize2, Mic2, Radio } from 'lucide-react';
+import { Play, Pause, SkipBack, SkipForward, Volume2, Loader2, Maximize2, Mic2, Radio, ListMusic } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { usePlayer } from '../contexts/PlayerContext';
 import { cn } from '../utils';
@@ -32,8 +32,12 @@ export function PlayerBar() {
         sourceName,
         streamStatus,
         queueMode,
+        queueSummary,
         buffering,
         isPromoted,
+        hasSuspendedRadio,
+        showQueuePanel,
+        setShowQueuePanel,
     } = usePlayer();
     const navigate = useNavigate();
 
@@ -103,6 +107,11 @@ export function PlayerBar() {
                             <span className="inline-flex items-center gap-1 rounded-full bg-spotify-green/20 px-2 py-0.5 text-[10px] font-medium text-spotify-green">
                                 <Radio className="h-3 w-3" />
                                 Radio
+                            </span>
+                        )}
+                        {hasSuspendedRadio && (
+                            <span className="rounded-full bg-sky-500/20 px-2 py-0.5 text-[10px] font-medium text-sky-300">
+                                Manual override
                             </span>
                         )}
                         {buffering && (
@@ -194,6 +203,17 @@ export function PlayerBar() {
                         {sourceName}
                     </span>
                 )}
+
+                <button
+                    onClick={() => setShowQueuePanel(!showQueuePanel)}
+                    className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs transition-colors ${
+                        showQueuePanel ? 'border-spotify-green/40 bg-spotify-green/10 text-spotify-green' : 'border-white/10 bg-white/[0.04] text-white/80 hover:bg-white/[0.08]'
+                    }`}
+                    title="Queue"
+                >
+                    <ListMusic className="h-4 w-4" />
+                    <span>{queueSummary?.remaining ?? 0}</span>
+                </button>
 
                 <div className="h-8 w-px bg-white/10 mx-1 md:mx-2" />
 
