@@ -114,10 +114,10 @@ export function PlaybackQueuePanel() {
                         animate={{ x: 0 }}
                         exit={{ x: 380 }}
                         transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-                        className="absolute right-0 top-0 h-full w-full max-w-md border-l border-white/10 bg-[#0c0c0d] p-5"
+                        className="absolute right-0 top-0 flex h-full w-full max-w-lg flex-col border-l border-white/10 bg-[#0c0c0d] p-5"
                         onClick={(event) => event.stopPropagation()}
                     >
-                        <div className="flex items-center justify-between">
+                        <div className="flex items-center justify-between shrink-0">
                             <div>
                                 <div className="flex items-center gap-2 text-white">
                                     <ListMusic className="h-5 w-5 text-spotify-green" />
@@ -132,15 +132,15 @@ export function PlaybackQueuePanel() {
                             </button>
                         </div>
 
-                        <div className="mt-5 space-y-3">
+                        <div className="mt-5 flex min-h-0 flex-1 flex-col space-y-3">
                             {currentTrack ? (
-                                <div>
+                                <div className="shrink-0">
                                     <div className="mb-2 text-xs uppercase tracking-[0.2em] text-spotify-grey">Now Playing</div>
                                     <QueueRow item={currentTrack} isCurrent onRemove={() => {}} />
                                 </div>
                             ) : null}
 
-                            <div className="flex items-center justify-between">
+                            <div className="flex items-center justify-between shrink-0">
                                 <div className="text-xs uppercase tracking-[0.2em] text-spotify-grey">Up Next</div>
                                 <div className="flex items-center gap-2">
                                     {hasSuspendedRadio ? (
@@ -162,7 +162,7 @@ export function PlaybackQueuePanel() {
                                 </div>
                             </div>
 
-                            <div className="max-h-[calc(100vh-260px)] space-y-2 overflow-y-auto pr-1">
+                            <div className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
                                 {displayedUpcoming.length === 0 ? (
                                     <div className="rounded-2xl border border-dashed border-white/10 px-4 py-8 text-center text-sm text-spotify-grey">
                                         No upcoming tracks queued.
