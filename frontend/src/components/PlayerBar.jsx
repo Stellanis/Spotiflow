@@ -55,15 +55,15 @@ export function PlayerBar() {
     // Collapsed Status Bar (Only Downloads)
     if (!currentTrack) {
         return (
-            <div className="pointer-events-none fixed inset-x-0 bottom-0 z-50">
+            <div className="pointer-events-none fixed inset-x-0 bottom-3 z-50 md:bottom-4">
                 <div className="mx-auto w-full max-w-[1880px] px-3 md:px-5 lg:px-6">
                     <motion.div
                         initial={{ y: 100 }}
                         animate={{ y: 0 }}
                         exit={{ y: 100 }}
                         className={cn(
-                            "pointer-events-auto flex h-12 cursor-pointer items-center justify-center border-t border-white/10 px-4 text-white transition-colors lg:ml-[19.5rem]",
-                            isFirefox ? "bg-black/95 hover:bg-black" : "bg-black/60 backdrop-blur-xl hover:bg-black/70"
+                            "pointer-events-auto flex h-12 cursor-pointer items-center justify-center rounded-full border border-white/12 px-5 text-white shadow-[0_18px_45px_rgba(0,0,0,0.38)] ring-1 ring-white/6 transition-colors lg:ml-[19.5rem]",
+                            isFirefox ? "bg-black/95 hover:bg-black" : "bg-black/55 backdrop-blur-2xl hover:bg-black/65"
                         )}
                         onClick={() => navigate('/jobs')}
                     >
@@ -79,14 +79,14 @@ export function PlayerBar() {
 
     // Full Player Bar
     return (
-        <div className="pointer-events-none fixed inset-x-0 bottom-0 z-[9000]">
+        <div className="pointer-events-none fixed inset-x-0 bottom-3 z-[9000] md:bottom-4">
             <div className="mx-auto w-full max-w-[1880px] px-3 md:px-5 lg:px-6">
                 <motion.div
                     initial={{ y: 100 }}
                     animate={{ y: 0 }}
                     className={cn(
-                        "pointer-events-auto flex h-24 items-center justify-between border-t border-white/10 px-4 md:px-8 text-white lg:ml-[19.5rem]",
-                        isFirefox ? "bg-black/95" : "bg-black/40 backdrop-blur-xl"
+                        "pointer-events-auto flex min-h-24 items-center justify-between rounded-[2rem] border border-white/12 px-4 py-3 text-white shadow-[0_24px_60px_rgba(0,0,0,0.42)] ring-1 ring-white/6 md:px-8 lg:ml-[19.5rem]",
+                        isFirefox ? "bg-black/95" : "bg-black/45 backdrop-blur-2xl"
                     )}
                 >
                     {/* Track Info */}
