@@ -34,7 +34,7 @@ function normalizeStatus(tab) {
 
 export default function Library() {
     const { username } = useOutletContext();
-    const { playTrack, addToQueueNext, addToQueueEnd } = usePlayer();
+    const { resolveAndPlayTrack, addToQueueNext, addToQueueEnd } = usePlayer();
     const [searchParams, setSearchParams] = useSearchParams();
     const [tracks, setTracks] = useState([]);
     const [summary, setSummary] = useState(null);
@@ -238,11 +238,11 @@ export default function Library() {
                                             <>
                                                 <button
                                                     type="button"
-                                                    onClick={() => playTrack(track, sortedTracks)}
+                                                    onClick={() => resolveAndPlayTrack(track)}
                                                     className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-sm text-white transition-colors hover:bg-white/[0.08]"
                                                 >
                                                     <Play className="h-4 w-4" />
-                                                    Play now
+                                                    Start radio
                                                 </button>
                                                 <button
                                                     type="button"
