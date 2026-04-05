@@ -41,7 +41,7 @@ function SkeletonGrid({ count = 12 }) {
 // ─────────────────────────────────────────────
 // TrackGrid – also defined OUTSIDE. Props must carry all dependencies.
 // ─────────────────────────────────────────────
-function TrackGrid({ tracks, downloading, currentTrack, onDownload, onPlay, onDismiss, onFeedback }) {
+function TrackGrid({ tracks, downloading, currentTrack, onDownload, onPlay, onDismiss, onFeedback, onPlayNext, onAddToQueue }) {
     return (
         <div className="grid gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
             {tracks.map((track, i) => {
@@ -53,6 +53,8 @@ function TrackGrid({ tracks, downloading, currentTrack, onDownload, onPlay, onDi
                         status={downloading[query] || 'idle'}
                         onDownload={onDownload}
                         onPlay={(track.audio_url || track.is_streamable) ? onPlay : undefined}
+                        onPlayNext={(track.audio_url || track.is_streamable) ? onPlayNext : undefined}
+                        onAddToQueue={(track.audio_url || track.is_streamable) ? onAddToQueue : undefined}
                         onDismiss={onDismiss}
                         onFeedback={onFeedback}
                         isCurrentlyPlaying={
@@ -83,7 +85,7 @@ function EmptyState({ icon: Icon, message }) {
 // ─────────────────────────────────────────────
 export default function DiscoverPage() {
     const { username } = useOutletContext();
-    const { currentTrack, resolveAndPlayTrack, sendPlaybackEvent } = usePlayer();
+    const { currentTrack, resolveAndPlayTrack, sendPlaybackEvent, addToQueueNext, addToQueueEnd } = usePlayer();
 
     const [activeTab, setActiveTab] = useState('foryou');
 
@@ -386,6 +388,8 @@ export default function DiscoverPage() {
                                 onPlay={handlePlay}
                                 onDismiss={handleDismiss}
                                 onFeedback={handleFeedback}
+                                onPlayNext={addToQueueNext}
+                                onAddToQueue={addToQueueEnd}
                             />
                         )
                     )}
@@ -453,6 +457,8 @@ export default function DiscoverPage() {
                                                 onDownload={handleDownload}
                                                 onPlay={handlePlay}
                                                 onFeedback={handleFeedback}
+                                                onPlayNext={addToQueueNext}
+                                                onAddToQueue={addToQueueEnd}
                                             />
                                         )}
                                     </motion.div>

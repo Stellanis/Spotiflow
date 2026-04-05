@@ -29,7 +29,7 @@ import { CSS } from '@dnd-kit/utilities';
 
 // --- Sub-components for cleaner code ---
 
-function SortableSongRow({ song, index, playTrack, handleRemoveSong, selectedPlaylist }) {
+function SortableSongRow({ song, index, playTrack, addToQueueNext, addToQueueEnd, handleRemoveSong, selectedPlaylist }) {
     const {
         attributes,
         listeners,
@@ -94,6 +94,20 @@ function SortableSongRow({ song, index, playTrack, handleRemoveSong, selectedPla
                 </div>
             </div>
 
+            <button
+                onClick={(e) => { e.stopPropagation(); addToQueueNext(song); }}
+                className="hidden rounded-full border border-white/10 px-2 py-1 text-[11px] text-white/70 transition-colors hover:bg-white/[0.06] md:inline-flex"
+                title="Play next"
+            >
+                Next
+            </button>
+            <button
+                onClick={(e) => { e.stopPropagation(); addToQueueEnd(song); }}
+                className="hidden rounded-full border border-white/10 px-2 py-1 text-[11px] text-white/70 transition-colors hover:bg-white/[0.06] md:inline-flex"
+                title="Add to queue"
+            >
+                Queue
+            </button>
             <button
                 onClick={(e) => { e.stopPropagation(); handleRemoveSong(song.query); }}
                 className="p-2 text-spotify-grey hover:text-red-500 hover:bg-red-500/10 rounded-full transition-all opacity-100 md:opacity-0 md:group-hover:opacity-100 transform md:translate-x-2 md:group-hover:translate-x-0"
@@ -203,7 +217,7 @@ export function Playlists({ onPlayPlaylist }) {
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
     const [creatorMode, setCreatorMode] = useState('menu');
-    const { playTrack } = usePlayer();
+    const { playTrack, addToQueueNext, addToQueueEnd } = usePlayer();
 
     // DnD Sensors
     const sensors = useSensors(
@@ -573,6 +587,8 @@ export function Playlists({ onPlayPlaylist }) {
                                                             song={song}
                                                             index={index}
                                                             playTrack={playTrack}
+                                                            addToQueueNext={addToQueueNext}
+                                                            addToQueueEnd={addToQueueEnd}
                                                             handleRemoveSong={handleRemoveSong}
                                                             selectedPlaylist={selectedPlaylist}
                                                         />
@@ -593,6 +609,8 @@ export function Playlists({ onPlayPlaylist }) {
                                                                     song={song}
                                                                     index={index}
                                                                     playTrack={playTrack}
+                                                                    addToQueueNext={addToQueueNext}
+                                                                    addToQueueEnd={addToQueueEnd}
                                                                     handleRemoveSong={handleRemoveSong}
                                                                     selectedPlaylist={selectedPlaylist}
                                                                 />

@@ -40,7 +40,7 @@ function QuickAction({ to, label, description, icon: Icon, onClick }) {
 
 export default function Home() {
     const { username, handleSync, isSyncing, openSettings, autoDownload } = useOutletContext();
-    const { playTrack } = usePlayer();
+    const { playTrack, addToQueueNext, addToQueueEnd } = usePlayer();
     const { scrobbles, loadingScrobbles, fetchScrobbles } = useLibrary(username);
     const [summary, setSummary] = useState(null);
     const [checklist, setChecklist] = useState(null);
@@ -205,10 +205,8 @@ export default function Home() {
                                 />
                             ) : (
                                 scrobbles.slice(0, 8).map((track, index) => (
-                                    <button
+                                    <div
                                         key={`${track.timestamp || index}-${track.title}`}
-                                        type="button"
-                                        onClick={() => (track.downloaded ? playTrack(track) : setSelectedTrack(track))}
                                         className="flex w-full items-center justify-between gap-4 rounded-3xl border border-white/10 bg-black/20 px-4 py-3 text-left transition-colors hover:bg-white/[0.04]"
                                     >
                                         <div className="flex min-w-0 items-center gap-4">
@@ -227,10 +225,45 @@ export default function Home() {
                                                 {track.album ? <div className="truncate text-xs text-white/35">{track.album}</div> : null}
                                             </div>
                                         </div>
-                                        <StatusBadge status={track.downloaded ? 'completed' : 'warning'}>
-                                            {track.downloaded ? 'Ready' : 'Needs download'}
-                                        </StatusBadge>
-                                    </button>
+                                        <div className="flex items-center gap-2">
+                                            <StatusBadge status={track.downloaded ? 'completed' : 'warning'}>
+                                                {track.downloaded ? 'Ready' : 'Needs download'}
+                                            </StatusBadge>
+                                            {track.downloaded ? (
+                                                <>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => playTrack(track)}
+                                                        className="rounded-full border border-white/10 px-3 py-1.5 text-xs text-white hover:bg-white/[0.06]"
+                                                    >
+                                                        Play now
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => addToQueueNext(track)}
+                                                        className="rounded-full border border-white/10 px-3 py-1.5 text-xs text-white hover:bg-white/[0.06]"
+                                                    >
+                                                        Next
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => addToQueueEnd(track)}
+                                                        className="rounded-full border border-white/10 px-3 py-1.5 text-xs text-white hover:bg-white/[0.06]"
+                                                    >
+                                                        Queue
+                                                    </button>
+                                                </>
+                                            ) : (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setSelectedTrack(track)}
+                                                    className="rounded-full border border-white/10 px-3 py-1.5 text-xs text-white hover:bg-white/[0.06]"
+                                                >
+                                                    Inspect
+                                                </button>
+                                            )}
+                                        </div>
+                                    </div>
                                 ))
                             )}
                         </div>

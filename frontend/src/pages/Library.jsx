@@ -34,7 +34,7 @@ function normalizeStatus(tab) {
 
 export default function Library() {
     const { username } = useOutletContext();
-    const { playTrack } = usePlayer();
+    const { playTrack, addToQueueNext, addToQueueEnd } = usePlayer();
     const [searchParams, setSearchParams] = useSearchParams();
     const [tracks, setTracks] = useState([]);
     const [summary, setSummary] = useState(null);
@@ -259,14 +259,30 @@ export default function Library() {
                                     <div className="relative z-10 flex flex-wrap items-center gap-2 md:justify-end">
                                         <StatusBadge status={track.status || normalizeStatus(activeTab)} />
                                         {canPlay ? (
-                                            <button
-                                                type="button"
-                                                onClick={() => playTrack(track, sortedTracks)}
-                                                className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-sm text-white transition-colors hover:bg-white/[0.08]"
-                                            >
-                                                <Play className="h-4 w-4" />
-                                                Play
-                                            </button>
+                                            <>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => playTrack(track, sortedTracks)}
+                                                    className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-sm text-white transition-colors hover:bg-white/[0.08]"
+                                                >
+                                                    <Play className="h-4 w-4" />
+                                                    Play now
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => addToQueueNext(track)}
+                                                    className="rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-sm text-white transition-colors hover:bg-white/[0.08]"
+                                                >
+                                                    Play next
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => addToQueueEnd(track)}
+                                                    className="rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-sm text-white transition-colors hover:bg-white/[0.08]"
+                                                >
+                                                    Add to queue
+                                                </button>
+                                            </>
                                         ) : null}
                                         {activeTab === 'downloaded' ? (
                                             <>

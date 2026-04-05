@@ -418,7 +418,7 @@ def init_db():
             )
         ''')
 
-        # 14. Stream playback and radio session state
+        # 14. Stream playback and queue session state
         c.execute('''
             CREATE TABLE IF NOT EXISTS stream_sources (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -463,6 +463,26 @@ def init_db():
         c.execute('CREATE INDEX IF NOT EXISTS idx_radio_sessions_username_status ON radio_sessions(username, status, updated_at DESC)')
 
         c.execute('''
+            CREATE TABLE IF NOT EXISTS playback_sessions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                username TEXT NOT NULL,
+                mode TEXT NOT NULL,
+                status TEXT NOT NULL DEFAULT 'active',
+                seed_type TEXT,
+                seed_payload TEXT,
+                current_index INTEGER DEFAULT 0,
+                queue_payload TEXT,
+                suspended_queue_payload TEXT,
+                suspended_mode TEXT,
+                started_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                finished_at TEXT
+            )
+        ''')
+        c.execute('CREATE INDEX IF NOT EXISTS idx_playback_sessions_username_status ON playback_sessions(username, status, updated_at DESC)')
+        c.execute('CREATE INDEX IF NOT EXISTS idx_playback_sessions_mode_status ON playback_sessions(mode, status, updated_at DESC)')
+
+        c.execute('''
             CREATE TABLE IF NOT EXISTS playback_events (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 username TEXT NOT NULL,
@@ -476,7 +496,7 @@ def init_db():
                 source_name TEXT,
                 source_url TEXT,
                 created_at TEXT NOT NULL,
-                FOREIGN KEY(session_id) REFERENCES radio_sessions(id)
+                FOREIGN KEY(session_id) REFERENCES playback_sessions(id)
             )
         ''')
         c.execute('CREATE INDEX IF NOT EXISTS idx_playback_events_user_track ON playback_events(username, artist, title, created_at DESC)')

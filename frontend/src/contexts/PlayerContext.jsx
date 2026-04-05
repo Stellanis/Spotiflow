@@ -3,11 +3,21 @@ import axios from 'axios';
 import { toast } from 'react-hot-toast';
 
 const PlayerContext = createContext();
-const PLAYER_SESSION_STORAGE_KEY = 'spotiflow.player.session';
+const PLAYER_SESSION_STORAGE_KEY = 'spotiflow.player.sessionId';
 
-function mergeTrackWithPlayable(track, playable) {
+function normalizeTrack(track) {
+    if (!track) return null;
     return {
         ...track,
+        image: track.image || track.image_url || null,
+        image_url: track.image_url || track.image || null,
+    };
+}
+
+function mergeTrackWithPlayable(track, playable) {
+    const normalized = normalizeTrack(track);
+    return {
+        ...normalized,
         audio_url: playable.audio_url,
         playable,
         playbackType: playable.playback_type,
@@ -15,6 +25,20 @@ function mergeTrackWithPlayable(track, playable) {
         sourceUrl: playable.source_url,
         canPromote: playable.is_promotable,
         stream_source_id: playable.stream_source_id,
+    };
+}
+
+function buildRequestTrack(track) {
+    return {
+        artist: track.artist,
+        title: track.title,
+        album: track.album || null,
+        preview_url: track.preview_url || null,
+        image: track.image || track.image_url || null,
+        canonical_track_id: track.canonical_track_id || null,
+        seed_type: track.seed_type || null,
+        seed_context: track.seed_context || { recommended_because: track.recommended_because || track.reason || null },
+        track_key: track.track_key || null,
     };
 }
 
@@ -27,10 +51,13 @@ export function PlayerProvider({ children }) {
     const [isReady, setIsReady] = useState(false);
     const [queue, setQueue] = useState([]);
     const [queueIndex, setQueueIndex] = useState(-1);
+    const [queueSummary, setQueueSummary] = useState(null);
     const [activeDownloads, setActiveDownloads] = useState([]);
     const [showLyrics, setShowLyrics] = useState(false);
+    const [showQueuePanel, setShowQueuePanel] = useState(false);
     const [sessionId, setSessionId] = useState(null);
-    const [queueMode, setQueueMode] = useState('manual');
+    const [queueMode, setQueueMode] = useState(null);
+    const [sessionStatus, setSessionStatus] = useState(null);
     const [playbackType, setPlaybackType] = useState(null);
     const [sourceName, setSourceName] = useState(null);
     const [streamStatus, setStreamStatus] = useState('idle');
@@ -38,10 +65,138 @@ export function PlayerProvider({ children }) {
     const [buffering, setBuffering] = useState(false);
     const [canPromote, setCanPromote] = useState(false);
     const [isPromoted, setIsPromoted] = useState(false);
+    const [hasSuspendedRadio, setHasSuspendedRadio] = useState(false);
 
     const audioRef = useRef(new Audio());
     const wsRef = useRef(null);
     const hasRestoredSessionRef = useRef(false);
+
+    const syncSessionState = (payload) => {
+        const resolvedQueue = (payload.queue || []).map(normalizeTrack);
+        setSessionId(payload.session_id ?? payload.sessionId ?? null);
+        setQueueMode(payload.mode || payload.queue_mode || null);
+        setSessionStatus(payload.status || null);
+        setQueue(resolvedQueue);
+        setQueueIndex(payload.current_index ?? -1);
+        setQueueSummary(payload.queue_summary || null);
+        setHasSuspendedRadio(Boolean(payload.suspended_queue_summary?.total));
+    };
+
+    const loadPlayableTrack = async (track, playable, options = {}) => {
+        const audio = audioRef.current;
+        const resolvedTrack = mergeTrackWithPlayable(track, playable);
+        if (options.sessionPayload) {
+            syncSessionState(options.sessionPayload);
+        } else {
+            const nextQueue = options.queue || queue;
+            const nextIndex = typeof options.queueIndex === 'number'
+                ? options.queueIndex
+                : nextQueue.findIndex((item) => item.track_key === resolvedTrack.track_key);
+            if (options.queue) setQueue(nextQueue);
+            if (nextIndex >= 0) setQueueIndex(nextIndex);
+            if (options.sessionId !== undefined) setSessionId(options.sessionId);
+            if (options.queueMode) setQueueMode(options.queueMode);
+        }
+
+        setCurrentTrack(resolvedTrack);
+        setPlaybackType(playable.playback_type);
+        setSourceName(playable.source_name);
+        setCanPromote(Boolean(playable.is_promotable));
+        setIsPromoted(false);
+        setRetryCount(0);
+        setStreamStatus(
+            options.streamHealth?.status && options.streamHealth.status !== 'healthy'
+                ? options.streamHealth.status
+                : playable.playback_type === 'local'
+                    ? 'ready'
+                    : 'streaming'
+        );
+        setIsReady(false);
+        setProgress(0);
+
+        audio.src = playable.audio_url;
+        audio.load();
+
+        if (options.autoplay === false) {
+            setIsPlaying(false);
+            return resolvedTrack;
+        }
+
+        try {
+            await audio.play();
+            setIsPlaying(true);
+            if (options.sendStartEvent !== false) {
+                await sendPlaybackEvent('start', resolvedTrack);
+            }
+        } catch (error) {
+            setIsPlaying(false);
+            setStreamStatus('error');
+            console.error('Playback failed', error);
+            toast.error(`Playback failed for "${resolvedTrack.title}"`);
+        }
+        return resolvedTrack;
+    };
+
+    const loadSessionResponse = async (payload, options = {}) => {
+        syncSessionState(payload);
+        const track = normalizeTrack(payload.track);
+        if (!track) {
+            setCurrentTrack(null);
+            setPlaybackType(null);
+            setSourceName(null);
+            return null;
+        }
+        const playable = payload.playable || await axios.get('/api/playback/resolve', {
+            params: {
+                artist: track.artist,
+                title: track.title,
+                album: track.album || null,
+                preview_url: track.preview_url || null,
+            },
+        }).then((response) => response.data);
+        return loadPlayableTrack(track, playable, {
+            autoplay: options.autoplay,
+            sendStartEvent: options.sendStartEvent,
+            sessionPayload: payload,
+            streamHealth: payload.stream_health || null,
+        });
+    };
+
+    const refreshActiveSession = async (preferredSessionId = null, options = {}) => {
+        try {
+            let response;
+            try {
+                response = await axios.get('/api/playback/session/active');
+            } catch (error) {
+                if (!preferredSessionId) throw error;
+                response = await axios.get(`/api/playback/session/${preferredSessionId}`);
+            }
+            await loadSessionResponse(response.data, {
+                autoplay: options.autoplay ?? false,
+                sendStartEvent: false,
+            });
+            if (typeof window !== 'undefined' && response.data.session_id) {
+                window.localStorage.setItem(PLAYER_SESSION_STORAGE_KEY, String(response.data.session_id));
+            }
+            setStreamStatus('restored');
+            return response.data;
+        } catch (error) {
+            if (typeof window !== 'undefined') {
+                window.localStorage.removeItem(PLAYER_SESSION_STORAGE_KEY);
+            }
+            if (error?.response?.status === 404) {
+                setSessionId(null);
+                setQueue([]);
+                setQueueIndex(-1);
+                setQueueMode(null);
+                setQueueSummary(null);
+                setHasSuspendedRadio(false);
+            } else {
+                console.error('Failed to refresh active session', error);
+            }
+            return null;
+        }
+    };
 
     useEffect(() => {
         const connect = () => {
@@ -50,19 +205,18 @@ export function PlayerProvider({ children }) {
             const ws = new WebSocket(wsUrl);
             wsRef.current = ws;
 
-            ws.onmessage = (event) => {
+            ws.onmessage = async (event) => {
                 try {
                     const data = JSON.parse(event.data);
                     if (data.active_downloads) {
                         setActiveDownloads(data.active_downloads);
                     }
                     if (data.type === 'playback.session' && data.session_id && data.session_id === sessionId) {
+                        if (data.queue) {
+                            syncSessionState(data);
+                        }
                         if (data.stream_health?.status) {
-                            if (data.stream_health.status === 'healthy') {
-                                setStreamStatus('streaming');
-                            } else {
-                                setStreamStatus(data.stream_health.status);
-                            }
+                            setStreamStatus(data.stream_health.status === 'healthy' ? 'streaming' : data.stream_health.status);
                             if (data.stream_health.status === 'cooldown') {
                                 toast.error('Stream source is cooling down after repeated playback errors');
                             }
@@ -94,108 +248,6 @@ export function PlayerProvider({ children }) {
             if (wsRef.current) wsRef.current.close();
         };
     }, [sessionId]);
-
-    const loadPlayableTrack = async (track, playable, options = {}) => {
-        const audio = audioRef.current;
-        const resolvedTrack = mergeTrackWithPlayable(track, playable);
-        const nextQueue = options.queue || queue;
-        const nextIndex = typeof options.queueIndex === 'number'
-            ? options.queueIndex
-            : nextQueue.findIndex((item) => item.track_key === resolvedTrack.track_key);
-
-        if (options.queue) setQueue(options.queue);
-        if (nextIndex >= 0) setQueueIndex(nextIndex);
-        if (options.sessionId !== undefined) setSessionId(options.sessionId);
-        if (options.queueMode) setQueueMode(options.queueMode);
-
-        setCurrentTrack(resolvedTrack);
-        setPlaybackType(playable.playback_type);
-        setSourceName(playable.source_name);
-        setCanPromote(Boolean(playable.is_promotable));
-        setIsPromoted(false);
-        setRetryCount(0);
-        setStreamStatus(
-            options.streamHealth?.status && options.streamHealth.status !== 'healthy'
-                ? options.streamHealth.status
-                : playable.playback_type === 'local'
-                    ? 'ready'
-                    : 'streaming'
-        );
-        setIsReady(false);
-
-        audio.src = playable.audio_url;
-        audio.load();
-
-        if (options.autoplay === false) {
-            setIsPlaying(false);
-            return resolvedTrack;
-        }
-
-        try {
-            await audio.play();
-            setIsPlaying(true);
-            if (options.sendStartEvent !== false) {
-                await sendPlaybackEvent('start', resolvedTrack);
-            }
-        } catch (error) {
-            setIsPlaying(false);
-            setStreamStatus('error');
-            console.error('Playback failed', error);
-            toast.error(`Playback failed for "${resolvedTrack.title}"`);
-        }
-        return resolvedTrack;
-    };
-
-    const resolveAndPlayTrack = async (track) => {
-        const payload = {
-            artist: track.artist,
-            title: track.title,
-            album: track.album || null,
-            preview_url: track.preview_url || null,
-            image: track.image || track.image_url || null,
-            canonical_track_id: track.canonical_track_id || null,
-            seed_type: track.seed_type || 'recommendation',
-            seed_context: { recommended_because: track.recommended_because || track.reason || null },
-        };
-        const response = await axios.post('/api/playback/start', payload);
-        const resolvedQueue = response.data.queue || [response.data.track];
-        await loadPlayableTrack(response.data.track, response.data.playable, {
-            queue: resolvedQueue,
-            queueIndex: 0,
-            sessionId: response.data.session_id,
-            queueMode: response.data.queue_mode || 'radio',
-            streamHealth: response.data.stream_health || null,
-        });
-        return response.data;
-    };
-
-    const playTrack = async (track, newQueue = null) => {
-        if (track.audio_url && track.playable) {
-            await loadPlayableTrack(track, track.playable, {
-                queue: newQueue || queue,
-                queueMode: newQueue ? 'manual' : queueMode,
-            });
-            return;
-        }
-
-        if (track.audio_url && !track.is_streamable) {
-            await loadPlayableTrack(
-                track,
-                {
-                    audio_url: track.audio_url,
-                    playback_type: 'local',
-                    source_name: 'local_library',
-                    source_url: track.source_url || null,
-                    is_promotable: false,
-                    stream_source_id: null,
-                },
-                { queue: newQueue || queue, queueMode: newQueue ? 'manual' : queueMode }
-            );
-            return;
-        }
-
-        await resolveAndPlayTrack(track);
-    };
 
     useEffect(() => {
         if (typeof window === 'undefined') return;
@@ -290,42 +342,138 @@ export function PlayerProvider({ children }) {
         }
     };
 
-    const nextTrack = async () => {
-        if (queueMode === 'radio' && sessionId) {
-            try {
-                const response = await axios.post('/api/playback/next', {
-                    session_id: sessionId,
-                    current_track: currentTrack,
-                    reason: 'next',
-                });
-                const nextIdx = (response.data.queue || []).findIndex(
-                    (item) => item.track_key === response.data.track.track_key
-                );
-                await loadPlayableTrack(response.data.track, response.data.playable, {
-                    queue: response.data.queue || [],
-                    queueIndex: nextIdx >= 0 ? nextIdx : queueIndex + 1,
-                    sessionId,
-                    queueMode: 'radio',
-                    streamHealth: response.data.stream_health || null,
-                });
-                return;
-            } catch (error) {
-                console.error('Failed to fetch next radio track', error);
-            }
+    const startManualQueue = async (items, startIndex = 0) => {
+        const response = await axios.post('/api/playback/start', {
+            ...buildRequestTrack(items[startIndex]),
+            mode: 'manual',
+            queue_items: items.map(buildRequestTrack),
+            start_index: startIndex,
+            replace_active_session: true,
+        });
+        await loadSessionResponse(response.data);
+        return response.data;
+    };
+
+    const startRadioQueue = async (track) => {
+        const response = await axios.post('/api/playback/start', {
+            ...buildRequestTrack(track),
+            mode: 'radio',
+        });
+        await loadSessionResponse(response.data);
+        return response.data;
+    };
+
+    const resolveAndPlayTrack = async (track) => {
+        return startRadioQueue(track);
+    };
+
+    const playTrack = async (track, newQueue = null) => {
+        const normalizedTrack = normalizeTrack(track);
+        if (newQueue?.length) {
+            const items = newQueue.map(normalizeTrack);
+            const startIndex = Math.max(0, items.findIndex((item) => item.track_key === normalizedTrack.track_key || (item.artist === normalizedTrack.artist && item.title === normalizedTrack.title)));
+            await startManualQueue(items, startIndex);
+            return;
         }
 
-        if (queue.length > 0 && queueIndex < queue.length - 1) {
-            const next = queue[queueIndex + 1];
-            await playTrack(next, queue);
-            setQueueIndex(queueIndex + 1);
+        if (normalizedTrack.reason || normalizedTrack.recommended_because || normalizedTrack.seed_type === 'recommendation') {
+            await startRadioQueue(normalizedTrack);
+            return;
+        }
+
+        await startManualQueue([normalizedTrack], 0);
+    };
+
+    const playQueueNow = async (items, startIndex = 0) => {
+        const response = await axios.post('/api/playback/queue/play-now', {
+            items: items.map(buildRequestTrack),
+            start_index: startIndex,
+            session_id: sessionId,
+        });
+        await loadSessionResponse(response.data);
+        return response.data;
+    };
+
+    const addToQueueNext = async (track) => {
+        const response = await axios.post('/api/playback/queue/add', {
+            session_id: sessionId,
+            placement: 'next',
+            items: [buildRequestTrack(track)],
+        });
+        syncSessionState(response.data);
+        return response.data;
+    };
+
+    const addToQueueEnd = async (track) => {
+        const response = await axios.post('/api/playback/queue/add', {
+            session_id: sessionId,
+            placement: 'end',
+            items: [buildRequestTrack(track)],
+        });
+        syncSessionState(response.data);
+        return response.data;
+    };
+
+    const removeFromQueue = async (trackKey) => {
+        const response = await axios.post('/api/playback/queue/remove', {
+            session_id: sessionId,
+            track_key: trackKey,
+        });
+        syncSessionState(response.data);
+        return response.data;
+    };
+
+    const reorderQueue = async (orderedTrackKeys) => {
+        const response = await axios.post('/api/playback/queue/reorder', {
+            session_id: sessionId,
+            ordered_track_keys: orderedTrackKeys,
+        });
+        syncSessionState(response.data);
+        return response.data;
+    };
+
+    const clearUpcoming = async () => {
+        const response = await axios.post('/api/playback/queue/clear-upcoming', {
+            session_id: sessionId,
+        });
+        syncSessionState(response.data);
+        return response.data;
+    };
+
+    const restartRadio = async (track = currentTrack) => {
+        if (!track) return null;
+        const response = await axios.post('/api/playback/radio/restart', buildRequestTrack(track));
+        await loadSessionResponse(response.data);
+        return response.data;
+    };
+
+    const nextTrack = async () => {
+        if (!sessionId) return;
+        try {
+            const response = await axios.post('/api/playback/next', {
+                session_id: sessionId,
+                current_track: currentTrack,
+                reason: 'next',
+            });
+            await loadSessionResponse(response.data);
+        } catch (error) {
+            if (error?.response?.status === 404) {
+                setIsPlaying(false);
+                setStreamStatus('idle');
+            } else {
+                console.error('Failed to fetch next track', error);
+            }
         }
     };
 
     const prevTrack = async () => {
-        if (queue.length > 0 && queueIndex > 0) {
-            const previous = queue[queueIndex - 1];
-            await playTrack(previous, queue);
-            setQueueIndex(queueIndex - 1);
+        if (audioRef.current.currentTime > 5) {
+            audioRef.current.currentTime = 0;
+            setProgress(0);
+            return;
+        }
+        if (queueIndex > 0) {
+            await playQueueNow(queue, queueIndex - 1);
         }
     };
 
@@ -374,10 +522,17 @@ export function PlayerProvider({ children }) {
                         },
                     });
                     await loadPlayableTrack(currentTrack, response.data, {
-                        queue,
-                        queueIndex,
-                        sessionId,
-                        queueMode,
+                        autoplay: true,
+                        sendStartEvent: false,
+                        sessionPayload: {
+                            session_id: sessionId,
+                            mode: queueMode,
+                            status: sessionStatus,
+                            queue,
+                            current_index: queueIndex,
+                            queue_summary: queueSummary,
+                            suspended_queue_summary: hasSuspendedRadio ? { total: 1 } : null,
+                        },
                     });
                     return;
                 } catch (error) {
@@ -407,7 +562,7 @@ export function PlayerProvider({ children }) {
             audio.removeEventListener('playing', handlePlaying);
             audio.removeEventListener('error', handleError);
         };
-    }, [currentTrack, duration, nextTrack, playbackType, queue, queueIndex, queueMode, retryCount, sessionId, sourceName]);
+    }, [currentTrack, duration, retryCount, sessionId, playbackType, sourceName, queue, queueIndex, queueMode, sessionStatus, queueSummary, hasSuspendedRadio]);
 
     const togglePlay = async () => {
         if (!currentTrack) return;
@@ -447,11 +602,16 @@ export function PlayerProvider({ children }) {
             nextTrack,
             prevTrack,
             queue,
+            queueIndex,
+            queueSummary,
             showLyrics,
             toggleLyrics: () => setShowLyrics((prev) => !prev),
             setShowLyrics,
+            showQueuePanel,
+            setShowQueuePanel,
             sessionId,
             queueMode,
+            sessionStatus,
             playbackType,
             sourceName,
             streamStatus,
@@ -459,6 +619,15 @@ export function PlayerProvider({ children }) {
             buffering,
             canPromote,
             isPromoted,
+            hasSuspendedRadio,
+            addToQueueNext,
+            addToQueueEnd,
+            removeFromQueue,
+            reorderQueue,
+            clearUpcoming,
+            playQueueNow,
+            refreshActiveSession,
+            restartRadio,
             sendPlaybackEvent,
         }}>
             {children}
