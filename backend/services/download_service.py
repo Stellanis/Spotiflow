@@ -1,4 +1,5 @@
 from database import (
+    add_download,
     create_job,
     find_active_job,
     find_download_by_track,
