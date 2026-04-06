@@ -13,7 +13,11 @@ import database.core as database_core
 from database import (
     add_download,
     add_playback_event,
+    create_playback_session,
     create_radio_session,
+    finish_playback_session,
+    get_active_playback_session,
+    get_playback_session,
     get_radio_session,
     get_stream_source,
     get_stream_source_by_cache_key,
@@ -347,21 +351,18 @@ def test_radio_service_next_playable_track_skips_unresolvable(temp_db, monkeypat
             {"artist": "Good", "title": "Playable", "track_key": "good"},
         ],
     )
-    expired_cooldown_updated_at = (
-        datetime.now(timezone.utc) - timedelta(hours=stream_resolver.failed_source_cooldown_hours, minutes=5)
-    ).isoformat()
-    with get_connection() as conn:
-        c = conn.cursor()
-        c.execute("UPDATE stream_sources SET updated_at = ? WHERE id = ?", (expired_cooldown_updated_at, source["id"]))
-        conn.commit()
+    monkeypatch.setattr("services.radio_service.playable_source_service.resolve", lambda artist, title, album=None, preview_url=None: None if title == "Unplayable" else fake_playable(artist, title, album, preview_url))
+    monkeypatch.setattr(
+        "services.radio_service.recommendation_index_service.build_radio_candidates",
+        lambda seed_track, session_tracks, limit: [],
+    )
 
-    result = radio_service.verify_stream_sources()
-    updated_source = database.get_stream_source(source["id"])
-    health = stream_resolver.describe_source_health(updated_source)
+    updated_session, track, playable, skipped_tracks = radio_service.next_playable_track(session["id"])
 
-    assert result["updated"] == 1
-    assert updated_source["health_status"] == "degraded"
-    assert health["is_in_cooldown"] is False
+    assert updated_session["id"] == session["id"]
+    assert track["title"] == "Playable"
+    assert playable["audio_url"].endswith("Good-Playable.mp3")
+    assert [item["title"] for item in skipped_tracks] == ["Unplayable"]
 
 
 def test_restore_session_endpoint_returns_manual_payload(client, monkeypatch):
