@@ -121,7 +121,7 @@ export function LyricsModal({ isOpen, onClose, track, progress }) {
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: '100%' }}
                     transition={{ type: "spring", bounce: 0, duration: 0.5 }}
-                    className="fixed inset-0 bottom-24 z-40 flex flex-col overflow-hidden bg-black/80"
+                    className="fixed inset-x-3 top-3 bottom-28 z-[8500] flex flex-col overflow-hidden rounded-[2rem] border border-white/10 bg-black/80 shadow-[0_30px_80px_rgba(0,0,0,0.55)] md:inset-x-5 md:top-4 md:bottom-32 lg:left-[calc(19.5rem+1.5rem)] lg:right-6"
                 >
                     {/* Dynamic Background with Blended Blur */}
                     <div className="absolute inset-0 z-0">
@@ -140,7 +140,7 @@ export function LyricsModal({ isOpen, onClose, track, progress }) {
                         <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-black/50" />
                     </div>
 
-                    <div className="absolute top-6 right-8 z-50">
+                    <div className="absolute top-6 right-6 z-50 md:right-8">
                         <button
                             onClick={onClose}
                             className="p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors backdrop-blur-md border border-white/5"
@@ -149,9 +149,9 @@ export function LyricsModal({ isOpen, onClose, track, progress }) {
                         </button>
                     </div>
 
-                    <div className="flex-1 flex flex-col items-center justify-center p-8 overflow-hidden relative z-10">
-                        <div className="w-full max-w-2xl h-full flex flex-col items-center text-center">
-                            <div className="mb-8 flex flex-col items-center gap-4">
+                    <div className="relative z-10 flex min-h-0 flex-1 flex-col items-center overflow-hidden p-6 pt-20 md:p-8 md:pt-24">
+                        <div className="flex h-full min-h-0 w-full max-w-2xl flex-col items-center text-center">
+                            <div className="mb-6 flex shrink-0 flex-col items-center gap-4 md:mb-8">
                                 {(track.image || track.image_url) && (
                                     <motion.div
                                         initial={{ opacity: 0, scale: 0.8 }}
@@ -168,7 +168,7 @@ export function LyricsModal({ isOpen, onClose, track, progress }) {
                                 </div>
                             </div>
 
-                            <div ref={containerRef} className="flex-1 w-full overflow-y-auto no-scrollbar mask-gradient-y">
+                            <div ref={containerRef} className="min-h-0 flex-1 w-full overflow-y-auto px-2 no-scrollbar">
                                 {loading ? (
                                     <div className="h-full flex items-center justify-center">
                                         <Loader2 className="w-12 h-12 text-spotify-green animate-spin" />
@@ -179,7 +179,7 @@ export function LyricsModal({ isOpen, onClose, track, progress }) {
                                         <p className="text-xl">{error}</p>
                                     </div>
                                 ) : parsedLyrics.length > 0 ? (
-                                    <div className="space-y-8 py-[40vh]">
+                                    <div className="space-y-8 py-[30vh] md:py-[34vh]">
                                         {parsedLyrics.map((line, i) => (
                                             <p
                                                 key={i}
