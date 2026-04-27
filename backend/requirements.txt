@@ -1,6 +1,6 @@
 fastapi==0.136.1
 uvicorn[standard]==0.44.0
-yt-dlp>=2024.11.0
+yt-dlp>=2026.3.17
 pylast==7.0.2
 python-dotenv==1.2.2
 requests==2.33.1
